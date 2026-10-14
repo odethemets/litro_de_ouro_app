@@ -1,0 +1,14 @@
+# Ambiente Virtual
+venv/
+env/
+
+# Arquivos compilados do Python
+__pycache__/
+*.pyc
+
+# Variáveis de ambiente (Senhas e Chaves JWT)
+.env
+
+# Configurações de IDEs
+.vscode/
+.idea/
