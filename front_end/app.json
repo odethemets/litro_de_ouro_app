@@ -9,12 +9,14 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
+      
+      }
+
     },
+    
     "android": {
       "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSySuaChaveGeradaNoGoogleCloudAqui..."
-        }
+        
       },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -45,4 +47,4 @@
       "reactCompiler": true
     }
   }
-}
+

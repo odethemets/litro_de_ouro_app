@@ -12,7 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, UrlTile } from "react-native-maps";
+
 
 interface Posto {
   id: number;
@@ -108,7 +109,8 @@ export default function HomeScreen() {
           <MapView
             style={styles.map}
             userInterfaceStyle="light"
-            customMapStyle={[]}
+            // Apagámos a linha do provider aqui!
+            mapType="none"
             initialRegion={{
               latitude: location.coords.latitude,
               longitude: location.coords.longitude,
@@ -118,6 +120,14 @@ export default function HomeScreen() {
             showsUserLocation={true}
             showsMyLocationButton={true}
           >
+            {/* Camada de blocos de imagem 100% gratuita do OpenStreetMap */}
+            <UrlTile
+              urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maximumZ={19}
+              flipY={false}
+            />
+
+            {/* Os seus marcadores continuam exatamente iguais: */}
             {postos.map((posto) => (
               <Marker
                 key={posto.id}
