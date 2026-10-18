@@ -2,17 +2,18 @@ import { Ionicons } from "@expo/vector-icons";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Platform,
+  Linking,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { WebView } from "react-native-webview";
+import { getToken } from "../utils/token";
 
 interface Posto {
   id: number;
@@ -29,7 +30,9 @@ export default function HomeScreen() {
   const webViewRef = useRef<WebView>(null);
   const snapPoints = useMemo(() => ["25%", "40%"], []);
 
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [location, setLocation] = useState<Location.LocationObject | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [postos, setPostos] = useState<Posto[]>([]);
   const [postoSelecionado, setPostoSelecionado] = useState<Posto | null>(null);
@@ -41,7 +44,7 @@ export default function HomeScreen() {
       if (status !== "granted") {
         Alert.alert(
           "Permissão negada",
-          "O Litro de Ouro precisa da sua localização para mostrar postos próximos."
+          "O Litro de Ouro precisa da sua localização para mostrar postos próximos.",
         );
         setLoading(false);
         return;
@@ -92,6 +95,31 @@ export default function HomeScreen() {
     }
   };
 
+  // NAVEGAÇÃO INTELIGENTE DO PERFIL
+  const handleProfileClick = async () => {
+    try {
+      const token = await getToken();
+
+      if (token) {
+        router.push("/perfil");
+      } else {
+        router.push("/login");
+      }
+    } catch (e) {
+      router.push("/login");
+    }
+  };
+
+  // FUNÇÃO PARA TRAÇAR A ROTA NO GPS DO TELEMÓVEL (CORRIGIDA: AGORA ESTÁ SEPARADA E INDEPENDENTE)
+  const handleTracarRota = (posto: Posto) => {
+    // Esta URL Universal funciona perfeitamente em Web, Android (Google Maps) e iOS (Apple Maps/Google Maps)
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${posto.latitude},${posto.longitude}`;
+
+    Linking.openURL(url).catch(() => {
+      Alert.alert("Erro", "Não foi possível abrir o aplicativo de mapas.");
+    });
+  };
+
   // Gerador dinâmico da base do Mapa OpenStreetMap com Leaflet Embutido
   const generateMapHTML = () => {
     if (!location) return "";
@@ -105,7 +133,7 @@ export default function HomeScreen() {
           // Envia um sinal para o React Native avisando qual posto foi clicado
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: ${posto.id} }));
         });
-    `
+    `,
       )
       .join("\n");
 
@@ -175,9 +203,9 @@ export default function HomeScreen() {
       <TouchableOpacity
         style={styles.loginButton}
         activeOpacity={0.8}
-        onPress={() => router.push("/login")}
+        onPress={handleProfileClick}
       >
-        <Ionicons name="person-circle-outline" size={34} color="#333" />
+        <Ionicons name="person-circle" size={45} color="#d79b00" />
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -198,14 +226,21 @@ export default function HomeScreen() {
           {postoSelecionado ? (
             <>
               <Text style={styles.postoNome}>{postoSelecionado.nome}</Text>
-              <Text style={styles.distancia}>{postoSelecionado.distancia} de si</Text>
+              <Text style={styles.distancia}>
+                {postoSelecionado.distancia} de si
+              </Text>
               <View style={styles.precoCard}>
                 <Text style={styles.combustivelLabel}>Gasolina Comum</Text>
                 <Text style={styles.precoDestaque}>
-                  R$ {postoSelecionado.preco_gasolina.toFixed(2).replace(".", ",")}
+                  R${" "}
+                  {postoSelecionado.preco_gasolina.toFixed(2).replace(".", ",")}
                 </Text>
               </View>
-              <TouchableOpacity style={styles.btnRota}>
+              <TouchableOpacity
+                style={styles.btnRota}
+                activeOpacity={0.8}
+                onPress={() => handleTracarRota(postoSelecionado!)}
+              >
                 <Text style={styles.btnRotaText}>Traçar Rota</Text>
               </TouchableOpacity>
             </>
@@ -222,14 +257,58 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   map: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
-  loginButton: { position: "absolute", top: 50, right: 20, backgroundColor: "#FFF", width: 50, height: 50, borderRadius: 25, justifyContent: "center", alignItems: "center", elevation: 5, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3 },
-  fab: { position: "absolute", bottom: 40, right: 20, backgroundColor: "#d79b00", width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", elevation: 5, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3 },
+  loginButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    backgroundColor: "#FFF",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  },
+  fab: {
+    position: "absolute",
+    bottom: 40,
+    right: 20,
+    backgroundColor: "#d79b00",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  },
   sheetContainer: { flex: 1, padding: 20, alignItems: "center" },
   postoNome: { fontSize: 22, fontWeight: "bold", color: "#333" },
   distancia: { fontSize: 14, color: "#666", marginBottom: 15 },
-  precoCard: { backgroundColor: "#f5f5f5", padding: 15, borderRadius: 10, width: "100%", alignItems: "center", marginBottom: 15 },
+  precoCard: {
+    backgroundColor: "#f5f5f5",
+    padding: 15,
+    borderRadius: 10,
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 15,
+  },
   combustivelLabel: { fontSize: 16, color: "#555" },
   precoDestaque: { fontSize: 28, fontWeight: "bold", color: "#82b366" },
-  btnRota: { backgroundColor: "#333", paddingVertical: 12, paddingHorizontal: 40, borderRadius: 8, width: "100%", alignItems: "center" },
+  btnRota: {
+    backgroundColor: "#333",
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 8,
+    width: "100%",
+    alignItems: "center",
+  },
   btnRotaText: { color: "#FFF", fontSize: 16, fontWeight: "bold" },
 });

@@ -65,7 +65,7 @@ def registrar_preco(usuario_id_token):
             LIMITE_METROS = 200.0
             if distancia > LIMITE_METROS:
                 return jsonify({
-                    "error": "Você está muito longe deste posto para registar o preço.",
+                    "error": "Você está muito longe deste posto para registrar o preço.",
                     "distancia_atual_metros": round(distancia, 2),
                     "limite_permitido_metros": LIMITE_METROS
                 }), 403

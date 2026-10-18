@@ -1,14 +1,18 @@
 import { Stack } from "expo-router";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-export default function RootLayout() {
+export default function Layout() {
   return (
-    // O flex: 1 é obrigatório para que a tela ocupe todo o espaço
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack>
-        {/* Esconde o cabeçalho padrão na tela principal para o mapa ficar em ecrã inteiro */}
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-      </Stack>
-    </GestureHandlerRootView>
+    <Stack>
+      {/* 
+        A propriedade headerShown: false desliga aquela barra branca do sistema.
+        Isto permite que o NOSSO design bonito (que fizemos em cada tela) ocupe o espaço todo.
+      */}
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="registrar" options={{ headerShown: false }} />
+      <Stack.Screen name="recuperar-senha" options={{ headerShown: false }} />
+      <Stack.Screen name="perfil" options={{ headerShown: false }} />
+      <Stack.Screen name="registar-preco" options={{ headerShown: false }} />
+    </Stack>
   );
 }

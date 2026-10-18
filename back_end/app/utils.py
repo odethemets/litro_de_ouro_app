@@ -1,3 +1,4 @@
+# app/utils.py
 from flask import request, jsonify
 import jwt
 import os
@@ -17,10 +18,11 @@ def token_obrigatorio(f):
         
         try:
             dados_token = jwt.decode(token, os.getenv('SECRET_KEY'), algorithms=['HS256'])
-            usuario_id_token = dados_token['usuario_id']
+            # CORRIGIDO: Usa 'user_id' que é o que foi gerado na rota de Login
+            usuario_id_token = dados_token['user_id']
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "O Token expirou! Faça login novamente."}), 401
-        except jwt.InvalidTokenError:
+        except Exception as e: # Captura genérica de erros no token
             return jsonify({"error": "Token inválido ou corrompido!"}), 401
         
         return f(usuario_id_token, *args, **kwargs)
