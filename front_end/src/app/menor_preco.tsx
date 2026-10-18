@@ -3,11 +3,11 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 
 import {
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const DADOS_SIMULADOS = [

@@ -33,8 +33,8 @@ export default function LoginScreen() {
     try {
       const API_URL =
         Platform.OS === "web"
-          ? "http://127.0.0.1:5000"
-          : "http://192.168.1.11:5000";
+          ? "https://litro-de-ouro-app.onrender.com"
+          : "https://litro-de-ouro-app.onrender.com";
 
       const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
