@@ -1,42 +1,56 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { api } from "../services/API"; // A nossa ligação ao Render
 
-const DADOS_SIMULADOS = [
-  {
-    id: "1",
-    nome: "Posto Epitácio",
-    preco: 5.89,
-    distancia: "450m",
-    atualizado: "Há 10 min",
-  },
-  {
-    id: "2",
-    nome: "Posto Tambaú",
-    preco: 5.95,
-    distancia: "1.2km",
-    atualizado: "Há 1 hora",
-  },
-  {
-    id: "3",
-    nome: "Posto Bancários",
-    preco: 6.05,
-    distancia: "3.5km",
-    atualizado: "Há 2 horas",
-  },
-];
+// Adicione isto por baixo dos imports
+interface PostoPreco {
+  id: string | number;
+  nome: string;
+  preco: number;
+  distancia: string;
+}
 
 export default function MenorPrecoScreen() {
   const router = useRouter();
-  const [filtroAtivo, setFiltroAtivo] = useState("Gasolina");
+
+  // Nomes exatos conforme a sua base de dados exige
+  const [filtroAtivo, setFiltroAtivo] = useState("Gasolina Comum");
+
+  // Substituímos os DADOS_SIMULADOS por um estado que começa vazio
+  // Altere esta linha:
+  const [dadosReais, setDadosReais] = useState<PostoPreco[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Executa sempre que o ecrã abre e sempre que o utilizador muda o filtro
+  useEffect(() => {
+    buscarMenoresPrecos();
+  }, [filtroAtivo]);
+
+  const buscarMenoresPrecos = async () => {
+    setLoading(true);
+    try {
+      // Ajuste esta rota para o endpoint GET correto que criou no backend Flask
+      const response = await api.get(
+        `/postos/menores-precos?tipo_combustivel=${filtroAtivo}`,
+      );
+      setDadosReais(response.data);
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Erro", "Não foi possível carregar os preços atualizados.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -52,7 +66,7 @@ export default function MenorPrecoScreen() {
       </View>
 
       <View style={styles.filtrosContainer}>
-        {["Gasolina", "Etanol", "Diesel"].map((tipo) => (
+        {["Gasolina Comum", "Etanol", "Diesel"].map((tipo) => (
           <TouchableOpacity
             key={tipo}
             style={[
@@ -67,42 +81,57 @@ export default function MenorPrecoScreen() {
                 filtroAtivo === tipo && styles.filtroTextAtivo,
               ]}
             >
-              {tipo}
+              {tipo === "Gasolina Comum" ? "Gasolina" : tipo}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <FlatList
-        data={DADOS_SIMULADOS}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        renderItem={({ item, index }) => (
-          <View style={styles.card}>
-            <View style={styles.rankContainer}>
-              <Text style={styles.rankText}>{index + 1}º</Text>
+      {/* Se estiver a carregar a API, mostra a roda a girar. Se não, mostra a lista real */}
+      {loading ? (
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <ActivityIndicator size="large" color="#d79b00" />
+        </View>
+      ) : (
+        <FlatList
+          data={dadosReais}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.listContainer}
+          renderItem={({ item, index }) => (
+            <View style={styles.card}>
+              <View style={styles.rankContainer}>
+                <Text style={styles.rankText}>{index + 1}º</Text>
+              </View>
+              <View style={styles.infoContainer}>
+                <Text style={styles.nomePosto}>{item.nome}</Text>
+                <Text style={styles.distanciaText}>
+                  <Ionicons name="location-outline" size={14} />{" "}
+                  {item.distancia} • Atualizado recentemente
+                </Text>
+              </View>
+              <View style={styles.precoContainer}>
+                <Text style={styles.cifrao}>R$</Text>
+                <Text style={styles.precoValor}>
+                  {item.preco.toFixed(2).replace(".", ",")}
+                </Text>
+              </View>
             </View>
-            <View style={styles.infoContainer}>
-              <Text style={styles.nomePosto}>{item.nome}</Text>
-              <Text style={styles.distanciaText}>
-                <Ionicons name="location-outline" size={14} /> {item.distancia}{" "}
-                • {item.atualizado}
-              </Text>
-            </View>
-            <View style={styles.precoContainer}>
-              <Text style={styles.cifrao}>R$</Text>
-              <Text style={styles.precoValor}>
-                {item.preco.toFixed(2).replace(".", ",")}
-              </Text>
-            </View>
-          </View>
-        )}
-      />
+          )}
+          ListEmptyComponent={() => (
+            <Text style={{ textAlign: "center", marginTop: 20, color: "#888" }}>
+              Nenhum preço registado para este combustível ainda.
+            </Text>
+          )}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Mantenha os seus styles originais exatos aqui para baixo...
   container: { flex: 1, backgroundColor: "#f9f9f9" },
   header: {
     flexDirection: "row",

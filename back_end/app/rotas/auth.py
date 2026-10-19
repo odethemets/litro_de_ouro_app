@@ -26,11 +26,11 @@ def login():
     try:
         with conn.cursor() as cursor:
             # Vai buscar o hash da senha à base de dados
-            cursor.execute("SELECT id, senha_hash FROM usuarios WHERE email = %s", (email,))
+            cursor.execute("SELECT id, senha FROM usuarios WHERE email = %s", (email,))
             user = cursor.fetchone()
 
             # Compara a senha digitada com a criptografia scrypt guardada
-            if user and check_password_hash(user['senha_hash'], password):
+            if user and check_password_hash(user['senha'], password):
                 # Gera o Token JWT para manter o utilizador autenticado
                 token = jwt.encode({
                     'user_id': user['id'],
@@ -46,7 +46,7 @@ def login():
         conn.close()
 
 # ==========================================
-# ROTA 2: REGISTAR
+# ROTA 2: REGISTrAR
 # ==========================================
 @auth_bp.route('/registrar', methods=['POST'])
 def registrar():
@@ -59,7 +59,7 @@ def registrar():
         return jsonify({"message": "Por favor, preencha todos os campos."}), 400
 
     # Cria a criptografia militar idêntica à da base de dados
-    senha_hash = generate_password_hash(senha, method='scrypt')
+    senha = generate_password_hash(senha, method='scrypt')
 
     conn = get_db_connection()
     try:
@@ -70,9 +70,9 @@ def registrar():
                 return jsonify({"message": "Este email já está registado."}), 409
             
             # Insere o novo utilizador com o plano gratuito
-            sql = """INSERT INTO usuarios (nome, email, senha_hash, plano, criado_em) 
+            sql = """INSERT INTO usuarios (nome, email, senha, plano, criado_em) 
                      VALUES (%s, %s, %s, 'gratuito', NOW())"""
-            cursor.execute(sql, (nome, email, senha_hash))
+            cursor.execute(sql, (nome, email, senha))
         
         conn.commit() # Salva definitivamente no banco de dados
         return jsonify({"message": "Conta criada com sucesso!"}), 201

@@ -12,7 +12,7 @@ export default function Layout() {
       <Stack.Screen name="registrar" options={{ headerShown: false }} />
       <Stack.Screen name="recuperar-senha" options={{ headerShown: false }} />
       <Stack.Screen name="perfil" options={{ headerShown: false }} />
-      <Stack.Screen name="registar-preco" options={{ headerShown: false }} />
+      <Stack.Screen name="registrar-preco" options={{ headerShown: false }} />
     </Stack>
   );
 }

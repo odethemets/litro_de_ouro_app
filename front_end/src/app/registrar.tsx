@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 
-export default function RegistarScreen() {
+export default function RegistrarScreen() {
   const router = useRouter();
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");

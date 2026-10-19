@@ -79,7 +79,7 @@ export default function LoginScreen() {
         <View style={styles.logoContainer}>
           <Ionicons name="water" size={80} color="#d79b00" />
           <Text style={styles.title}>Litro de Ouro</Text>
-          <Text style={styles.subtitle}>Faça login para registar preços</Text>
+          <Text style={styles.subtitle}>Faça login para registrar preços</Text>
         </View>
 
         <View style={styles.form}>

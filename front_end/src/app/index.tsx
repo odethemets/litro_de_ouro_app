@@ -211,7 +211,7 @@ export default function HomeScreen() {
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.8}
-        onPress={() => router.push("/registar-preco")}
+        onPress={() => router.push("/registrar-preco")}
       >
         <Ionicons name="add" size={30} color="#FFF" />
       </TouchableOpacity>
