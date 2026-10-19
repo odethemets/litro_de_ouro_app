@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Linking,
   Platform,
   StyleSheet,
@@ -11,13 +10,14 @@ import {
   View,
 } from "react-native";
 import { api } from "../services/API";
+import { getToken } from "../utils/token";
 
-// Importações exclusivas para Web (React-Leaflet)
+// Importações Web
 import L from "leaflet";
-// ATENÇÃO: Removido o import direto do CSS para não quebrar o compilador Metro
+// @ts-ignore
+import "leaflet/dist/leaflet.css";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 
-// Configuração para corrigir o ícone padrão do mapa no navegador
 const customIcon = new L.Icon({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   iconRetinaUrl:
@@ -41,87 +41,101 @@ export interface Posto {
 
 export default function HomeScreenWeb() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [postos, setPostos] = useState<Posto[]>([]);
   const [postoSelecionado, setPostoSelecionado] = useState<Posto | null>(null);
 
-  // Coordenadas centrais da Web (João Pessoa - PB)
+  // Coordenadas João Pessoa
   const centerPos = { lat: -7.11532, lng: -34.86105 };
 
   useEffect(() => {
-    // INJEÇÃO SEGURA DE CSS: Resolve o erro do compilador Metro e previne loading infinito
+    // 1. Injeta CSS seguro para evitar que o Metro Bundler crash localmente
     if (typeof document !== "undefined") {
-      if (!document.getElementById("leaflet-css-injection")) {
+      const styleId = "leaflet-safe-style";
+      if (!document.getElementById(styleId)) {
         const style = document.createElement("style");
-        style.id = "leaflet-css-injection";
-        style.type = "text/css";
+        style.id = styleId;
         style.innerHTML = `@import url("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");`;
         document.head.appendChild(style);
       }
     }
 
-    // Busca os postos reais cadastrados na base de dados Aiven
-    carregarPostos();
+    // 2. Busca os dados de forma assíncrona, sem bloquear o mapa
+    const fetchPostos = async () => {
+      try {
+        const response = await api.get("/postos", { timeout: 15000 });
+        setPostos(response.data);
+      } catch (error) {
+        console.warn(
+          "Backend do Render pode estar a dormir ou indisponível:",
+          error,
+        );
+      }
+    };
+
+    fetchPostos();
   }, []);
 
-  const carregarPostos = async () => {
+  const handleProfileClick = async () => {
     try {
-      const response = await api.get("/postos", { timeout: 10000 });
-      setPostos(response.data);
-    } catch (error) {
-      console.warn("Falha ao carregar API. Exibindo mapa limpo.", error);
-    } finally {
-      // GARANTE que sai da tela de loading, mesmo se o backend falhar
-      setLoading(false);
+      const token = await getToken();
+      if (token) router.push("/perfil");
+      else router.push("/login");
+    } catch {
+      router.push("/login");
     }
   };
 
   const handleTracarRota = (posto: Posto) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${posto.latitude},${posto.longitude}`;
-    Linking.openURL(url);
+    Linking.openURL(
+      `https://www.google.com/maps/dir/?api=1&destination=${posto.latitude},${posto.longitude}`,
+    );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#d79b00" />
-        <Text style={{ marginTop: 10, color: "#666" }}>
-          A preparar o motor geográfico...
-        </Text>
-      </View>
-    );
+  // Se não estivermos na Web, retorna nulo para segurança extra do SSR
+  if (Platform.OS !== "web" || typeof window === "undefined") {
+    return null;
   }
 
   return (
     <View style={styles.container}>
-      {/* Condição de segurança contra SSR (Server-Side Rendering) da Vercel */}
-      {typeof window !== "undefined" && (
-        <MapContainer
-          center={[centerPos.lat, centerPos.lng]}
-          zoom={14}
-          style={{
-            height: "100%",
-            width: "100%",
-            position: "absolute",
-            zIndex: 0,
-          }}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          {postos.map((posto) => (
-            <Marker
-              key={posto.id}
-              position={[posto.latitude, posto.longitude]}
-              icon={customIcon}
-              eventHandlers={{ click: () => setPostoSelecionado(posto) }}
-            >
-              <Popup>{posto.nome}</Popup>
-            </Marker>
-          ))}
-        </MapContainer>
-      )}
+      {/* O Mapa carrega IMEDIATAMENTE, não espera pela API */}
+      <MapContainer
+        center={[centerPos.lat, centerPos.lng]}
+        zoom={14}
+        style={{
+          height: "100%",
+          width: "100%",
+          position: "absolute",
+          zIndex: 0,
+        }}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {postos.map((posto) => (
+          <Marker
+            key={posto.id}
+            position={[posto.latitude, posto.longitude]}
+            icon={customIcon}
+            eventHandlers={{ click: () => setPostoSelecionado(posto) }}
+          >
+            <Popup>{posto.nome}</Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+
+      {/* Botões */}
+      <TouchableOpacity style={styles.loginButton} onPress={handleProfileClick}>
+        <Ionicons name="person-circle" size={45} color="#d79b00" />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.push("/registrar-preco")}
+      >
+        <Ionicons name="add" size={30} color="#FFF" />
+      </TouchableOpacity>
 
       {/* Painel do Posto Selecionado */}
       {postoSelecionado && (
@@ -151,7 +165,6 @@ export default function HomeScreenWeb() {
 
           <TouchableOpacity
             style={styles.btnRota}
-            activeOpacity={0.8}
             onPress={() => handleTracarRota(postoSelecionado)}
           >
             <Text style={styles.btnRotaText}>Traçar Rota</Text>
@@ -166,14 +179,42 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#E5E3DF",
-    height: Platform.OS === "web" ? ("100vh" as any) : "100%",
+    height: "100vh" as any,
     width: "100%",
   },
-  loadingContainer: {
-    flex: 1,
+  loginButton: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    backgroundColor: "#FFF",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: "center",
     alignItems: "center",
-    height: Platform.OS === "web" ? ("100vh" as any) : "100%",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    zIndex: 10,
+  },
+  fab: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    backgroundColor: "#d79b00",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    zIndex: 10,
   },
   sheetContainer: {
     position: "absolute",
