@@ -11,10 +11,10 @@ import {
   View,
 } from "react-native";
 import { api } from "../services/API";
-import { getToken } from "../utils/token";
 
 // Importações exclusivas para Web (React-Leaflet)
 import L from "leaflet";
+// ATENÇÃO: Removido o import direto do CSS para não quebrar o compilador Metro
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 
 // Configuração para corrigir o ícone padrão do mapa no navegador
@@ -32,10 +32,7 @@ const customIcon = new L.Icon({
 export interface Posto {
   id: number;
   nome: string;
-  endereco?: string;
   bairro?: string;
-  cidade?: string;
-  uf?: string;
   latitude: number;
   longitude: number;
   preco_gasolina: number;
@@ -47,54 +44,35 @@ export default function HomeScreenWeb() {
   const [loading, setLoading] = useState(true);
   const [postos, setPostos] = useState<Posto[]>([]);
   const [postoSelecionado, setPostoSelecionado] = useState<Posto | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
 
   // Coordenadas centrais da Web (João Pessoa - PB)
   const centerPos = { lat: -7.11532, lng: -34.86105 };
 
   useEffect(() => {
-    setIsMounted(true); // Proteção para compilação SSR na Vercel
-
-    // 1. Injeta o CSS do Leaflet dinamicamente
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-    document.head.appendChild(link);
-
-    // 2. Busca os postos reais cadastrados
-    carregarPostos();
-
-    return () => {
-      if (document.head.contains(link)) {
-        document.head.removeChild(link);
+    // INJEÇÃO SEGURA DE CSS: Resolve o erro do compilador Metro e previne loading infinito
+    if (typeof document !== "undefined") {
+      if (!document.getElementById("leaflet-css-injection")) {
+        const style = document.createElement("style");
+        style.id = "leaflet-css-injection";
+        style.type = "text/css";
+        style.innerHTML = `@import url("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");`;
+        document.head.appendChild(style);
       }
-    };
+    }
+
+    // Busca os postos reais cadastrados na base de dados Aiven
+    carregarPostos();
   }, []);
 
   const carregarPostos = async () => {
-    setLoading(true);
     try {
-      // Usamos o parâmetro de timeout nativo (10 segundos)
       const response = await api.get("/postos", { timeout: 10000 });
       setPostos(response.data);
     } catch (error) {
-      console.warn("Aviso: O backend demorou a responder ou falhou.", error);
-      setPostos([]); // Liberta o mapa limpo
+      console.warn("Falha ao carregar API. Exibindo mapa limpo.", error);
     } finally {
+      // GARANTE que sai da tela de loading, mesmo se o backend falhar
       setLoading(false);
-    }
-  };
-
-  const handleProfileClick = async () => {
-    try {
-      const token = await getToken();
-      if (token) {
-        router.push("/perfil");
-      } else {
-        router.push("/login");
-      }
-    } catch (e) {
-      router.push("/login");
     }
   };
 
@@ -103,12 +81,12 @@ export default function HomeScreenWeb() {
     Linking.openURL(url);
   };
 
-  if (loading || !isMounted) {
+  if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#d79b00" />
         <Text style={{ marginTop: 10, color: "#666" }}>
-          A carregar os postos na Web...
+          A preparar o motor geográfico...
         </Text>
       </View>
     );
@@ -116,7 +94,7 @@ export default function HomeScreenWeb() {
 
   return (
     <View style={styles.container}>
-      {/* Verifica se estamos num ambiente seguro de janela (Navegador) */}
+      {/* Condição de segurança contra SSR (Server-Side Rendering) da Vercel */}
       {typeof window !== "undefined" && (
         <MapContainer
           center={[centerPos.lat, centerPos.lng]}
@@ -137,32 +115,13 @@ export default function HomeScreenWeb() {
               key={posto.id}
               position={[posto.latitude, posto.longitude]}
               icon={customIcon}
-              eventHandlers={{
-                click: () => setPostoSelecionado(posto),
-              }}
+              eventHandlers={{ click: () => setPostoSelecionado(posto) }}
             >
               <Popup>{posto.nome}</Popup>
             </Marker>
           ))}
         </MapContainer>
       )}
-
-      {/* Botões Superiores e Inferiores */}
-      <TouchableOpacity
-        style={styles.loginButton}
-        activeOpacity={0.8}
-        onPress={handleProfileClick}
-      >
-        <Ionicons name="person-circle" size={45} color="#d79b00" />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.fab}
-        activeOpacity={0.8}
-        onPress={() => router.push("/registrar-preco")}
-      >
-        <Ionicons name="add" size={30} color="#FFF" />
-      </TouchableOpacity>
 
       {/* Painel do Posto Selecionado */}
       {postoSelecionado && (
@@ -215,40 +174,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     height: Platform.OS === "web" ? ("100vh" as any) : "100%",
-  },
-  loginButton: {
-    position: "absolute",
-    top: 20,
-    right: 20,
-    backgroundColor: "#FFF",
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    zIndex: 10,
-  },
-  fab: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    backgroundColor: "#d79b00",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    zIndex: 10,
   },
   sheetContainer: {
     position: "absolute",
