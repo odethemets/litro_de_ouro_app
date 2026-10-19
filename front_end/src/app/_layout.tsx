@@ -1,18 +1,18 @@
 import { Stack } from "expo-router";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-export default function Layout() {
+export default function RootLayout() {
   return (
-    <Stack>
-      {/* 
-        A propriedade headerShown: false desliga aquela barra branca do sistema.
-        Isto permite que o NOSSO design bonito (que fizemos em cada tela) ocupe o espaço todo.
-      */}
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="login" options={{ headerShown: false }} />
-      <Stack.Screen name="registrar" options={{ headerShown: false }} />
-      <Stack.Screen name="recuperar-senha" options={{ headerShown: false }} />
-      <Stack.Screen name="perfil" options={{ headerShown: false }} />
-      <Stack.Screen name="registrar-preco" options={{ headerShown: false }} />
-    </Stack>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Stack>
+        {/* Esconde o cabeçalho padrão para você usar o seu próprio design */}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="registrar-preco"
+          options={{ title: "Registrar Preço" }}
+        />
+        <Stack.Screen name="menor_preco" options={{ title: "Menor Preço" }} />
+      </Stack>
+    </GestureHandlerRootView>
   );
 }

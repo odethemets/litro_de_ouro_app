@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { WebView } from "react-native-webview";
+import { api } from "../services/API";
 import { getToken } from "../utils/token";
 
 interface Posto {
@@ -39,7 +40,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     (async () => {
-      // Pedir permissão rigorosa de GPS
+      // 1. Pede a permissão do GPS
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(
@@ -50,34 +51,25 @@ export default function HomeScreen() {
         return;
       }
 
-      // Obter coordenada real
+      // 2. Obtém a sua coordenada real
       let currentLocation = await Location.getCurrentPositionAsync({});
       setLocation(currentLocation);
 
-      // Simular postos baseados na localização atual (Ligar depois ao Flask/MySQL)
-      setPostos([
-        {
-          id: 1,
-          nome: "Posto Epitácio",
-          latitude: currentLocation.coords.latitude + 0.002,
-          longitude: currentLocation.coords.longitude + 0.002,
-          preco_gasolina: 5.89,
-          distancia: "450m",
-        },
-        {
-          id: 2,
-          nome: "Posto Tambaú",
-          latitude: currentLocation.coords.latitude - 0.001,
-          longitude: currentLocation.coords.longitude - 0.003,
-          preco_gasolina: 5.95,
-          distancia: "120m",
-        },
-      ]);
+      // 3. VAI BUSCAR OS 4 POSTOS REAIS AO BACKEND
+      try {
+        // Faz o pedido GET à sua rota de postos no Flask
+        const response = await api.get("/postos");
 
-      setLoading(false);
+        // Guarda os postos reais que vieram da Aiven no estado do mapa
+        setPostos(response.data);
+      } catch (error) {
+        console.error("Erro ao carregar os postos da nuvem:", error);
+        Alert.alert("Erro", "Não foi possível carregar o mapa de postos.");
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
-
   // Ponte de comunicação rigorosa: Escuta os cliques vindos de dentro do HTML/Leaflet
   const handleWebViewMessage = (event: any) => {
     try {

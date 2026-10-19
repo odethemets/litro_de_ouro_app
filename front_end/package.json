@@ -6,6 +6,7 @@
     "@expo/ui": "~57.0.23",
     "@expo/vector-icons": "^15.0.2",
     "@gorhom/bottom-sheet": "^5.2.14",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "axios": "^1.20.0",
     "expo": "~57.0.28",
     "expo-constants": "~57.0.21",
