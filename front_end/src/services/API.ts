@@ -1,23 +1,17 @@
 import axios from "axios";
-
-// Agora o aplicativo aponta para o servidor de produção na nuvem!
-const API_URL = "https://litro-de-ouro-app.onrender.com";
+import { getToken } from "../utils/token";
 
 export const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: "https://litro-de-ouro-app.onrender.com",
 });
 
-// Interceptor para adicionar automaticamente o token JWT a todas as requisições futuras
+// Interceptor: Injeta automaticamente o token em todas as chamadas
 api.interceptors.request.use(
   async (config) => {
-    // Em breve, vamos buscar o token guardado no telemóvel aqui
-    // const token = await SecureStore.getItemAsync('jwt_token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    const token = await getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {

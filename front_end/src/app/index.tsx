@@ -1,30 +1,38 @@
-import { Ionicons } from "@expo/vector-icons";
-import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
-import * as Location from "expo-location";
-import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { WebView } from "react-native-webview";
-import { api } from "../services/API";
+
+import { Ionicons } from "@expo/vector-icons";
+import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import * as Location from "expo-location";
+import { useRouter } from "expo-router";
+
 import { getToken } from "../utils/token";
 
-interface Posto {
+// 1. Interface definida no escopo GLOBAL
+export interface Posto {
   id: number;
   nome: string;
+  endereco?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
   latitude: number;
   longitude: number;
   preco_gasolina: number;
-  distancia?: string;
+  distancia?: number;
 }
 
+// 2. Componente principal da aplicação
 export default function HomeScreen() {
   const router = useRouter();
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -38,39 +46,37 @@ export default function HomeScreen() {
   const [postos, setPostos] = useState<Posto[]>([]);
   const [postoSelecionado, setPostoSelecionado] = useState<Posto | null>(null);
 
+  // Escuta de cliques do mapa Leaflet (iframe) especificamente no navegador Web
   useEffect(() => {
-    (async () => {
-      // 1. Pede a permissão do GPS
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permissão negada",
-          "O Litro de Ouro precisa da sua localização para mostrar postos próximos.",
-        );
-        setLoading(false);
-        return;
-      }
-
-      // 2. Obtém a sua coordenada real
-      let currentLocation = await Location.getCurrentPositionAsync({});
-      setLocation(currentLocation);
-
-      // 3. VAI BUSCAR OS 4 POSTOS REAIS AO BACKEND
+    const handleWebMessage = (event: MessageEvent) => {
       try {
-        // Faz o pedido GET à sua rota de postos no Flask
-        const response = await api.get("/postos");
+        const data =
+          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
 
-        // Guarda os postos reais que vieram da Aiven no estado do mapa
-        setPostos(response.data);
-      } catch (error) {
-        console.error("Erro ao carregar os postos da nuvem:", error);
-        Alert.alert("Erro", "Não foi possível carregar o mapa de postos.");
-      } finally {
-        setLoading(false);
+        if (data && data.type === "MARKER_CLICKED") {
+          const posto = postos.find((p) => p.id === data.id);
+          if (posto) {
+            setPostoSelecionado(posto);
+            bottomSheetRef.current?.expand();
+          }
+        }
+      } catch (e) {
+        // Ignora mensagens de extensões ou outros scripts do navegador
       }
-    })();
-  }, []);
-  // Ponte de comunicação rigorosa: Escuta os cliques vindos de dentro do HTML/Leaflet
+    };
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.addEventListener("message", handleWebMessage);
+    }
+
+    return () => {
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.removeEventListener("message", handleWebMessage);
+      }
+    };
+  }, [postos]);
+
+  // Escuta os cliques dos marcadores vindos do HTML/Leaflet
   const handleWebViewMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
@@ -78,20 +84,18 @@ export default function HomeScreen() {
         const posto = postos.find((p) => p.id === data.id);
         if (posto) {
           setPostoSelecionado(posto);
-          // Expande a BottomSheet nativa ao clicar no mapa Web
           bottomSheetRef.current?.expand();
         }
       }
     } catch (error) {
-      console.warn("Erro ao interpretar comunicação da WebView:", error);
+      console.warn("Erro ao interpretar mensagem da WebView:", error);
     }
   };
 
-  // NAVEGAÇÃO INTELIGENTE DO PERFIL
+  // Navegação para a página de perfil ou login
   const handleProfileClick = async () => {
     try {
       const token = await getToken();
-
       if (token) {
         router.push("/perfil");
       } else {
@@ -102,9 +106,8 @@ export default function HomeScreen() {
     }
   };
 
-  // FUNÇÃO PARA TRAÇAR A ROTA NO GPS DO TELEMÓVEL (CORRIGIDA: AGORA ESTÁ SEPARADA E INDEPENDENTE)
+  // Traçar rota no Google Maps
   const handleTracarRota = (posto: Posto) => {
-    // Esta URL Universal funciona perfeitamente em Web, Android (Google Maps) e iOS (Apple Maps/Google Maps)
     const url = `https://www.google.com/maps/dir/?api=1&destination=${posto.latitude},${posto.longitude}`;
 
     Linking.openURL(url).catch(() => {
@@ -112,18 +115,22 @@ export default function HomeScreen() {
     });
   };
 
-  // Gerador dinâmico da base do Mapa OpenStreetMap com Leaflet Embutido
+  // Gerador dinâmico do HTML com Leaflet
   const generateMapHTML = () => {
-    if (!location) return "";
+    // Coordenadas padrão de João Pessoa se o GPS não estiver pronto
+    const userLat = location?.coords.latitude ?? -7.1153;
+    const userLng = location?.coords.longitude ?? -34.861;
 
-    // Injeta os marcadores com segurança
     const markersJS = postos
       .map(
         (posto) => `
       L.marker([${posto.latitude}, ${posto.longitude}]).addTo(map)
         .on('click', function() {
-          // Envia um sinal para o React Native avisando qual posto foi clicado
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: ${posto.id} }));
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: ${posto.id} }));
+          } else if (window.parent) {
+            window.parent.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: ${posto.id} }), '*');
+          }
         });
     `,
       )
@@ -139,28 +146,24 @@ export default function HomeScreen() {
         <style>
           body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: #f5f5f5; }
           #map { height: 100vh; width: 100vw; }
-          .leaflet-control-attribution { display: none; /* Remove assinatura por motivos estéticos */ }
+          .leaflet-control-attribution { display: none; }
         </style>
       </head>
       <body>
         <div id="map"></div>
         <script>
-          // Inicializa o mapa focado no utilizador
-          var map = L.map('map', { zoomControl: false }).setView([${location.coords.latitude}, ${location.coords.longitude}], 15);
+          var map = L.map('map', { zoomControl: false }).setView([${userLat}, ${userLng}], 14);
           
-          // Adiciona a camada limpa do OpenStreetMap
           L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-          // Cria um Ponto Azul rigoroso para representar o GPS do Utilizador
           var userIcon = L.divIcon({
             className: 'custom-user-icon',
             html: "<div style='background-color:#208AEF; width:18px; height:18px; border-radius:50%; border:3px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);'></div>",
             iconSize: [24, 24],
             iconAnchor: [12, 12]
           });
-          L.marker([${location.coords.latitude}, ${location.coords.longitude}], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
+          L.marker([${userLat}, ${userLng}], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
 
-          // Insere os postos do backend
           ${markersJS}
         </script>
       </body>
@@ -179,19 +182,17 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {location && (
-        <WebView
-          ref={webViewRef}
-          style={styles.map}
-          originWhitelist={["*"]}
-          source={{ html: generateMapHTML() }}
-          onMessage={handleWebViewMessage}
-          scrollEnabled={false}
-          bounces={false}
-        />
-      )}
+      <WebView
+        ref={webViewRef}
+        style={styles.map}
+        originWhitelist={["*"]}
+        source={{ html: generateMapHTML() }}
+        onMessage={handleWebViewMessage}
+        scrollEnabled={false}
+        bounces={false}
+      />
 
-      {/* Botões Superiores e Inferiores sobrepostos à WebView */}
+      {/* Botão de Perfil */}
       <TouchableOpacity
         style={styles.loginButton}
         activeOpacity={0.8}
@@ -200,6 +201,7 @@ export default function HomeScreen() {
         <Ionicons name="person-circle" size={45} color="#d79b00" />
       </TouchableOpacity>
 
+      {/* Botão Adicionar Preço */}
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.8}
@@ -208,9 +210,10 @@ export default function HomeScreen() {
         <Ionicons name="add" size={30} color="#FFF" />
       </TouchableOpacity>
 
+      {/* BottomSheet de Detalhes */}
       <BottomSheet
         ref={bottomSheetRef}
-        index={-1} // Escondido por predefinição até clicar num marcador
+        index={-1}
         snapPoints={snapPoints}
         enablePanDownToClose={true}
       >
@@ -219,13 +222,17 @@ export default function HomeScreen() {
             <>
               <Text style={styles.postoNome}>{postoSelecionado.nome}</Text>
               <Text style={styles.distancia}>
-                {postoSelecionado.distancia} de si
+                {postoSelecionado.distancia
+                  ? `${postoSelecionado.distancia} de si`
+                  : postoSelecionado.bairro || "João Pessoa"}
               </Text>
               <View style={styles.precoCard}>
                 <Text style={styles.combustivelLabel}>Gasolina Comum</Text>
                 <Text style={styles.precoDestaque}>
                   R${" "}
-                  {postoSelecionado.preco_gasolina.toFixed(2).replace(".", ",")}
+                  {Number(postoSelecionado?.preco_gasolina ?? 0)
+                    .toFixed(2)
+                    .replace(".", ",")}
                 </Text>
               </View>
               <TouchableOpacity
@@ -246,9 +253,27 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  map: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
+  container: {
+    flex: 1,
+    width: "100%",
+    height: Platform.OS === "web" ? ("100vh" as any) : "100%",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    height: Platform.OS === "web" ? ("100vh" as any) : "100%",
+  },
+  map: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    width: "100%",
+    height: "100%",
+    zIndex: 1,
+  },
   loginButton: {
     position: "absolute",
     top: 50,
@@ -264,6 +289,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3,
+    zIndex: 10,
   },
   fab: {
     position: "absolute",
@@ -280,8 +306,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3,
+    zIndex: 10,
   },
-  sheetContainer: { flex: 1, padding: 20, alignItems: "center" },
+  sheetContainer: {
+    flex: 1,
+    padding: 20,
+    alignItems: "center",
+    zIndex: 20,
+  },
   postoNome: { fontSize: 22, fontWeight: "bold", color: "#333" },
   distancia: { fontSize: 14, color: "#666", marginBottom: 15 },
   precoCard: {

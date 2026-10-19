@@ -1,11 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,219 +12,308 @@ import {
   View,
 } from "react-native";
 import { api } from "../services/API";
-import { getToken } from "../utils/token";
+
+interface Posto {
+  id: number;
+  nome: string;
+  bairro?: string;
+  endereco?: string;
+  latitude: number;
+  longitude: number;
+  preco_gasolina?: number;
+}
 
 export default function RegistrarPrecoScreen() {
   const router = useRouter();
-  const [preco, setPreco] = useState("");
-  const [tipoCombustivel, setTipoCombustivel] = useState("Gasolina Comum");
-  const [loading, setLoading] = useState(false);
 
-  const tipos = ["Gasolina Comum", "Etanol", "Diesel"];
+  const [postos, setPostos] = useState<Posto[]>([]);
+  const [postoSelecionado, setPostoSelecionado] = useState<Posto | null>(null);
+  const [precoGasolina, setPrecoGasolina] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmeterPreco = async () => {
-    if (!preco) {
-      Alert.alert("Erro", "Por favor, introduza um preço válido.");
-      return;
-    }
+  // 1. Carrega os postos cadastrados na Aiven
+  useEffect(() => {
+    carregarPostos();
+  }, []);
 
-    setLoading(true);
+  const carregarPostos = async () => {
     try {
-      // 1. Pede permissão e captura a localização exata
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permissão negada",
-          "Precisamos do GPS para validar o registo.",
-        );
-        setLoading(false);
-        return;
+      setLoading(true);
+      const response = await api.get("/postos");
+      setPostos(response.data);
+      if (response.data.length > 0) {
+        setPostoSelecionado(response.data[0]);
       }
-
-      // Tenta obter a última localização conhecida (rápido e não encrava)
-      let location = await Location.getLastKnownPositionAsync({});
-
-      // Se não tiver última localização, pede a atual mas com limite de tempo e menor precisão (para não bloquear)
-      if (!location) {
-        location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced, // Usa as torres de rede em vez de satélite puro
-        });
-      }
-
-      // 2. Corrige a vírgula para ponto e converte para decimal
-      const precoFormatado = parseFloat(preco.replace(",", "."));
-
-      // 3. Vai buscar o token de login guardado no telemóvel
-      // 3. Vai buscar o token usando a sua função oficial de segurança
-      const token = await getToken();
-
-      // 4. Chamada REAL à sua API Flask na Nuvem (AGORA COM O TOKEN!)
-      const response = await api.post(
-        "/precos",
-        {
-          posto_id: 1,
-          tipo_combustivel: tipoCombustivel,
-          preco: precoFormatado,
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        },
-        {
-          // Envia o crachá de segurança no cabeçalho
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      Alert.alert("Sucesso", response.data.message);
-      router.back();
-    } catch (error) {
-      // Usamos 'as any' para silenciar o erro rigoroso do TypeScript
-      const err = error as any;
-
-      const mensagemErro =
-        err.response?.data?.error || "Erro de ligação com o servidor.";
-      Alert.alert("Aviso do Sistema", mensagemErro);
+    } catch (error: any) {
+      console.error("Erro ao carregar postos:", error);
+      Alert.alert("Erro", "Não foi possível carregar a lista de postos.");
     } finally {
       setLoading(false);
     }
   };
 
+  // 2. Envia o novo preço
+  // 2. Envia o novo preço com as chaves exatas esperadas pelo backend
+  const handleSalvarPreco = async () => {
+    if (!postoSelecionado) {
+      Alert.alert("Atenção", "Por favor, selecione um posto.");
+      return;
+    }
+
+    if (!precoGasolina.trim()) {
+      Alert.alert("Atenção", "Informe o preço da gasolina.");
+      return;
+    }
+
+    const precoFormatado = parseFloat(precoGasolina.replace(",", "."));
+    if (isNaN(precoFormatado) || precoFormatado <= 0) {
+      Alert.alert("Atenção", "Informe um valor de preço válido.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // Payload ajustado para a rota POST /precos do Flask
+      const payload = {
+        posto_id: Number(postoSelecionado.id),
+        tipo_combustivel: "Gasolina Comum", // Nome exato exigido pela API
+        tipo: "Gasolina Comum",
+        preco: precoFormatado,
+        preco_gasolina: precoFormatado,
+        latitude: Number(postoSelecionado.latitude),
+        longitude: Number(postoSelecionado.longitude),
+      };
+
+      await api.post("/precos", payload);
+
+      Alert.alert("Sucesso!", "Preço registrado com sucesso!", [
+        {
+          text: "OK",
+          onPress: () => router.replace("/"),
+        },
+      ]);
+    } catch (error: any) {
+      console.error(
+        "Erro detalhado do servidor:",
+        error.response?.data || error,
+      );
+
+      const erroServidor = error.response?.data;
+      const mensagem =
+        typeof erroServidor === "object"
+          ? erroServidor.error ||
+            erroServidor.mensagem ||
+            erroServidor.detalhes ||
+            JSON.stringify(erroServidor)
+          : "Não foi possível salvar o preço. Verifique os dados.";
+
+      Alert.alert("Erro ao Salvar", mensagem);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={28} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Registrar Novo Preço</Text>
-        <View style={{ width: 28 }} />
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Botão de Voltar */}
+      <TouchableOpacity style={styles.btnVoltar} onPress={() => router.back()}>
+        <Ionicons name="arrow-back" size={24} color="#333" />
+        <Text style={styles.btnVoltarTexto}>Voltar</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.titulo}>Registrar Preço</Text>
+      <Text style={styles.subtitulo}>
+        Ajude a comunidade atualizando o valor do combustível.
+      </Text>
+
+      {/* Seletor de Postos */}
+      <Text style={styles.label}>1. Selecione o Posto:</Text>
+      <View style={styles.listaPostos}>
+        {postos.map((item) => {
+          const isSelected = postoSelecionado?.id === item.id;
+          return (
+            <TouchableOpacity
+              key={item.id}
+              style={[
+                styles.cardPosto,
+                isSelected && styles.cardPostoSelecionado,
+              ]}
+              activeOpacity={0.7}
+              onPress={() => setPostoSelecionado(item)}
+            >
+              <Ionicons
+                name={isSelected ? "checkmark-circle" : "location-outline"}
+                size={22}
+                color={isSelected ? "#d79b00" : "#666"}
+              />
+              <View style={styles.infoPosto}>
+                <Text
+                  style={[
+                    styles.nomePosto,
+                    isSelected && styles.nomePostoSelecionado,
+                  ]}
+                >
+                  {item.nome}
+                </Text>
+                <Text style={styles.enderecoPosto}>
+                  {item.bairro || item.endereco || "João Pessoa - PB"}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      <View style={styles.content}>
-        <Text style={styles.label}>Posto Selecionado</Text>
-        <View style={styles.postoCard}>
-          <Ionicons name="business" size={24} color="#d79b00" />
-          <Text style={styles.postoNome}>Posto Epitácio</Text>
-        </View>
-
-        <Text style={styles.label}>Tipo de Combustível</Text>
-        <View style={styles.tiposContainer}>
-          {tipos.map((tipo) => (
-            <TouchableOpacity
-              key={tipo}
-              style={[
-                styles.tipoBadge,
-                tipoCombustivel === tipo && styles.tipoBadgeAtivo,
-              ]}
-              onPress={() => setTipoCombustivel(tipo)}
-            >
-              <Text
-                style={[
-                  styles.tipoText,
-                  tipoCombustivel === tipo && styles.tipoTextAtivo,
-                ]}
-              >
-                {tipo}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={styles.label}>Preço Atualizado (R$)</Text>
+      {/* Input de Preço */}
+      <Text style={styles.label}>2. Preço da Gasolina Comum (R$):</Text>
+      <View style={styles.inputContainer}>
+        <Text style={styles.cifrao}>R$</Text>
         <TextInput
           style={styles.inputPreco}
+          placeholder="0,00"
           keyboardType="decimal-pad"
-          placeholder="Ex: 5,89"
-          value={preco}
-          onChangeText={setPreco}
-          maxLength={5}
+          value={precoGasolina}
+          onChangeText={setPrecoGasolina}
         />
-
-        <TouchableOpacity
-          style={[styles.btnSubmit, loading && { opacity: 0.7 }]}
-          onPress={handleSubmeterPreco}
-          disabled={loading}
-        >
-          <Text style={styles.btnSubmitText}>
-            {loading ? "A validar localização..." : "Publicar Preço"}
-          </Text>
-        </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+
+      {/* Botão de Submeter */}
+      <TouchableOpacity
+        style={styles.btnSalvar}
+        activeOpacity={0.8}
+        onPress={handleSalvarPreco}
+        disabled={submitting}
+      >
+        {submitting ? (
+          <ActivityIndicator color="#FFF" />
+        ) : (
+          <Text style={styles.btnSalvarTexto}>Confirmar e Salvar</Text>
+        )}
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFF" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  container: {
+    flex: 1,
+    backgroundColor: "#F8F9FA",
+  },
+  content: {
     padding: 20,
     paddingTop: 50,
-    backgroundColor: "#f9f9f9",
-    borderBottomWidth: 1,
-    borderColor: "#eee",
   },
-  backButton: { padding: 5 },
-  headerTitle: { fontSize: 18, fontWeight: "bold", color: "#333" },
-  content: { padding: 20 },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#555",
-    marginTop: 20,
-    marginBottom: 10,
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8F9FA",
   },
-  postoCard: {
+  loadingText: {
+    marginTop: 10,
+    color: "#666",
+    fontSize: 15,
+  },
+  btnVoltar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff2cc",
-    padding: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#d6b656",
+    marginBottom: 20,
   },
-  postoNome: {
-    fontSize: 18,
+  btnVoltarTexto: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: "#333",
+    fontWeight: "600",
+  },
+  titulo: {
+    fontSize: 26,
     fontWeight: "bold",
-    marginLeft: 10,
+    color: "#111",
+  },
+  subtitulo: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 25,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 10,
+  },
+  listaPostos: {
+    marginBottom: 25,
+  },
+  cardPosto: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+  },
+  cardPostoSelecionado: {
+    borderColor: "#d79b00",
+    backgroundColor: "#FFF9E6",
+  },
+  infoPosto: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  nomePosto: {
+    fontSize: 16,
+    fontWeight: "bold",
     color: "#333",
   },
-  tiposContainer: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  tipoBadge: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    backgroundColor: "#f5f5f5",
-    borderWidth: 1,
-    borderColor: "#ddd",
+  nomePostoSelecionado: {
+    color: "#d79b00",
   },
-  tipoBadgeAtivo: { backgroundColor: "#333", borderColor: "#333" },
-  tipoText: { color: "#666", fontWeight: "500" },
-  tipoTextAtivo: { color: "#FFF" },
-  inputPreco: {
-    fontSize: 40,
-    fontWeight: "bold",
-    color: "#82b366",
-    textAlign: "center",
-    borderBottomWidth: 2,
-    borderColor: "#ddd",
-    paddingVertical: 15,
+  enderecoPosto: {
+    fontSize: 13,
+    color: "#777",
+    marginTop: 2,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 15,
     marginBottom: 30,
   },
-  btnSubmit: {
+  cifrao: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333",
+    marginRight: 8,
+  },
+  inputPreco: {
+    flex: 1,
+    height: 50,
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  btnSalvar: {
     backgroundColor: "#d79b00",
     paddingVertical: 15,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: "center",
-    elevation: 2,
+    shadowColor: "#d79b00",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
   },
-  btnSubmitText: { color: "#FFF", fontSize: 18, fontWeight: "bold" },
+  btnSalvarTexto: {
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
 });
