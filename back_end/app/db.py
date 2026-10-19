@@ -1,24 +1,23 @@
+import os
 import pymysql
+import pymysql.cursors
+from dotenv import load_dotenv
+
+# Carrega o .env localmente, mas não bloqueia as variáveis do servidor
+load_dotenv()
 
 def get_db_connection():
+    # Vai buscar a senha. Se não encontrar, tenta ler do ambiente global do Render.
+    db_password = os.getenv('DB_PASSWORD') or os.environ.get('DB_PASSWORD')
+    db_host = os.getenv('DB_HOST') or os.environ.get('DB_HOST')
+
     return pymysql.connect(
-        # 1. O Host longo da Aiven
-        host='litro-de-ouro-api-2026-litro-de-ouro-app.d.aivencloud.com', 
-        
-        # 2. A porta da Aiven (NÃO é a 3306)
-        port=26841, 
-        
-        # 3. O Utilizador
-        user='avnadmin', 
-        
-        # 4. A Senha da Aiven
-        password='', 
-        
-        # 5. O Banco de Dados
-        database='defaultdb', 
-        
+        host=db_host,
+        port=26841,
+        user='avnadmin',
+        password=db_password, 
+        database='defaultdb',
         cursorclass=pymysql.cursors.DictCursor,
-        
-        # 6. A Aiven exige conexão segura (SSL). Adicione esta linha:
-        ssl={'ssl': {}} 
+        autocommit=False,
+        ssl={'ssl': {}}
     )
