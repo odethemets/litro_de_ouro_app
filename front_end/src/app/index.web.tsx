@@ -12,23 +12,6 @@ import {
 import { api } from "../services/API";
 import { getToken } from "../utils/token";
 
-// Importações Web
-import L from "leaflet";
-// @ts-ignore
-import "leaflet/dist/leaflet.css";
-import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
-
-const customIcon = new L.Icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
 export interface Posto {
   id: number;
   nome: string;
@@ -48,31 +31,39 @@ export default function HomeScreenWeb() {
   const centerPos = { lat: -7.11532, lng: -34.86105 };
 
   useEffect(() => {
-    // 1. Injeta CSS seguro para evitar que o Metro Bundler crash localmente
-    if (typeof document !== "undefined") {
-      const styleId = "leaflet-safe-style";
-      if (!document.getElementById(styleId)) {
-        const style = document.createElement("style");
-        style.id = styleId;
-        style.innerHTML = `@import url("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");`;
-        document.head.appendChild(style);
-      }
-    }
-
-    // 2. Busca os dados de forma assíncrona, sem bloquear o mapa
     const fetchPostos = async () => {
       try {
         const response = await api.get("/postos", { timeout: 15000 });
         setPostos(response.data);
       } catch (error) {
-        console.warn(
-          "Backend do Render pode estar a dormir ou indisponível:",
-          error,
-        );
+        console.warn("Aviso: Backend pode estar indisponível.", error);
       }
     };
 
     fetchPostos();
+
+    // Escutamos os cliques que vêm do iframe do Leaflet!
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        if (event.data && typeof event.data === "string") {
+          const parsed = JSON.parse(event.data);
+          if (parsed.type === "MARKER_CLICKED") {
+            setPostos((currentPostos) => {
+              const posto = currentPostos.find((p) => p.id === parsed.id);
+              if (posto) setPostoSelecionado(posto);
+              return currentPostos;
+            });
+          }
+        }
+      } catch (e) {
+        // ignora
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("message", handleMessage);
+      return () => window.removeEventListener("message", handleMessage);
+    }
   }, []);
 
   const handleProfileClick = async () => {
@@ -91,39 +82,70 @@ export default function HomeScreenWeb() {
     );
   };
 
-  // Se não estivermos na Web, retorna nulo para segurança extra do SSR
+  // Se não for Web ou estiver no Servidor (Vercel Build), não carrega nada que rebente o HTML
   if (Platform.OS !== "web" || typeof window === "undefined") {
     return null;
   }
 
+  // Criamos o HTML do Leaflet puro que será renderizado no iframe. Isto desvia-se completamente dos problemas do React-Leaflet
+  const mapHtml = `
+    <!DOCTYPE html>
+    <html lang="pt-PT">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <style>
+        body { padding: 0; margin: 0; height: 100vh; width: 100vw; background: #e5e3df; overflow: hidden; }
+        #map { height: 100%; width: 100%; }
+        .leaflet-control-attribution { display: none; }
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <script>
+        var map = L.map('map', { zoomControl: false }).setView([${centerPos.lat}, ${centerPos.lng}], 14);
+        
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+        var customIcon = L.icon({
+          iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowSize: [41, 41]
+        });
+
+        // Quando o React injetar os postos, o iframe avisa o site
+        var postos = ${JSON.stringify(postos)};
+        postos.forEach(function(posto) {
+          L.marker([posto.latitude, posto.longitude], { icon: customIcon }).addTo(map)
+            .bindPopup(posto.nome)
+            .on('click', function() {
+              window.parent.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: posto.id }), '*');
+            });
+        });
+      </script>
+    </body>
+    </html>
+  `;
+
   return (
     <View style={styles.container}>
-      {/* O Mapa carrega IMEDIATAMENTE, não espera pela API */}
-      <MapContainer
-        center={[centerPos.lat, centerPos.lng]}
-        zoom={14}
+      {/* Usamos o iframe nativo da web, sem bibliotecas pesadas de fora */}
+      <iframe
+        title="map"
         style={{
-          height: "100%",
           width: "100%",
+          height: "100%",
+          border: "none",
           position: "absolute",
           zIndex: 0,
         }}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {postos.map((posto) => (
-          <Marker
-            key={posto.id}
-            position={[posto.latitude, posto.longitude]}
-            icon={customIcon}
-            eventHandlers={{ click: () => setPostoSelecionado(posto) }}
-          >
-            <Popup>{posto.nome}</Popup>
-          </Marker>
-        ))}
-      </MapContainer>
+        srcDoc={mapHtml}
+      />
 
       {/* Botões */}
       <TouchableOpacity style={styles.loginButton} onPress={handleProfileClick}>
