@@ -33,7 +33,10 @@ export default function LoginScreen() {
 
     try {
       // Uso limpo e centralizado do Axios
-      const response = await api.post("/auth/login", { email, password });
+      const response = await api.post("/auth/login", {
+        email: email.trim(),
+        senha: password,
+      });
 
       await saveToken(response.data.token);
       router.replace("/");

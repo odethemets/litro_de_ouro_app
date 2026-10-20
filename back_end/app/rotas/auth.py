@@ -42,16 +42,20 @@ def registrar_usuario():
     finally:
         if conn: conn.close()
 
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/login', methods=['POST'], strict_slashes=False)
 def login():
-    dados = request.get_json()
+    dados = request.get_json() or {}
+    
+    # Suporte defensivo: aceita 'senha' (PT) ou 'password' (EN)
     email = dados.get('email')
-    senha = dados.get('senha')
+    senha = dados.get('senha') or dados.get('password')
 
     if not email or not senha:
         return jsonify({"error": "E-mail e senha são obrigatórios."}), 400
 
-    conn = None
+    # Limpa espaços acidentais do teclado mobile
+    email = email.strip()
+
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
