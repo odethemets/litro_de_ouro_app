@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 import pymysql
 import math
 from ..db import get_db_connection
-from ..utils import token_obrigatorio
+from ..utils.utils import token_obrigatorio
 
 bp = Blueprint('precos', __name__)
 

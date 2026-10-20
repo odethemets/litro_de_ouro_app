@@ -12,7 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { deleteToken, getToken } from "../utils/token"; // <-- NOVAS IMPORTAÇÕES LIMPAS
+import { api } from "../services/API";
+import { deleteToken } from "../utils/token";
 
 export default function PerfilScreen() {
   const router = useRouter();
@@ -23,43 +24,22 @@ export default function PerfilScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const API_URL =
-    Platform.OS === "web"
-      ? "https://litro-de-ouro-app.onrender.com"
-      : "https://litro-de-ouro-app.onrender.com";
-
   useEffect(() => {
     const fetchPerfil = async () => {
       try {
-        const token = await getToken(); // USO LIMPO
+        // O Axios injeta o token automaticamente via Interceptor!
+        const response = await api.get("/auth/perfil");
 
-        if (!token) {
+        setNome(response.data.nome);
+        setEmail(response.data.email);
+        setPlano(response.data.plano || "Gratuito");
+      } catch (error: any) {
+        if (error.response?.status === 401) {
           Alert.alert("Sessão Expirada", "Faça login novamente.");
           router.replace("/login");
-          return;
-        }
-
-        const response = await fetch(`${API_URL}/auth/perfil`, {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (response.status === 401) {
-          router.replace("/login");
-          return;
-        }
-
-        const data = await response.json();
-
-        if (response.ok) {
-          setNome(data.nome);
-          setEmail(data.email);
-          setPlano(data.plano);
         } else {
-          throw new Error(data.message);
+          Alert.alert("Erro", "Não foi possível carregar o perfil.");
         }
-      } catch (error: any) {
-        Alert.alert("Erro", "Não foi possível carregar o perfil.");
       } finally {
         setLoading(false);
       }
@@ -76,33 +56,20 @@ export default function PerfilScreen() {
 
     setSaving(true);
     try {
-      const token = await getToken();
-
-      const response = await fetch(`${API_URL}/auth/perfil`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ nome }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
-      } else {
-        throw new Error(data.message);
-      }
+      await api.put("/auth/perfil", { nome });
+      Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
     } catch (error: any) {
-      Alert.alert("Erro", "Não foi possível atualizar o perfil.");
+      Alert.alert(
+        "Erro",
+        error.response?.data?.error || "Não foi possível atualizar o perfil.",
+      );
     } finally {
       setSaving(false);
     }
   };
 
   const handleLogout = async () => {
-    await deleteToken(); // USO LIMPO
+    await deleteToken();
     router.replace("/");
   };
 
@@ -195,6 +162,7 @@ export default function PerfilScreen() {
   );
 }
 
+// Estilos preservados
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFF" },
   header: {

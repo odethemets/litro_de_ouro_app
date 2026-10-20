@@ -1,40 +1,38 @@
 from flask import Blueprint, jsonify
-from ..db import get_db_connection
-import pymysql
+from app.db import get_db_connection
 
-bp = Blueprint('postos', __name__)
+postos_bp = Blueprint('postos', __name__)
 
-# Como o prefixo '/postos' já está no create_app(), a rota base aqui é vazia ou '/'
-@bp.route('', methods=['GET'], strict_slashes=False)
-@bp.route('/', methods=['GET'], strict_slashes=False)
+@postos_bp.route('', methods=['GET'])
 def listar_postos():
-    conn = None
     try:
         conn = get_db_connection()
-        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
-            cursor.execute("SELECT id, nome, endereco, bairro, cidade, uf, latitude, longitude, preco_gasolina FROM postos")
-            linhas = cursor.fetchall()
+        with conn.cursor() as cursor:
+            # Busca os postos e o último preço registrado (se houver)
+            cursor.execute("""
+                SELECT 
+                    p.id, p.nome, p.bairro, p.endereco, 
+                    p.latitude, p.longitude,
+                    (SELECT preco FROM registos_preco rp 
+                     WHERE rp.posto_id = p.id 
+                     ORDER BY data_atualizacao DESC LIMIT 1) as preco_gasolina
+                FROM postos p
+            """)
+            postos = cursor.fetchall()
+            
+            # Se preco_gasolina for None, define como 0 para não quebrar o frontend
+            for posto in postos:
+                if posto['preco_gasolina'] is None:
+                     posto['preco_gasolina'] = 0.00
+                else:
+                     posto['preco_gasolina'] = float(posto['preco_gasolina'])
+                
+                posto['latitude'] = float(posto['latitude'])
+                posto['longitude'] = float(posto['longitude'])
 
-        resultado = []
-        for row in linhas:
-            resultado.append({
-                'id': row['id'],
-                'nome': str(row.get('nome', 'Posto')),
-                'endereco': str(row.get('endereco', '')),
-                'bairro': str(row.get('bairro', '')),
-                'cidade': str(row.get('cidade', '')),
-                'uf': str(row.get('uf', '')),
-                'latitude': float(row['latitude']) if row.get('latitude') is not None else 0.0,
-                'longitude': float(row['longitude']) if row.get('longitude') is not None else 0.0,
-                'preco_gasolina': float(row['preco_gasolina']) if row.get('preco_gasolina') is not None else 0.0
-            })
-
-        return jsonify(resultado), 200
-
+        return jsonify(postos), 200
     except Exception as e:
-        print(f"\n[ERRO NA ROTA POSTOS]: {e}\n")
-        return jsonify({'error': str(e)}), 500
-
+        return jsonify({"error": str(e)}), 500
     finally:
-        if conn:
+        if 'conn' in locals() and conn.open:
             conn.close()
