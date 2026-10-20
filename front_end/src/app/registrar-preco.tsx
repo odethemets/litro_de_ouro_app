@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -22,6 +22,7 @@ interface Posto {
   longitude: number;
 }
 
+// CORREÇÃO: Gasolina Aditivada adicionada aqui!
 const TIPOS_COMBUSTIVEL = [
   "Gasolina Comum",
   "Gasolina Aditivada",
@@ -72,7 +73,7 @@ export default function RegistrarPrecoScreen() {
       setSubmitting(true);
       const payload = {
         posto_id: Number(postoSelecionado.id),
-        tipo_combustivel: tipoCombustivel, // Usa o combustível selecionado!
+        tipo_combustivel: tipoCombustivel,
         preco: precoFormatado,
         latitude: Number(postoSelecionado.latitude),
         longitude: Number(postoSelecionado.longitude),
@@ -92,106 +93,117 @@ export default function RegistrarPrecoScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <TouchableOpacity style={styles.btnVoltar} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color="#333" />
-        <Text style={styles.btnVoltarTexto}>Voltar</Text>
-      </TouchableOpacity>
+    <>
+      {/* CORREÇÃO: Esconde o cabeçalho padrão duplicado do sistema */}
+      <Stack.Screen options={{ headerShown: false }} />
 
-      <Text style={styles.titulo}>Registrar Preço</Text>
-      <Text style={styles.subtitulo}>
-        Ajude a comunidade atualizando o valor.
-      </Text>
-
-      <Text style={styles.label}>1. Selecione o Posto:</Text>
-      <View style={styles.listaPostos}>
-        {postos.map((item) => {
-          const isSelected = postoSelecionado?.id === item.id;
-          return (
-            <TouchableOpacity
-              key={item.id}
-              style={[
-                styles.cardPosto,
-                isSelected && styles.cardPostoSelecionado,
-              ]}
-              activeOpacity={0.7}
-              onPress={() => setPostoSelecionado(item)}
-            >
-              <Ionicons
-                name={isSelected ? "checkmark-circle" : "location-outline"}
-                size={22}
-                color={isSelected ? "#d79b00" : "#666"}
-              />
-              <View style={styles.infoPosto}>
-                <Text
-                  style={[
-                    styles.nomePosto,
-                    isSelected && styles.nomePostoSelecionado,
-                  ]}
-                >
-                  {item.nome}
-                </Text>
-                <Text style={styles.enderecoPosto}>
-                  {item.bairro || item.endereco || "João Pessoa - PB"}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <Text style={styles.label}>2. Qual o Combustível?</Text>
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.scrollCombustivel}
+        style={styles.container}
+        contentContainerStyle={styles.content}
       >
-        {TIPOS_COMBUSTIVEL.map((tipo) => (
-          <TouchableOpacity
-            key={tipo}
-            style={[
-              styles.chip,
-              tipoCombustivel === tipo && styles.chipSelecionado,
-            ]}
-            onPress={() => setTipoCombustivel(tipo)}
-          >
-            <Text
+        <TouchableOpacity
+          style={styles.btnVoltar}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Text style={styles.btnVoltarTexto}>Voltar</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.titulo}>Registrar Preço</Text>
+        <Text style={styles.subtitulo}>
+          Ajude a comunidade atualizando o valor.
+        </Text>
+
+        <Text style={styles.label}>1. Selecione o Posto:</Text>
+        <View style={styles.listaPostos}>
+          {postos.map((item) => {
+            const isSelected = postoSelecionado?.id === item.id;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.cardPosto,
+                  isSelected && styles.cardPostoSelecionado,
+                ]}
+                activeOpacity={0.7}
+                onPress={() => setPostoSelecionado(item)}
+              >
+                <Ionicons
+                  name={isSelected ? "checkmark-circle" : "location-outline"}
+                  size={22}
+                  color={isSelected ? "#d79b00" : "#666"}
+                />
+                <View style={styles.infoPosto}>
+                  <Text
+                    style={[
+                      styles.nomePosto,
+                      isSelected && styles.nomePostoSelecionado,
+                    ]}
+                  >
+                    {item.nome}
+                  </Text>
+                  <Text style={styles.enderecoPosto}>
+                    {item.bairro || item.endereco || "João Pessoa - PB"}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={styles.label}>2. Qual o Combustível?</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.scrollCombustivel}
+        >
+          {TIPOS_COMBUSTIVEL.map((tipo) => (
+            <TouchableOpacity
+              key={tipo}
               style={[
-                styles.chipTexto,
-                tipoCombustivel === tipo && styles.chipTextoSelecionado,
+                styles.chip,
+                tipoCombustivel === tipo && styles.chipSelecionado,
               ]}
+              onPress={() => setTipoCombustivel(tipo)}
             >
-              {tipo}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.chipTexto,
+                  tipoCombustivel === tipo && styles.chipTextoSelecionado,
+                ]}
+              >
+                {tipo}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <Text style={styles.label}>3. Preço Atual (R$):</Text>
+        <View style={styles.inputContainer}>
+          <Text style={styles.cifrao}>R$</Text>
+          <TextInput
+            style={styles.inputPreco}
+            placeholder="0,00"
+            keyboardType="decimal-pad"
+            value={precoInformado}
+            onChangeText={setPrecoInformado}
+          />
+        </View>
+
+        <TouchableOpacity
+          style={styles.btnSalvar}
+          activeOpacity={0.8}
+          onPress={handleSalvarPreco}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <Text style={styles.btnSalvarTexto}>Confirmar e Salvar</Text>
+          )}
+        </TouchableOpacity>
       </ScrollView>
-
-      <Text style={styles.label}>3. Preço Atual (R$):</Text>
-      <View style={styles.inputContainer}>
-        <Text style={styles.cifrao}>R$</Text>
-        <TextInput
-          style={styles.inputPreco}
-          placeholder="0,00"
-          keyboardType="decimal-pad"
-          value={precoInformado}
-          onChangeText={setPrecoInformado}
-        />
-      </View>
-
-      <TouchableOpacity
-        style={styles.btnSalvar}
-        activeOpacity={0.8}
-        onPress={handleSalvarPreco}
-        disabled={submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator color="#FFF" />
-        ) : (
-          <Text style={styles.btnSalvarTexto}>Confirmar e Salvar</Text>
-        )}
-      </TouchableOpacity>
-    </ScrollView>
+    </>
   );
 }
 

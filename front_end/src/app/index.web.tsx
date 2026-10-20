@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Linking,
   Platform,
   ScrollView,
@@ -24,24 +26,25 @@ export interface Posto {
 
 const TIPOS_COMBUSTIVEL = [
   "Gasolina Comum",
+  "Gasolina Aditivada",
   "Etanol",
   "Diesel",
-  "Gasolina adtivada",
 ];
 
 export default function HomeScreenWeb() {
   const router = useRouter();
+  const iframeRef = useRef<any>(null); // Referência para controlar o Iframe
+
   const [postos, setPostos] = useState<Posto[]>([]);
   const [postoSelecionado, setPostoSelecionado] = useState<Posto | null>(null);
 
-  // Novos Estados
   const [tipoCombustivel, setTipoCombustivel] = useState("Gasolina Comum");
   const [historico, setHistorico] = useState<any[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false); // Estado do botão GPS
 
   const centerPos = { lat: -7.11532, lng: -34.86105 };
 
-  // Carrega Postos Iniciais
   useEffect(() => {
     const fetchPostos = async () => {
       try {
@@ -74,7 +77,6 @@ export default function HomeScreenWeb() {
     }
   }, []);
 
-  // Busca o Histórico de Preços sempre que muda o Posto ou o Combustível
   useEffect(() => {
     if (postoSelecionado) {
       buscarHistorico(postoSelecionado.id, tipoCombustivel);
@@ -114,6 +116,39 @@ export default function HomeScreenWeb() {
     }
   };
 
+  // NÚCLEO DE GPS: Busca a localização e envia comando ao Iframe
+  const handleMinhaLocalizacao = async () => {
+    try {
+      setLocationLoading(true);
+
+      // 1. Pede permissão ao navegador/telemóvel
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Aviso", "Permissão de localização negada pelo navegador.");
+        return;
+      }
+
+      // 2. Captura a coordenada exata
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const { latitude, longitude } = location.coords;
+
+      // 3. Envia a coordenada para o mapa Leaflet voar até lá
+      if (iframeRef.current && iframeRef.current.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ type: "FLY_TO", lat: latitude, lng: longitude }),
+          "*",
+        );
+      }
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível obter a sua localização exata.");
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
   if (Platform.OS !== "web" || typeof window === "undefined") return null;
 
   const mapHtml = `
@@ -135,11 +170,13 @@ export default function HomeScreenWeb() {
       <script>
         var map = L.map('map', { zoomControl: false }).setView([${centerPos.lat}, ${centerPos.lng}], 14);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+        
         var customIcon = L.icon({
           iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
           shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
           iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
         });
+        
         var postos = ${JSON.stringify(postos)};
         postos.forEach(function(posto) {
           L.marker([posto.latitude, posto.longitude], { icon: customIcon }).addTo(map)
@@ -148,6 +185,23 @@ export default function HomeScreenWeb() {
               window.parent.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: posto.id }), '*');
             });
         });
+
+        // OUVINTE: Recebe a localização enviada pelo React Native e voa até ela
+        var userMarker = null;
+        window.addEventListener('message', function(event) {
+          try {
+            var data = JSON.parse(event.data);
+            if (data.type === 'FLY_TO') {
+              map.flyTo([data.lat, data.lng], 15, { duration: 1.5 });
+              
+              if (userMarker) map.removeLayer(userMarker);
+              
+              userMarker = L.circleMarker([data.lat, data.lng], {
+                radius: 8, fillColor: "#208AEF", color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.8
+              }).addTo(map).bindPopup("Você está aqui!").openPopup();
+            }
+          } catch(e) {}
+        });
       </script>
     </body>
     </html>
@@ -155,10 +209,28 @@ export default function HomeScreenWeb() {
 
   return (
     <View style={styles.container}>
-      <iframe title="map" style={styles.iframeMap} srcDoc={mapHtml} />
+      <iframe
+        ref={iframeRef}
+        title="map"
+        style={styles.iframeMap}
+        srcDoc={mapHtml}
+      />
 
       <TouchableOpacity style={styles.loginButton} onPress={handleProfileClick}>
         <Ionicons name="person-circle" size={45} color="#d79b00" />
+      </TouchableOpacity>
+
+      {/* NOVO BOTÃO: Minha Localização */}
+      <TouchableOpacity
+        style={styles.locationBtn}
+        onPress={handleMinhaLocalizacao}
+        disabled={locationLoading}
+      >
+        {locationLoading ? (
+          <ActivityIndicator color="#333" />
+        ) : (
+          <Ionicons name="locate" size={26} color="#333" />
+        )}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -182,7 +254,6 @@ export default function HomeScreenWeb() {
             {postoSelecionado.bairro || "João Pessoa - PB"}
           </Text>
 
-          {/* Selecionador de Combustível */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -247,7 +318,7 @@ export default function HomeScreenWeb() {
             <View style={styles.semPrecoContainer}>
               <Ionicons name="alert-circle-outline" size={30} color="#999" />
               <Text style={styles.semPrecoTexto}>
-                Nenhum preço de {tipoCombustivel} registado ainda.
+                Nenhum preço de {tipoCombustivel} registado.
               </Text>
             </View>
           )}
@@ -271,7 +342,6 @@ const styles = StyleSheet.create({
     height: "100vh" as any,
     width: "100%",
   },
-  // ✅ COMO DEVE FICAR (Compatível com o TypeScript do React Native):
   iframeMap: {
     width: "100%",
     height: "100%",
@@ -292,6 +362,22 @@ const styles = StyleSheet.create({
     elevation: 5,
     zIndex: 10,
   },
+
+  // Estilo do botão de localização (Fica logo acima do botão de adicionar)
+  locationBtn: {
+    position: "absolute",
+    bottom: 95,
+    right: 20,
+    backgroundColor: "#FFF",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    zIndex: 10,
+  },
+
   fab: {
     position: "absolute",
     bottom: 20,
@@ -325,8 +411,6 @@ const styles = StyleSheet.create({
   closeBtn: { position: "absolute", top: 10, right: 15, zIndex: 30 },
   postoNome: { fontSize: 22, fontWeight: "bold", color: "#333", marginTop: 5 },
   distancia: { fontSize: 14, color: "#666", marginBottom: 15 },
-
-  // Estilos da Rolagem de Combustíveis
   scrollCombustivel: { marginBottom: 15, maxHeight: 40, width: "100%" },
   chip: {
     backgroundColor: "#F5F5F5",
@@ -342,8 +426,6 @@ const styles = StyleSheet.create({
   chipSelecionado: { backgroundColor: "#FFF9E6", borderColor: "#d79b00" },
   chipTexto: { color: "#666", fontWeight: "600", fontSize: 13 },
   chipTextoSelecionado: { color: "#d79b00", fontWeight: "bold" },
-
-  // Preço Atual
   precoCard: {
     backgroundColor: "#f5f5f5",
     padding: 15,
@@ -356,8 +438,6 @@ const styles = StyleSheet.create({
   combustivelLabel: { fontSize: 16, color: "#555", fontWeight: "bold" },
   precoDestaque: { fontSize: 28, fontWeight: "bold", color: "#82b366" },
   dataAtualizacao: { fontSize: 12, color: "#999", marginTop: 4 },
-
-  // Histórico
   historicoContainer: {
     width: "100%",
     maxWidth: 400,
@@ -379,15 +459,12 @@ const styles = StyleSheet.create({
   },
   historicoData: { color: "#666", fontSize: 13 },
   historicoPreco: { color: "#82b366", fontWeight: "bold", fontSize: 14 },
-
-  // Sem Preço
   semPrecoContainer: {
     alignItems: "center",
     paddingVertical: 20,
     marginBottom: 15,
   },
   semPrecoTexto: { color: "#999", marginTop: 10 },
-
   btnRota: {
     backgroundColor: "#333",
     paddingVertical: 12,

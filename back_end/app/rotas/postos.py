@@ -75,9 +75,10 @@ def historico_precos(posto_id):
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
+            # CORREÇÃO: Usamos '%%' no DATE_FORMAT para o PyMySQL não confundir com '%s'
             cursor.execute("""
-                SELECT id as registo_id, preco, confianca_score, 
-                       DATE_FORMAT(data_registro, '%d/%m/%Y %H:%i') as data_formatada
+                SELECT id as registo_id, preco, 
+                       DATE_FORMAT(data_registro, '%%d/%%m/%%Y %%H:%%i') as data_formatada
                 FROM registos_preco
                 WHERE posto_id = %s AND tipo_combustivel = %s
                 ORDER BY data_registro DESC
@@ -90,6 +91,8 @@ def historico_precos(posto_id):
 
         return jsonify(historico), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Erro no historico: {str(e)}") # Log no Render
+        return jsonify({"error": "Erro interno", "detalhes": str(e)}), 500
     finally:
-        if conn: conn.close()
+        if conn and conn.open: 
+            conn.close()
