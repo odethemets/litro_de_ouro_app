@@ -31,12 +31,12 @@ def registrar_usuario():
             if cursor.fetchone():
                 return jsonify({"error": "E-mail já está em uso."}), 409
 
-            senha_hash = bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            senha= bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             
             cursor.execute("""
-                INSERT INTO usuarios (nome, email, senha_hash, karma)
+                INSERT INTO usuarios (nome, email, senha_, karma)
                 VALUES (%s, %s, %s, 0)
-            """, (nome, email, senha_hash))
+            """, (nome, email, senha))
             conn.commit()
             
         return jsonify({"mensagem": "Usuário registrado com sucesso!"}), 201
@@ -65,7 +65,7 @@ def login():
             cursor.execute("SELECT * FROM usuarios WHERE email = %s", (email,))
             usuario = cursor.fetchone()
 
-            if usuario and bcrypt.checkpw(senha.encode('utf-8'), usuario['senha_hash'].encode('utf-8')):
+            if usuario and bcrypt.checkpw(senha.encode('utf-8'), usuario['senha'].encode('utf-8')):
                 # Garante uma chave secreta válida mesmo se o .env do Render falhar
                 secret = os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY") or "chave_super_secreta_para_tokens_jwt"
                 
