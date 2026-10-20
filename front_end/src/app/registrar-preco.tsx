@@ -2,14 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { api } from "../services/API";
 
@@ -191,16 +190,17 @@ export default function RegistrarPrecoScreen() {
         </View>
 
         <TouchableOpacity
-          style={styles.btnSalvar}
-          activeOpacity={0.8}
-          onPress={handleSalvarPreco}
-          disabled={submitting}
+          style={styles.btnVoltar}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/");
+            }
+          }}
         >
-          {submitting ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.btnSalvarTexto}>Confirmar e Salvar</Text>
-          )}
+          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Text style={styles.btnVoltarTexto}>Voltar</Text>
         </TouchableOpacity>
       </ScrollView>
     </>
