@@ -46,15 +46,15 @@ def registrar_usuario():
 def login():
     dados = request.get_json() or {}
     
-    # Suporte defensivo: aceita 'senha' (PT) ou 'password' (EN)
+    # Tolerância de contrato: aceita 'senha' ou 'password'
     email = dados.get('email')
     senha = dados.get('senha') or dados.get('password')
 
     if not email or not senha:
         return jsonify({"error": "E-mail e senha são obrigatórios."}), 400
 
-    # Limpa espaços acidentais do teclado mobile
-    email = email.strip()
+    # Sanitize de espaços extras do teclado mobile/desktop
+    email = str(email).strip()
 
     try:
         conn = get_db_connection()

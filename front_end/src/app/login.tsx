@@ -32,10 +32,11 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      // Uso limpo e centralizado do Axios
+      // Envia o payload sanitizado com ambas as chaves para compatibilidade absoluta
       const response = await api.post("/auth/login", {
         email: email.trim(),
         senha: password,
+        password: password,
       });
 
       await saveToken(response.data.token);
