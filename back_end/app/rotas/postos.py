@@ -3,7 +3,7 @@ from app.db import get_db_connection
 
 postos_bp = Blueprint('postos', __name__)
 
-@postos_bp.route('', methods=['GET'])
+@postos_bp.route('', methods=['GET'], strict_slashes=False)
 def listar_postos():
     conn = None
     try:
@@ -35,15 +35,13 @@ def listar_postos():
     finally:
         if conn: conn.close()
 
-# NOVA ROTA: Alimenta a tela "Menor Preço" da Web com o Score de Confiança
-@postos_bp.route('/menores-precos', methods=['GET'])
+@postos_bp.route('/menores-precos', methods=['GET'], strict_slashes=False)
 def menores_precos():
     tipo_combustivel = request.args.get('tipo_combustivel', 'Gasolina Comum')
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            # Traz o último preço de cada posto para aquele combustível, ordenado do mais barato para o mais caro
             cursor.execute("""
                 SELECT 
                     p.id as posto_id, p.nome, p.bairro, 
@@ -59,12 +57,38 @@ def menores_precos():
             """, (tipo_combustivel, tipo_combustivel))
             
             dados = cursor.fetchall()
-            
             for d in dados:
                 d['preco'] = float(d['preco'])
                 d['distancia'] = d['bairro'] or 'João Pessoa'
 
         return jsonify(dados), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn: conn.close()
+
+# NOVA ROTA: Histórico detalhado de um posto por combustível
+@postos_bp.route('/<int:posto_id>/historico', methods=['GET'], strict_slashes=False)
+def historico_precos(posto_id):
+    tipo_combustivel = request.args.get('tipo_combustivel', 'Gasolina Comum')
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT id as registo_id, preco, confianca_score, 
+                       DATE_FORMAT(data_registro, '%d/%m/%Y %H:%i') as data_formatada
+                FROM registos_preco
+                WHERE posto_id = %s AND tipo_combustivel = %s
+                ORDER BY data_registro DESC
+                LIMIT 5
+            """, (posto_id, tipo_combustivel))
+            
+            historico = cursor.fetchall()
+            for h in historico:
+                h['preco'] = float(h['preco'])
+
+        return jsonify(historico), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:

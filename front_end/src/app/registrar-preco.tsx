@@ -22,12 +22,20 @@ interface Posto {
   longitude: number;
 }
 
+const TIPOS_COMBUSTIVEL = [
+  "Gasolina Comum",
+  "Gasolina Aditivada",
+  "Etanol",
+  "Diesel",
+];
+
 export default function RegistrarPrecoScreen() {
   const router = useRouter();
 
   const [postos, setPostos] = useState<Posto[]>([]);
   const [postoSelecionado, setPostoSelecionado] = useState<Posto | null>(null);
-  const [precoGasolina, setPrecoGasolina] = useState("");
+  const [tipoCombustivel, setTipoCombustivel] = useState("Gasolina Comum");
+  const [precoInformado, setPrecoInformado] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -38,13 +46,12 @@ export default function RegistrarPrecoScreen() {
   const carregarPostos = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/postos");
+      const response = await api.get("/postos/");
       setPostos(response.data);
       if (response.data.length > 0) {
         setPostoSelecionado(response.data[0]);
       }
     } catch (error: any) {
-      console.error("Erro ao carregar postos:", error);
       Alert.alert("Erro", "Não foi possível carregar a lista de postos.");
     } finally {
       setLoading(false);
@@ -52,43 +59,32 @@ export default function RegistrarPrecoScreen() {
   };
 
   const handleSalvarPreco = async () => {
-    if (!postoSelecionado) {
-      Alert.alert("Atenção", "Por favor, selecione um posto.");
-      return;
-    }
+    if (!postoSelecionado) return Alert.alert("Atenção", "Selecione um posto.");
+    if (!precoInformado.trim())
+      return Alert.alert("Atenção", "Informe o preço.");
 
-    if (!precoGasolina.trim()) {
-      Alert.alert("Atenção", "Informe o preço da gasolina.");
-      return;
-    }
-
-    const precoFormatado = parseFloat(precoGasolina.replace(",", "."));
+    const precoFormatado = parseFloat(precoInformado.replace(",", "."));
     if (isNaN(precoFormatado) || precoFormatado <= 0) {
-      Alert.alert("Atenção", "Informe um valor de preço válido.");
-      return;
+      return Alert.alert("Atenção", "Informe um valor numérico válido.");
     }
 
     try {
       setSubmitting(true);
-
-      // PAYLOAD LIMPO: Exatamente o que o novo backend exige
       const payload = {
         posto_id: Number(postoSelecionado.id),
-        tipo_combustivel: "Gasolina Comum",
+        tipo_combustivel: tipoCombustivel, // Usa o combustível selecionado!
         preco: precoFormatado,
         latitude: Number(postoSelecionado.latitude),
         longitude: Number(postoSelecionado.longitude),
       };
 
       await api.post("/precos/", payload);
-
-      Alert.alert("Sucesso!", "Preço registado com sucesso!", [
+      Alert.alert("Sucesso!", `Preço do ${tipoCombustivel} registado!`, [
         { text: "OK", onPress: () => router.replace("/") },
       ]);
     } catch (error: any) {
-      // TRATAMENTO ROBUSTO DE ERRO (Inclui o aviso de 200m do Geofencing)
       const erroServidor =
-        error.response?.data?.error || "Não foi possível salvar o preço.";
+        error.response?.data?.error || "Erro ao salvar o preço.";
       Alert.alert("Aviso", erroServidor);
     } finally {
       setSubmitting(false);
@@ -104,7 +100,7 @@ export default function RegistrarPrecoScreen() {
 
       <Text style={styles.titulo}>Registrar Preço</Text>
       <Text style={styles.subtitulo}>
-        Ajude a comunidade atualizando o valor do combustível.
+        Ajude a comunidade atualizando o valor.
       </Text>
 
       <Text style={styles.label}>1. Selecione o Posto:</Text>
@@ -144,15 +140,42 @@ export default function RegistrarPrecoScreen() {
         })}
       </View>
 
-      <Text style={styles.label}>2. Preço da Gasolina Comum (R$):</Text>
+      <Text style={styles.label}>2. Qual o Combustível?</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.scrollCombustivel}
+      >
+        {TIPOS_COMBUSTIVEL.map((tipo) => (
+          <TouchableOpacity
+            key={tipo}
+            style={[
+              styles.chip,
+              tipoCombustivel === tipo && styles.chipSelecionado,
+            ]}
+            onPress={() => setTipoCombustivel(tipo)}
+          >
+            <Text
+              style={[
+                styles.chipTexto,
+                tipoCombustivel === tipo && styles.chipTextoSelecionado,
+              ]}
+            >
+              {tipo}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <Text style={styles.label}>3. Preço Atual (R$):</Text>
       <View style={styles.inputContainer}>
         <Text style={styles.cifrao}>R$</Text>
         <TextInput
           style={styles.inputPreco}
           placeholder="0,00"
           keyboardType="decimal-pad"
-          value={precoGasolina}
-          onChangeText={setPrecoGasolina}
+          value={precoInformado}
+          onChangeText={setPrecoInformado}
         />
       </View>
 
@@ -174,7 +197,7 @@ export default function RegistrarPrecoScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8F9FA" },
-  content: { padding: 20, paddingTop: 50 },
+  content: { padding: 20, paddingTop: 50, paddingBottom: 100 },
   btnVoltar: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   btnVoltarTexto: {
     marginLeft: 8,
@@ -184,8 +207,14 @@ const styles = StyleSheet.create({
   },
   titulo: { fontSize: 26, fontWeight: "bold", color: "#111" },
   subtitulo: { fontSize: 14, color: "#666", marginBottom: 25 },
-  label: { fontSize: 16, fontWeight: "bold", color: "#333", marginBottom: 10 },
-  listaPostos: { marginBottom: 25 },
+  label: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 10,
+    marginTop: 10,
+  },
+  listaPostos: { marginBottom: 15 },
   cardPosto: {
     flexDirection: "row",
     alignItems: "center",
@@ -201,6 +230,20 @@ const styles = StyleSheet.create({
   nomePosto: { fontSize: 16, fontWeight: "bold", color: "#333" },
   nomePostoSelecionado: { color: "#d79b00" },
   enderecoPosto: { fontSize: 13, color: "#777", marginTop: 2 },
+  scrollCombustivel: { marginBottom: 25, maxHeight: 50 },
+  chip: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#CCC",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginRight: 10,
+    height: 42,
+  },
+  chipSelecionado: { backgroundColor: "#d79b00", borderColor: "#d79b00" },
+  chipTexto: { color: "#666", fontWeight: "bold" },
+  chipTextoSelecionado: { color: "#FFF" },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",

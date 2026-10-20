@@ -9,15 +9,19 @@ from app.utils.auth_middleware import token_required
 auth_bp = Blueprint('auth', __name__)
 SECRET_KEY = os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY") or "chave_super_secreta_para_tokens_jwt"
 
-@auth_bp.route('/registrar', methods=['POST'])
+@auth_bp.route('/registrar', methods=['POST'], strict_slashes=False)
 def registrar_usuario():
-    dados = request.get_json()
+    # force=True OBRIGA o Flask a ler o corpo como JSON, ignorando os cabeçalhos do navegador
+    dados = request.get_json(force=True, silent=True) or {}
+    
     nome = dados.get('nome')
     email = dados.get('email')
-    senha = dados.get('senha')
+    senha = dados.get('senha') or dados.get('password')
 
     if not nome or not email or not senha:
         return jsonify({"error": "Todos os campos (nome, email, senha) são obrigatórios."}), 400
+
+    email = str(email).strip()
 
     conn = None
     try:
@@ -44,16 +48,15 @@ def registrar_usuario():
 
 @auth_bp.route('/login', methods=['POST'], strict_slashes=False)
 def login():
-    dados = request.get_json() or {}
+    # force=True OBRIGA o Flask a ler o corpo como JSON
+    dados = request.get_json(force=True, silent=True) or {}
     
-    # Tolerância de contrato: aceita 'senha' ou 'password'
     email = dados.get('email')
     senha = dados.get('senha') or dados.get('password')
 
     if not email or not senha:
         return jsonify({"error": "E-mail e senha são obrigatórios."}), 400
 
-    # Sanitize de espaços extras do teclado mobile/desktop
     email = str(email).strip()
 
     try:
@@ -76,7 +79,7 @@ def login():
     finally:
         if conn: conn.close()
 
-@auth_bp.route('/perfil', methods=['GET'])
+@auth_bp.route('/perfil', methods=['GET'], strict_slashes=False)
 @token_required
 def obter_perfil(current_user_id):
     conn = None

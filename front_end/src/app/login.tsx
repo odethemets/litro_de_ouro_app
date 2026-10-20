@@ -32,8 +32,8 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      // Envia o payload sanitizado com ambas as chaves para compatibilidade absoluta
-      const response = await api.post("/auth/login", {
+      // ✅ CORREÇÃO: Barra final inserida ("/auth/login/")
+      const response = await api.post("/auth/login/", {
         email: email.trim(),
         senha: password,
         password: password,
