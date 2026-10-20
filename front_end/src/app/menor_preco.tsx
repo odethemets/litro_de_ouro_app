@@ -10,28 +10,25 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { api } from "../services/API"; // A nossa ligação ao Render
+import { api } from "../services/API";
 
-// Adicione isto por baixo dos imports
 interface PostoPreco {
-  id: string | number;
+  posto_id: number;
+  registo_id: number;
   nome: string;
-  preco: number;
+  bairro?: string;
   distancia: string;
+  preco: number;
+  confianca_score: number;
 }
 
 export default function MenorPrecoScreen() {
   const router = useRouter();
-
-  // Nomes exatos conforme a sua base de dados exige
   const [filtroAtivo, setFiltroAtivo] = useState("Gasolina Comum");
-
-  // Substituímos os DADOS_SIMULADOS por um estado que começa vazio
-  // Altere esta linha:
   const [dadosReais, setDadosReais] = useState<PostoPreco[]>([]);
   const [loading, setLoading] = useState(true);
+  const [votando, setVotando] = useState<number | null>(null); // Bloqueia spam de cliques
 
-  // Executa sempre que o ecrã abre e sempre que o utilizador muda o filtro
   useEffect(() => {
     buscarMenoresPrecos();
   }, [filtroAtivo]);
@@ -39,16 +36,63 @@ export default function MenorPrecoScreen() {
   const buscarMenoresPrecos = async () => {
     setLoading(true);
     try {
-      // Ajuste esta rota para o endpoint GET correto que criou no backend Flask
+      // Uso do Axios e da nova rota criada
       const response = await api.get(
         `/postos/menores-precos?tipo_combustivel=${filtroAtivo}`,
       );
       setDadosReais(response.data);
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
       Alert.alert("Erro", "Não foi possível carregar os preços atualizados.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // SISTEMA DE VOTO (INTEGRAÇÃO COM O BACKEND DE KARMA)
+  const handleVoto = async (
+    registo_id: number,
+    tipo_voto: "positivo" | "negativo",
+  ) => {
+    try {
+      setVotando(registo_id);
+      const response = await api.post(`/precos/${registo_id}/votar`, {
+        voto: tipo_voto,
+      });
+
+      if (
+        response.data.message ===
+        "Você já registrou este mesmo voto para este preço."
+      ) {
+        return; // Ignora visualmente
+      }
+
+      // Atualiza o score no ecrã localmente para ser instantâneo (Otimista)
+      setDadosReais((prev) =>
+        prev.map((item) => {
+          if (item.registo_id === registo_id) {
+            return {
+              ...item,
+              confianca_score:
+                tipo_voto === "positivo"
+                  ? item.confianca_score + 1
+                  : item.confianca_score - 1,
+            };
+          }
+          return item;
+        }),
+      );
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        Alert.alert("Acesso Negado", "Faça login para poder votar nos preços.");
+        router.push("/login");
+      } else {
+        Alert.alert(
+          "Aviso",
+          error.response?.data?.error || "Erro ao computar voto.",
+        );
+      }
+    } finally {
+      setVotando(null);
     }
   };
 
@@ -87,7 +131,6 @@ export default function MenorPrecoScreen() {
         ))}
       </View>
 
-      {/* Se estiver a carregar a API, mostra a roda a girar. Se não, mostra a lista real */}
       {loading ? (
         <View
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
@@ -97,25 +140,54 @@ export default function MenorPrecoScreen() {
       ) : (
         <FlatList
           data={dadosReais}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.posto_id.toString()}
           contentContainerStyle={styles.listContainer}
           renderItem={({ item, index }) => (
             <View style={styles.card}>
               <View style={styles.rankContainer}>
                 <Text style={styles.rankText}>{index + 1}º</Text>
               </View>
+
               <View style={styles.infoContainer}>
                 <Text style={styles.nomePosto}>{item.nome}</Text>
                 <Text style={styles.distanciaText}>
                   <Ionicons name="location-outline" size={14} />{" "}
-                  {item.distancia} • Atualizado recentemente
+                  {item.distancia}
                 </Text>
               </View>
+
               <View style={styles.precoContainer}>
                 <Text style={styles.cifrao}>R$</Text>
                 <Text style={styles.precoValor}>
                   {item.preco.toFixed(2).replace(".", ",")}
                 </Text>
+              </View>
+
+              {/* COLUNA DE VOTOS (ESTILO REDDIT) */}
+              <View style={styles.voteContainer}>
+                <TouchableOpacity
+                  disabled={votando === item.registo_id}
+                  onPress={() => handleVoto(item.registo_id, "positivo")}
+                >
+                  <Ionicons name="caret-up-outline" size={28} color="#82b366" />
+                </TouchableOpacity>
+
+                {votando === item.registo_id ? (
+                  <ActivityIndicator size="small" color="#666" />
+                ) : (
+                  <Text style={styles.scoreText}>{item.confianca_score}</Text>
+                )}
+
+                <TouchableOpacity
+                  disabled={votando === item.registo_id}
+                  onPress={() => handleVoto(item.registo_id, "negativo")}
+                >
+                  <Ionicons
+                    name="caret-down-outline"
+                    size={28}
+                    color="#E53935"
+                  />
+                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -131,7 +203,6 @@ export default function MenorPrecoScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Mantenha os seus styles originais exatos aqui para baixo...
   container: { flex: 1, backgroundColor: "#f9f9f9" },
   header: {
     flexDirection: "row",
@@ -181,7 +252,20 @@ const styles = StyleSheet.create({
   infoContainer: { flex: 1, paddingHorizontal: 10 },
   nomePosto: { fontSize: 16, fontWeight: "bold", color: "#333" },
   distanciaText: { fontSize: 13, color: "#888", marginTop: 4 },
-  precoContainer: { alignItems: "flex-end" },
+  precoContainer: { alignItems: "flex-end", marginRight: 15 },
   cifrao: { fontSize: 12, color: "#82b366", fontWeight: "bold" },
   precoValor: { fontSize: 22, fontWeight: "bold", color: "#82b366" },
+  voteContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderLeftWidth: 1,
+    borderColor: "#eee",
+    paddingLeft: 10,
+  },
+  scoreText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    marginVertical: -2,
+  },
 });

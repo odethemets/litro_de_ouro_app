@@ -21,18 +21,18 @@ export default function PerfilScreen() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [plano, setPlano] = useState("");
+  const [karma, setKarma] = useState(0); // ESTADO DO KARMA
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const fetchPerfil = async () => {
       try {
-        // O Axios injeta o token automaticamente via Interceptor!
         const response = await api.get("/auth/perfil");
-
         setNome(response.data.nome);
         setEmail(response.data.email);
         setPlano(response.data.plano || "Gratuito");
+        setKarma(response.data.karma || 0); // RECEBE O KARMA
       } catch (error: any) {
         if (error.response?.status === 401) {
           Alert.alert("Sessão Expirada", "Faça login novamente.");
@@ -53,16 +53,12 @@ export default function PerfilScreen() {
       Alert.alert("Atenção", "O nome não pode estar vazio.");
       return;
     }
-
     setSaving(true);
     try {
       await api.put("/auth/perfil", { nome });
       Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
     } catch (error: any) {
-      Alert.alert(
-        "Erro",
-        error.response?.data?.error || "Não foi possível atualizar o perfil.",
-      );
+      Alert.alert("Erro", error.response?.data?.error || "Erro ao atualizar.");
     } finally {
       setSaving(false);
     }
@@ -107,8 +103,29 @@ export default function PerfilScreen() {
       <View style={styles.content}>
         <View style={styles.avatarContainer}>
           <Ionicons name="person-circle-outline" size={100} color="#d79b00" />
-          <View style={styles.badgeContainer}>
-            <Text style={styles.badgeText}>Plano {plano}</Text>
+
+          <View style={styles.badgesRow}>
+            <View style={styles.badgeContainer}>
+              <Text style={styles.badgeText}>Plano {plano}</Text>
+            </View>
+            {/* NOVO: MEDALHA DE KARMA */}
+            <View
+              style={[
+                styles.badgeContainer,
+                {
+                  backgroundColor: "#E3F2FD",
+                  borderColor: "#2196F3",
+                  marginLeft: 10,
+                },
+              ]}
+            >
+              <Ionicons name="star" size={12} color="#2196F3" />
+              <Text
+                style={[styles.badgeText, { color: "#1565C0", marginLeft: 4 }]}
+              >
+                {karma} Karma
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -146,7 +163,6 @@ export default function PerfilScreen() {
 
           <TouchableOpacity
             style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-            activeOpacity={0.8}
             onPress={handleUpdate}
             disabled={saving}
           >
@@ -162,7 +178,6 @@ export default function PerfilScreen() {
   );
 }
 
-// Estilos preservados
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFF" },
   header: {
@@ -185,12 +200,14 @@ const styles = StyleSheet.create({
   },
   content: { flex: 1, paddingHorizontal: 30, paddingTop: 30 },
   avatarContainer: { alignItems: "center", marginBottom: 40 },
+  badgesRow: { flexDirection: "row", marginTop: -15 },
   badgeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#FFF9C4",
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 20,
-    marginTop: -15,
     borderWidth: 1,
     borderColor: "#FBC02D",
   },
