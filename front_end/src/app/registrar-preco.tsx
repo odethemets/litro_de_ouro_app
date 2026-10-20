@@ -80,7 +80,7 @@ export default function RegistrarPrecoScreen() {
         longitude: Number(postoSelecionado.longitude),
       };
 
-      await api.post("/precos", payload);
+      await api.post("/precos/", payload);
 
       Alert.alert("Sucesso!", "Preço registado com sucesso!", [
         { text: "OK", onPress: () => router.replace("/") },
