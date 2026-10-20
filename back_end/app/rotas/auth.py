@@ -34,7 +34,7 @@ def registrar_usuario():
             senha= bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             
             cursor.execute("""
-                INSERT INTO usuarios (nome, email, senha_, karma)
+                INSERT INTO usuarios (nome, email, senha, karma)
                 VALUES (%s, %s, %s, 0)
             """, (nome, email, senha))
             conn.commit()
