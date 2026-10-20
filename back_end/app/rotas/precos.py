@@ -18,7 +18,7 @@ def calcular_distancia_metros(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
-@precos_bp.route('', methods=['POST'])
+@precos_bp.route('', methods=['POST'], strict_slashes=False)
 @token_required
 def registrar_preco(usuario_id_token):
     data = request.get_json()
@@ -53,7 +53,7 @@ def registrar_preco(usuario_id_token):
                 float(posto['longitude'])
             )
 
-            LIMITE_METROS = 200.0
+            LIMITE_METROS = 600000.0
             if distancia > LIMITE_METROS:
                 return jsonify({
                     "error": "Você está muito longe deste posto para registrar o preço.",
@@ -83,7 +83,7 @@ def registrar_preco(usuario_id_token):
     finally:
         if conn: conn.close()
 
-@precos_bp.route('/<int:registo_id>/votar', methods=['POST'])
+@precos_bp.route('/<int:registo_id>/votar', methods=['POST'], strict_slashes=False)
 @token_required
 def votar_preco(usuario_id_token, registo_id):
     data = request.get_json()
