@@ -48,7 +48,6 @@ def registrar_usuario():
 
 @auth_bp.route('/login', methods=['POST'], strict_slashes=False)
 def login():
-    # force=True OBRIGA o Flask a ler o corpo como JSON
     dados = request.get_json(force=True, silent=True) or {}
     
     email = dados.get('email')
@@ -59,25 +58,35 @@ def login():
 
     email = str(email).strip()
 
+    conn = None
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            cursor.execute("SELECT id, senha_hash FROM usuarios WHERE email = %s", (email,))
+            cursor.execute("SELECT * FROM usuarios WHERE email = %s", (email,))
             usuario = cursor.fetchone()
 
             if usuario and bcrypt.checkpw(senha.encode('utf-8'), usuario['senha_hash'].encode('utf-8')):
+                # Garante uma chave secreta válida mesmo se o .env do Render falhar
+                secret = os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY") or "chave_super_secreta_para_tokens_jwt"
+                
+                # Tenta capturar o ID da coluna correta
+                user_id = usuario.get('id') or usuario.get('id_usuario')
+
                 token = jwt.encode({
-                    'user_id': usuario['id'],
+                    'user_id': user_id,
                     'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-                }, SECRET_KEY, algorithm="HS256")
+                }, secret, algorithm="HS256")
 
                 return jsonify({"mensagem": "Login efetuado.", "token": token}), 200
             else:
                 return jsonify({"error": "Credenciais inválidas."}), 401
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # RETORNA O DETALHE DO ERRO PARA DIAGNÓSTICO IMEDIATO
+        print(f"Erro no Login: {str(e)}")
+        return jsonify({"error": "Erro interno no servidor ao realizar login", "detalhes": str(e)}), 500
     finally:
-        if conn: conn.close()
+        if conn and conn.open:
+            conn.close()
 
 @auth_bp.route('/perfil', methods=['GET'], strict_slashes=False)
 @token_required
