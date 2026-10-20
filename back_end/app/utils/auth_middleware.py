@@ -16,14 +16,16 @@ def token_required(f):
             return jsonify({'error': 'Token ausente. Acesso não autorizado.'}), 401
 
         try:
-            # O JWT_SECRET DEVE estar definido no seu arquivo .env
-            secret = os.getenv('JWT_SECRET', 'senha_super_secreta_padrao')
+            # Tenta ler JWT_SECRET ou fallback para SECRET_KEY do .env
+            secret = os.getenv('JWT_SECRET') or os.getenv('SECRET_KEY') or 'chave_super_secreta_para_tokens_jwt'
             data = jwt.decode(token, secret, algorithms=["HS256"])
             current_user_id = data['user_id']
         except jwt.ExpiredSignatureError:
             return jsonify({'error': 'Token expirado. Faça login novamente.'}), 401
         except jwt.InvalidTokenError:
-            return jsonify({'error': 'Token inválido. Acesso negado.'}), 401
+            return jsonify({'error': 'Token inválido ou corrompido.'}), 401
+        except Exception as e:
+            return jsonify({'error': f'Erro na validação do token: {str(e)}'}), 401
 
         return f(current_user_id, *args, **kwargs)
 
