@@ -1,21 +1,35 @@
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { api } from "../services/API";
+import { removeToken } from "../utils/token";
 
 export default function PerfilScreen() {
   const router = useRouter();
+
+  // Estado original
   const [perfil, setPerfil] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Estados de edição
+  const [editNome, setEditNome] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editSenha, setEditSenha] = useState("");
+
+  // Controles de interface
+  const [campoAtivo, setCampoAtivo] = useState<string | null>(null);
 
   useEffect(() => {
     carregarPerfil();
@@ -25,17 +39,56 @@ export default function PerfilScreen() {
     try {
       const response = await api.get("/auth/perfil");
       setPerfil(response.data);
+      setEditNome(response.data.nome);
+      setEditEmail(response.data.email);
     } catch (error) {
-      Alert.alert("Sessão Expirada", "Por favor, faça login novamente.");
-      await handleLogout();
+      Alert.alert("Sessão Expirada", "Faça login novamente.");
+      handleLogout();
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSalvarAlteracoes = async () => {
+    try {
+      setSaving(true);
+      const payload: any = {};
+
+      if (editNome !== perfil.nome) payload.nome = editNome;
+      if (editEmail !== perfil.email) payload.email = editEmail.trim();
+      if (editSenha) payload.senha = editSenha;
+
+      if (Object.keys(payload).length === 0) {
+        setCampoAtivo(null);
+        return; // Nada mudou
+      }
+
+      await api.put("/auth/perfil", payload);
+
+      Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
+      setCampoAtivo(null);
+      setEditSenha(""); // Limpa o campo de senha após salvar
+      carregarPerfil(); // Recarrega os dados fresquinhos do banco
+    } catch (error: any) {
+      const msgErro =
+        error.response?.data?.error || "Erro ao salvar alterações.";
+      Alert.alert("Erro", msgErro);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleLogout = async () => {
-    await AsyncStorage.removeItem("token");
-    router.replace("/");
+    try {
+      await removeToken();
+      if (Platform.OS === "web") {
+        window.location.href = "/";
+      } else {
+        router.replace("/");
+      }
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível sair da conta.");
+    }
   };
 
   if (loading) {
@@ -46,114 +99,276 @@ export default function PerfilScreen() {
     );
   }
 
+  // Componente Reutilizável inspirado na Imagem (Settings List Pattern)
+  const SettingItem = ({
+    title,
+    description,
+    value,
+    onChange,
+    field,
+    isSecure = false,
+    placeholder = "",
+  }: any) => {
+    const isEditing = campoAtivo === field;
+
+    return (
+      <View style={styles.settingRow}>
+        {/* Esquerda: Textos */}
+        <View style={styles.settingTextContainer}>
+          <Text style={styles.settingTitle}>{title}</Text>
+          <Text style={styles.settingDescription}>{description}</Text>
+        </View>
+
+        {/* Direita: Input e Botão Editar */}
+        <View style={styles.settingInputContainer}>
+          <TextInput
+            style={[styles.input, isEditing && styles.inputActive]}
+            value={value}
+            onChangeText={onChange}
+            editable={isEditing}
+            secureTextEntry={isSecure && !isEditing} // Esconde se for senha e não estiver a editar
+            placeholder={placeholder}
+            placeholderTextColor="#999"
+          />
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => setCampoAtivo(isEditing ? null : field)}
+          >
+            <Ionicons
+              name={isEditing ? "close-outline" : "pencil-outline"}
+              size={20}
+              color="#666"
+            />
+            <Text style={styles.editBtnText}>
+              {isEditing ? "Cancelar" : "Edit"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <>
-      {/* CORREÇÃO: Remove o cabeçalho duplicado */}
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.container}>
-        <View style={styles.headerTop}>
+      <ScrollView style={styles.container}>
+        <View style={styles.header}>
           <TouchableOpacity
             style={styles.btnVoltar}
             onPress={() => router.back()}
           >
             <Ionicons name="arrow-back" size={28} color="#333" />
           </TouchableOpacity>
+          <Text style={styles.headerTitle}>Configurações de Conta</Text>
         </View>
 
-        <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
-            <Ionicons name="person" size={55} color="#FFF" />
+        {/* Estatísticas e Status da Conta (Cabeçalho Reduzido) */}
+        <View style={styles.statusRow}>
+          <View style={styles.statusBadge}>
+            <Ionicons
+              name="star"
+              size={16}
+              color="#d79b00"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.statusText}>{perfil?.karma} Karma</Text>
           </View>
-          <Text style={styles.nome}>{perfil?.nome || "Utilizador"}</Text>
-          <Text style={styles.email}>{perfil?.email || "email@teste.com"}</Text>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: "#EBF4FF", borderColor: "#208AEF" },
+            ]}
+          >
+            <Ionicons
+              name="shield-checkmark"
+              size={16}
+              color="#208AEF"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={[styles.statusText, { color: "#208AEF" }]}>
+              Plano {perfil?.plano || "Grátis"}
+            </Text>
+          </View>
         </View>
 
-        {/* CORREÇÃO: Mais margem superior para descolar da foto */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
-            <Ionicons name="star" size={30} color="#d79b00" />
-            <Text style={styles.statValue}>{perfil?.karma || 0}</Text>
-            <Text style={styles.statLabel}>Karma</Text>
-          </View>
+        <View style={styles.settingsSection}>
+          <SettingItem
+            title="Nome Público"
+            description="Nome visível na comunidade do Litro de Ouro."
+            value={editNome}
+            onChange={setEditNome}
+            field="nome"
+          />
 
-          <View style={styles.statBox}>
-            <Ionicons name="shield-checkmark" size={30} color="#208AEF" />
-            <Text style={styles.statValue}>{perfil?.plano || "Grátis"}</Text>
-            <Text style={styles.statLabel}>Plano</Text>
-          </View>
+          <SettingItem
+            title="Endereço de E-mail"
+            description="Usado para autenticação e recuperação de conta."
+            value={editEmail}
+            onChange={setEditEmail}
+            field="email"
+          />
+
+          <SettingItem
+            title="Alterar Senha"
+            description="A Render codifica e protege a sua senha automaticamente."
+            value={editSenha}
+            onChange={setEditSenha}
+            field="senha"
+            isSecure={true}
+            placeholder="Digite nova senha"
+          />
         </View>
+
+        {/* Botão de Salvar Global (Aparece apenas se algo foi alterado) */}
+        {(editNome !== perfil.nome ||
+          editEmail !== perfil.email ||
+          editSenha !== "") && (
+          <TouchableOpacity
+            style={styles.btnSaveGlobal}
+            onPress={handleSalvarAlteracoes}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.btnSaveGlobalText}>Salvar Alterações</Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity style={styles.btnLogout} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={22} color="#FFF" />
           <Text style={styles.btnLogoutText}>Sair da Conta</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8F9FA" },
+  container: { flex: 1, backgroundColor: "#FAFAFA" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  headerTop: { paddingHorizontal: 20, paddingTop: 50, paddingBottom: 10 },
-  btnVoltar: { width: 40, height: 40, justifyContent: "center" },
-  profileHeader: { alignItems: "center", marginBottom: 40 },
-  avatarContainer: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: "#d79b00",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 15,
-    shadowColor: "#d79b00",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  nome: { fontSize: 26, fontWeight: "bold", color: "#333" },
-  email: { fontSize: 16, color: "#666", marginTop: 4 },
-  statsContainer: {
+  header: {
     flexDirection: "row",
-    justifyContent: "space-evenly",
+    alignItems: "center",
     paddingHorizontal: 20,
-    marginBottom: 50,
-  },
-  statBox: {
+    paddingTop: 50,
+    paddingBottom: 20,
     backgroundColor: "#FFF",
-    width: "42%",
-    paddingVertical: 25,
-    borderRadius: 15,
-    alignItems: "center",
-    borderWidth: 1,
+    borderBottomWidth: 1,
     borderColor: "#E2E8F0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  statValue: { fontSize: 22, fontWeight: "bold", color: "#333", marginTop: 10 },
-  statLabel: { fontSize: 14, color: "#666", marginTop: 4, fontWeight: "500" },
-  btnLogout: {
-    flexDirection: "row",
-    backgroundColor: "#E63946",
-    marginHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 12,
+  btnVoltar: {
+    width: 40,
+    height: 40,
     justifyContent: "center",
+    marginRight: 10,
+  },
+  headerTitle: { fontSize: 22, fontWeight: "bold", color: "#333" },
+
+  statusRow: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderColor: "#F0F0F0",
+  },
+  statusBadge: {
+    flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#E63946",
-    shadowOffset: { width: 0, height: 4 },
+    backgroundColor: "#FFF9E6",
+    borderWidth: 1,
+    borderColor: "#d79b00",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    marginRight: 10,
+  },
+  statusText: { fontSize: 13, fontWeight: "bold", color: "#d79b00" },
+
+  settingsSection: { marginTop: 10 },
+
+  // Estilo inspirado na imagem (Render Dashboard)
+  settingRow: {
+    flexDirection: Platform.OS === "web" ? "row" : "column",
+    justifyContent: "space-between",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderColor: "#F0F0F0",
+    backgroundColor: "#FFF",
+  },
+  settingTextContainer: {
+    flex: 1,
+    paddingRight: Platform.OS === "web" ? 40 : 0,
+    marginBottom: Platform.OS === "web" ? 0 : 15,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#222",
+    marginBottom: 6,
+  },
+  settingDescription: { fontSize: 13, color: "#666", lineHeight: 18 },
+
+  settingInputContainer: {
+    flex: Platform.OS === "web" ? 1.5 : 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  input: {
+    flex: 1,
+    height: 44,
+    backgroundColor: "#F9F9F9",
+    borderWidth: 1,
+    borderColor: "#EAEAEA",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    color: "#333",
+    fontSize: 14,
+  },
+  inputActive: {
+    backgroundColor: "#FFF",
+    borderColor: "#208AEF",
+    shadowColor: "#208AEF",
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+
+  editBtn: { flexDirection: "row", alignItems: "center", paddingLeft: 15 },
+  editBtnText: { color: "#666", fontSize: 14, marginLeft: 4 },
+
+  btnSaveGlobal: {
+    backgroundColor: "#208AEF",
+    marginHorizontal: 20,
+    marginTop: 30,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    shadowColor: "#208AEF",
     shadowOpacity: 0.3,
     shadowRadius: 5,
-    elevation: 4,
+    elevation: 3,
+  },
+  btnSaveGlobalText: { color: "#FFF", fontSize: 16, fontWeight: "bold" },
+
+  btnLogout: {
+    flexDirection: "row",
+    marginHorizontal: 20,
+    marginTop: 40,
+    marginBottom: 50,
+    paddingVertical: 14,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E63946",
+    backgroundColor: "#FFF",
   },
   btnLogoutText: {
-    color: "#FFF",
-    fontSize: 18,
+    color: "#E63946",
+    fontSize: 16,
     fontWeight: "bold",
     marginLeft: 10,
   },

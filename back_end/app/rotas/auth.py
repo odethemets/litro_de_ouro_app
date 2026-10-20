@@ -105,3 +105,63 @@ def obter_perfil(current_user_id):
         return jsonify({"error": str(e)}), 500
     finally:
         if conn: conn.close()
+
+
+        # NOVA ROTA: Atualizar dados do Perfil (Nome, Email, Senha)
+@auth_bp.route('/perfil', methods=['PUT'], strict_slashes=False)
+@token_required
+def atualizar_perfil(current_user_id):
+    dados = request.get_json(force=True, silent=True) or {}
+    
+    nome = dados.get('nome')
+    email = dados.get('email')
+    senha = dados.get('senha')
+
+    if not nome and not email and not senha:
+         return jsonify({"error": "Nenhum dado enviado para atualização."}), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # 1. Se tentou mudar o email, verifica se não pertence a outra pessoa
+            if email:
+                email = str(email).strip()
+                cursor.execute("SELECT id FROM usuarios WHERE email = %s AND id != %s", (email, current_user_id))
+                if cursor.fetchone():
+                    return jsonify({"error": "Este e-mail já está em uso por outra conta."}), 409
+
+            # 2. Monta a query de update dinamicamente
+            campos_para_atualizar = []
+            valores = []
+
+            if nome:
+                campos_para_atualizar.append("nome = %s")
+                valores.append(nome)
+            
+            if email:
+                campos_para_atualizar.append("email = %s")
+                valores.append(email)
+
+            if senha:
+                # O motor encripta a nova senha antes de guardar
+                hash_nova = bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                campos_para_atualizar.append("senha = %s")
+                valores.append(hash_nova)
+
+            # Executa apenas se houver campos reais
+            if campos_para_atualizar:
+                query = f"UPDATE usuarios SET {', '.join(campos_para_atualizar)} WHERE id = %s"
+                valores.append(current_user_id)
+                
+                cursor.execute(query, tuple(valores))
+                conn.commit()
+            
+        return jsonify({"mensagem": "Perfil atualizado com sucesso!"}), 200
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"Erro ao atualizar perfil: {str(e)}")
+        return jsonify({"error": "Erro interno ao atualizar perfil.", "detalhes": str(e)}), 500
+    finally:
+        if conn and conn.open: 
+            conn.close()
