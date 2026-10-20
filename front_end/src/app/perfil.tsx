@@ -15,20 +15,68 @@ import {
 import { api } from "../services/API";
 import { removeToken } from "../utils/token";
 
+// CORREÇÃO: O Componente SettingItem agora vive FORA da tela principal
+// Isso evita que o React destrua o Input a cada letra digitada.
+const SettingItem = ({
+  title,
+  description,
+  value,
+  onChange,
+  field,
+  isSecure = false,
+  placeholder = "",
+  campoAtivo,
+  setCampoAtivo,
+}: any) => {
+  const isEditing = campoAtivo === field;
+
+  return (
+    <View style={styles.settingRow}>
+      <View style={styles.settingTextContainer}>
+        <Text style={styles.settingTitle}>{title}</Text>
+        <Text style={styles.settingDescription}>{description}</Text>
+      </View>
+
+      <View style={styles.settingInputContainer}>
+        <TextInput
+          style={[styles.input, isEditing && styles.inputActive]}
+          value={value}
+          onChangeText={onChange}
+          editable={isEditing}
+          secureTextEntry={isSecure && !isEditing}
+          placeholder={placeholder}
+          placeholderTextColor="#999"
+          autoCapitalize="none" // Evita maiúsculas indesejadas no email/senha
+        />
+        <TouchableOpacity
+          style={styles.editBtn}
+          onPress={() => setCampoAtivo(isEditing ? null : field)}
+        >
+          <Ionicons
+            name={isEditing ? "close-outline" : "pencil-outline"}
+            size={20}
+            color="#666"
+          />
+          <Text style={styles.editBtnText}>
+            {isEditing ? "Cancelar" : "Edit"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
 export default function PerfilScreen() {
   const router = useRouter();
 
-  // Estado original
   const [perfil, setPerfil] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Estados de edição
   const [editNome, setEditNome] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editSenha, setEditSenha] = useState("");
 
-  // Controles de interface
   const [campoAtivo, setCampoAtivo] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,15 +108,16 @@ export default function PerfilScreen() {
 
       if (Object.keys(payload).length === 0) {
         setCampoAtivo(null);
-        return; // Nada mudou
+        return;
       }
 
-      await api.put("/auth/perfil", payload);
+      // IMPORTANTE: A barra final para evitar o erro 308 (Redirect)
+      await api.put("/auth/perfil/", payload);
 
       Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
       setCampoAtivo(null);
-      setEditSenha(""); // Limpa o campo de senha após salvar
-      carregarPerfil(); // Recarrega os dados fresquinhos do banco
+      setEditSenha("");
+      carregarPerfil();
     } catch (error: any) {
       const msgErro =
         error.response?.data?.error || "Erro ao salvar alterações.";
@@ -99,55 +148,6 @@ export default function PerfilScreen() {
     );
   }
 
-  // Componente Reutilizável inspirado na Imagem (Settings List Pattern)
-  const SettingItem = ({
-    title,
-    description,
-    value,
-    onChange,
-    field,
-    isSecure = false,
-    placeholder = "",
-  }: any) => {
-    const isEditing = campoAtivo === field;
-
-    return (
-      <View style={styles.settingRow}>
-        {/* Esquerda: Textos */}
-        <View style={styles.settingTextContainer}>
-          <Text style={styles.settingTitle}>{title}</Text>
-          <Text style={styles.settingDescription}>{description}</Text>
-        </View>
-
-        {/* Direita: Input e Botão Editar */}
-        <View style={styles.settingInputContainer}>
-          <TextInput
-            style={[styles.input, isEditing && styles.inputActive]}
-            value={value}
-            onChangeText={onChange}
-            editable={isEditing}
-            secureTextEntry={isSecure && !isEditing} // Esconde se for senha e não estiver a editar
-            placeholder={placeholder}
-            placeholderTextColor="#999"
-          />
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => setCampoAtivo(isEditing ? null : field)}
-          >
-            <Ionicons
-              name={isEditing ? "close-outline" : "pencil-outline"}
-              size={20}
-              color="#666"
-            />
-            <Text style={styles.editBtnText}>
-              {isEditing ? "Cancelar" : "Edit"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -163,7 +163,6 @@ export default function PerfilScreen() {
           <Text style={styles.headerTitle}>Configurações de Conta</Text>
         </View>
 
-        {/* Estatísticas e Status da Conta (Cabeçalho Reduzido) */}
         <View style={styles.statusRow}>
           <View style={styles.statusBadge}>
             <Ionicons
@@ -199,6 +198,8 @@ export default function PerfilScreen() {
             value={editNome}
             onChange={setEditNome}
             field="nome"
+            campoAtivo={campoAtivo}
+            setCampoAtivo={setCampoAtivo}
           />
 
           <SettingItem
@@ -207,6 +208,8 @@ export default function PerfilScreen() {
             value={editEmail}
             onChange={setEditEmail}
             field="email"
+            campoAtivo={campoAtivo}
+            setCampoAtivo={setCampoAtivo}
           />
 
           <SettingItem
@@ -217,10 +220,11 @@ export default function PerfilScreen() {
             field="senha"
             isSecure={true}
             placeholder="Digite nova senha"
+            campoAtivo={campoAtivo}
+            setCampoAtivo={setCampoAtivo}
           />
         </View>
 
-        {/* Botão de Salvar Global (Aparece apenas se algo foi alterado) */}
         {(editNome !== perfil.nome ||
           editEmail !== perfil.email ||
           editSenha !== "") && (
@@ -289,7 +293,6 @@ const styles = StyleSheet.create({
 
   settingsSection: { marginTop: 10 },
 
-  // Estilo inspirado na imagem (Render Dashboard)
   settingRow: {
     flexDirection: Platform.OS === "web" ? "row" : "column",
     justifyContent: "space-between",
