@@ -22,7 +22,12 @@ export interface Posto {
   longitude: number;
 }
 
-const TIPOS_COMBUSTIVEL = ["Gasolina Comum", "Etanol", "Diesel"];
+const TIPOS_COMBUSTIVEL = [
+  "Gasolina Comum",
+  "Etanol",
+  "Diesel",
+  "Gasolina adtivada",
+];
 
 export default function HomeScreenWeb() {
   const router = useRouter();
