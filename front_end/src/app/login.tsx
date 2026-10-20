@@ -12,7 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { saveToken } from "../utils/token"; // <-- NOVA IMPORTAÇÃO LIMPA
+import { api } from "../services/API"; // <- USO DO AXIOS
+import { saveToken } from "../utils/token";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -31,31 +32,15 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      const API_URL =
-        Platform.OS === "web"
-          ? "https://litro-de-ouro-app.onrender.com"
-          : "https://litro-de-ouro-app.onrender.com";
+      // Uso limpo e centralizado do Axios
+      const response = await api.post("/auth/login", { email, password });
 
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Credenciais inválidas");
-      }
-
-      // USO LIMPO DA FUNÇÃO CENTRAL
-      await saveToken(data.token);
+      await saveToken(response.data.token);
       router.replace("/");
     } catch (error: any) {
-      Alert.alert(
-        "Erro no Login",
-        error.message || "Não foi possível conectar ao servidor.",
-      );
+      const msgErro =
+        error.response?.data?.error || "Não foi possível conectar ao servidor.";
+      Alert.alert("Erro no Login", msgErro);
     } finally {
       setLoading(false);
     }

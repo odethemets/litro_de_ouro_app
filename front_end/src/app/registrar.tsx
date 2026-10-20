@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { api } from "../services/API"; // <- USO DO AXIOS
 
 export default function RegistrarScreen() {
   const router = useRouter();
@@ -30,34 +31,16 @@ export default function RegistrarScreen() {
     setLoading(true);
 
     try {
-      // IMPORTANTE: Substitua pelo IP da sua máquina
-      const API_URL =
-        Platform.OS === "web"
-          ? "https://litro-de-ouro-app.onrender.com"
-          : "https://litro-de-ouro-app.onrender.com";
-
-      const response = await fetch(`${API_URL}/auth/registrar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Erro ao criar conta.");
-      }
+      await api.post("/auth/registrar", { nome, email, senha: password });
 
       Alert.alert(
         "Sucesso!",
         "Conta criada com sucesso. Faça login para continuar.",
       );
-      router.replace("/login"); // Volta para o login após criar a conta
+      router.replace("/login");
     } catch (error: any) {
-      Alert.alert(
-        "Erro",
-        error.message || "Não foi possível conectar ao servidor.",
-      );
+      const msgErro = error.response?.data?.error || "Erro ao criar conta.";
+      Alert.alert("Erro", msgErro);
     } finally {
       setLoading(false);
     }
@@ -163,7 +146,6 @@ export default function RegistrarScreen() {
   );
 }
 
-// OS ESTILOS SÃO IDÊNTICOS AO DO LOGIN PARA MANTER COESÃO VISUAL
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFF" },
   header: {

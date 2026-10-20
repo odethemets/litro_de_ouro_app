@@ -77,16 +77,13 @@ export default function HomeScreenWeb() {
   };
 
   const handleTracarRota = (posto: Posto) => {
-    Linking.openURL(
-      `https://www.google.com/maps/dir/?api=1&destination=${posto.latitude},${posto.longitude}`,
-    );
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${posto.latitude},${posto.longitude}`;
+    if (Platform.OS === "web") {
+      window.open(url, "_blank");
+    } else {
+      Linking.openURL(url);
+    }
   };
-
-  // Se não for Web ou estiver no Servidor (Vercel Build), não carrega nada que rebente o HTML
-  if (Platform.OS !== "web" || typeof window === "undefined") {
-    return null;
-  }
-
   // Criamos o HTML do Leaflet puro que será renderizado no iframe. Isto desvia-se completamente dos problemas do React-Leaflet
   const mapHtml = `
     <!DOCTYPE html>
