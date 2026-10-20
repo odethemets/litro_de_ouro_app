@@ -20,7 +20,6 @@ interface Posto {
   endereco?: string;
   latitude: number;
   longitude: number;
-  preco_gasolina?: number;
 }
 
 export default function RegistrarPrecoScreen() {
@@ -32,7 +31,6 @@ export default function RegistrarPrecoScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // 1. Carrega os postos cadastrados na Aiven
   useEffect(() => {
     carregarPostos();
   }, []);
@@ -53,8 +51,6 @@ export default function RegistrarPrecoScreen() {
     }
   };
 
-  // 2. Envia o novo preço
-  // 2. Envia o novo preço com as chaves exatas esperadas pelo backend
   const handleSalvarPreco = async () => {
     if (!postoSelecionado) {
       Alert.alert("Atenção", "Por favor, selecione um posto.");
@@ -75,41 +71,25 @@ export default function RegistrarPrecoScreen() {
     try {
       setSubmitting(true);
 
-      // Payload ajustado para a rota POST /precos do Flask
+      // PAYLOAD LIMPO: Exatamente o que o novo backend exige
       const payload = {
         posto_id: Number(postoSelecionado.id),
-        tipo_combustivel: "Gasolina Comum", // Nome exato exigido pela API
-        tipo: "Gasolina Comum",
+        tipo_combustivel: "Gasolina Comum",
         preco: precoFormatado,
-        preco_gasolina: precoFormatado,
         latitude: Number(postoSelecionado.latitude),
         longitude: Number(postoSelecionado.longitude),
       };
 
       await api.post("/precos", payload);
 
-      Alert.alert("Sucesso!", "Preço registrado com sucesso!", [
-        {
-          text: "OK",
-          onPress: () => router.replace("/"),
-        },
+      Alert.alert("Sucesso!", "Preço registado com sucesso!", [
+        { text: "OK", onPress: () => router.replace("/") },
       ]);
     } catch (error: any) {
-      console.error(
-        "Erro detalhado do servidor:",
-        error.response?.data || error,
-      );
-
-      const erroServidor = error.response?.data;
-      const mensagem =
-        typeof erroServidor === "object"
-          ? erroServidor.error ||
-            erroServidor.mensagem ||
-            erroServidor.detalhes ||
-            JSON.stringify(erroServidor)
-          : "Não foi possível salvar o preço. Verifique os dados.";
-
-      Alert.alert("Erro ao Salvar", mensagem);
+      // TRATAMENTO ROBUSTO DE ERRO (Inclui o aviso de 200m do Geofencing)
+      const erroServidor =
+        error.response?.data?.error || "Não foi possível salvar o preço.";
+      Alert.alert("Aviso", erroServidor);
     } finally {
       setSubmitting(false);
     }
@@ -117,7 +97,6 @@ export default function RegistrarPrecoScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Botão de Voltar */}
       <TouchableOpacity style={styles.btnVoltar} onPress={() => router.back()}>
         <Ionicons name="arrow-back" size={24} color="#333" />
         <Text style={styles.btnVoltarTexto}>Voltar</Text>
@@ -128,7 +107,6 @@ export default function RegistrarPrecoScreen() {
         Ajude a comunidade atualizando o valor do combustível.
       </Text>
 
-      {/* Seletor de Postos */}
       <Text style={styles.label}>1. Selecione o Posto:</Text>
       <View style={styles.listaPostos}>
         {postos.map((item) => {
@@ -166,7 +144,6 @@ export default function RegistrarPrecoScreen() {
         })}
       </View>
 
-      {/* Input de Preço */}
       <Text style={styles.label}>2. Preço da Gasolina Comum (R$):</Text>
       <View style={styles.inputContainer}>
         <Text style={styles.cifrao}>R$</Text>
@@ -179,7 +156,6 @@ export default function RegistrarPrecoScreen() {
         />
       </View>
 
-      {/* Botão de Submeter */}
       <TouchableOpacity
         style={styles.btnSalvar}
         activeOpacity={0.8}
@@ -197,55 +173,19 @@ export default function RegistrarPrecoScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8F9FA",
-  },
-  content: {
-    padding: 20,
-    paddingTop: 50,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F8F9FA",
-  },
-  loadingText: {
-    marginTop: 10,
-    color: "#666",
-    fontSize: 15,
-  },
-  btnVoltar: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-  },
+  container: { flex: 1, backgroundColor: "#F8F9FA" },
+  content: { padding: 20, paddingTop: 50 },
+  btnVoltar: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   btnVoltarTexto: {
     marginLeft: 8,
     fontSize: 16,
     color: "#333",
     fontWeight: "600",
   },
-  titulo: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#111",
-  },
-  subtitulo: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 25,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 10,
-  },
-  listaPostos: {
-    marginBottom: 25,
-  },
+  titulo: { fontSize: 26, fontWeight: "bold", color: "#111" },
+  subtitulo: { fontSize: 14, color: "#666", marginBottom: 25 },
+  label: { fontSize: 16, fontWeight: "bold", color: "#333", marginBottom: 10 },
+  listaPostos: { marginBottom: 25 },
   cardPosto: {
     flexDirection: "row",
     alignItems: "center",
@@ -256,27 +196,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#E2E8F0",
   },
-  cardPostoSelecionado: {
-    borderColor: "#d79b00",
-    backgroundColor: "#FFF9E6",
-  },
-  infoPosto: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  nomePosto: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  nomePostoSelecionado: {
-    color: "#d79b00",
-  },
-  enderecoPosto: {
-    fontSize: 13,
-    color: "#777",
-    marginTop: 2,
-  },
+  cardPostoSelecionado: { borderColor: "#d79b00", backgroundColor: "#FFF9E6" },
+  infoPosto: { marginLeft: 12, flex: 1 },
+  nomePosto: { fontSize: 16, fontWeight: "bold", color: "#333" },
+  nomePostoSelecionado: { color: "#d79b00" },
+  enderecoPosto: { fontSize: 13, color: "#777", marginTop: 2 },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -287,12 +211,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginBottom: 30,
   },
-  cifrao: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    marginRight: 8,
-  },
+  cifrao: { fontSize: 20, fontWeight: "bold", color: "#333", marginRight: 8 },
   inputPreco: {
     flex: 1,
     height: 50,
@@ -311,9 +230,5 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 4,
   },
-  btnSalvarTexto: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+  btnSalvarTexto: { color: "#FFF", fontSize: 18, fontWeight: "bold" },
 });
