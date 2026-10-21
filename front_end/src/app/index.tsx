@@ -30,6 +30,8 @@ export interface Posto {
   longitude: number;
   preco_gasolina: number;
   distancia?: number;
+  horario_funcionamento?: string;
+  tipo_posto?: "Convencional" | "Eletroposto";
 }
 
 // 2. Componente principal da aplicação
@@ -121,19 +123,30 @@ export default function HomeScreen() {
     const userLat = location?.coords.latitude ?? -7.1153;
     const userLng = location?.coords.longitude ?? -34.861;
 
+    // Lógica alterada para suportar a cor dinâmica de Convencional x Eletroposto
     const markersJS = postos
-      .map(
-        (posto) => `
-      L.marker([${posto.latitude}, ${posto.longitude}]).addTo(map)
-        .on('click', function() {
-          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: ${posto.id} }));
-          } else if (window.parent) {
-            window.parent.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: ${posto.id} }), '*');
-          }
-        });
-    `,
-      )
+      .map((posto) => {
+        const isEletro = posto.tipo_posto === "Eletroposto";
+        const pinColor = isEletro ? "#10B981" : "#d32f2f"; // Verde para elétrico, Vermelho para gasolina
+
+        return `
+          var iconHtml_${posto.id} = L.divIcon({
+            className: 'custom-pin',
+            html: "<div style='background-color:${pinColor}; width:20px; height:20px; border-radius:50%; border:2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.4);'></div>",
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          });
+          
+          L.marker([${posto.latitude}, ${posto.longitude}], { icon: iconHtml_${posto.id} }).addTo(map)
+            .on('click', function() {
+              if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: ${posto.id} }));
+              } else if (window.parent) {
+                window.parent.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: ${posto.id} }), '*');
+              }
+            });
+        `;
+      })
       .join("\n");
 
     return `
@@ -222,12 +235,17 @@ export default function HomeScreen() {
             <>
               <Text style={styles.postoNome}>{postoSelecionado.nome}</Text>
               <Text style={styles.distancia}>
+                {postoSelecionado.horario_funcionamento || "24 Horas"} •{" "}
                 {postoSelecionado.distancia
                   ? `${postoSelecionado.distancia} de si`
                   : postoSelecionado.bairro || "João Pessoa"}
               </Text>
               <View style={styles.precoCard}>
-                <Text style={styles.combustivelLabel}>Gasolina Comum</Text>
+                <Text style={styles.combustivelLabel}>
+                  {postoSelecionado.tipo_posto === "Eletroposto"
+                    ? "Recarga (kWh)"
+                    : "Gasolina Comum"}
+                </Text>
                 <Text style={styles.precoDestaque}>
                   R${" "}
                   {Number(postoSelecionado?.preco_gasolina ?? 0)
@@ -314,7 +332,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 20,
   },
-  postoNome: { fontSize: 22, fontWeight: "bold", color: "#333" },
+  postoNome: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+  },
   distancia: { fontSize: 14, color: "#666", marginBottom: 15 },
   precoCard: {
     backgroundColor: "#f5f5f5",
