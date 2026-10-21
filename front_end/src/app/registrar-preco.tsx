@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Platform, // <-- Importação crucial para a Web
   ScrollView,
   StyleSheet,
   Text,
@@ -23,6 +22,7 @@ interface Posto {
   longitude: number;
 }
 
+// CORREÇÃO: Gasolina Aditivada adicionada aqui!
 const TIPOS_COMBUSTIVEL = [
   "Gasolina Comum",
   "Gasolina Aditivada",
@@ -53,34 +53,20 @@ export default function RegistrarPrecoScreen() {
         setPostoSelecionado(response.data[0]);
       }
     } catch (error: any) {
-      if (Platform.OS === "web") {
-        window.alert("Erro: Não foi possível carregar a lista de postos.");
-      } else {
-        Alert.alert("Erro", "Não foi possível carregar a lista de postos.");
-      }
+      Alert.alert("Erro", "Não foi possível carregar a lista de postos.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleSalvarPreco = async () => {
-    if (!postoSelecionado) {
-      return Platform.OS === "web"
-        ? window.alert("Atenção: Selecione um posto.")
-        : Alert.alert("Atenção", "Selecione um posto.");
-    }
-
-    if (!precoInformado.trim()) {
-      return Platform.OS === "web"
-        ? window.alert("Atenção: Informe o preço.")
-        : Alert.alert("Atenção", "Informe o preço.");
-    }
+    if (!postoSelecionado) return Alert.alert("Atenção", "Selecione um posto.");
+    if (!precoInformado.trim())
+      return Alert.alert("Atenção", "Informe o preço.");
 
     const precoFormatado = parseFloat(precoInformado.replace(",", "."));
     if (isNaN(precoFormatado) || precoFormatado <= 0) {
-      return Platform.OS === "web"
-        ? window.alert("Atenção: Informe um valor numérico válido.")
-        : Alert.alert("Atenção", "Informe um valor numérico válido.");
+      return Alert.alert("Atenção", "Informe um valor numérico válido.");
     }
 
     try {
@@ -93,31 +79,14 @@ export default function RegistrarPrecoScreen() {
         longitude: Number(postoSelecionado.longitude),
       };
 
-      console.log("A enviar payload para a API:", payload); // <-- Log para o Console F12 da Web
-
       await api.post("/precos/", payload);
-
-      // BLINDAGEM WEB: Usa o alert nativo do navegador para não bloquear o redirecionamento
-      if (Platform.OS === "web") {
-        window.alert(`Sucesso! Preço do ${tipoCombustivel} registado!`);
-        router.replace("/");
-      } else {
-        Alert.alert("Sucesso!", `Preço do ${tipoCombustivel} registado!`, [
-          { text: "OK", onPress: () => router.replace("/") },
-        ]);
-      }
+      Alert.alert("Sucesso!", `Preço do ${tipoCombustivel} registado!`, [
+        { text: "OK", onPress: () => router.replace("/") },
+      ]);
     } catch (error: any) {
       const erroServidor =
-        error.response?.data?.error ||
-        error.message ||
-        "Erro desconhecido ao salvar o preço.";
-      console.error("Erro completo da API:", error); // <-- Para vermos o erro exato no F12
-
-      if (Platform.OS === "web") {
-        window.alert(`Aviso: ${erroServidor}`);
-      } else {
-        Alert.alert("Aviso", erroServidor);
-      }
+        error.response?.data?.error || "Erro ao salvar o preço.";
+      Alert.alert("Aviso", erroServidor);
     } finally {
       setSubmitting(false);
     }
@@ -125,22 +94,16 @@ export default function RegistrarPrecoScreen() {
 
   return (
     <>
+      {/* CORREÇÃO: Esconde o cabeçalho padrão duplicado do sistema */}
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled" // <-- BLINDAGEM MOBILE: Permite que o botão seja clicado mesmo com o teclado aberto
       >
         <TouchableOpacity
           style={styles.btnVoltar}
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/");
-            }
-          }}
+          onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
           <Text style={styles.btnVoltarTexto}>Voltar</Text>
@@ -236,7 +199,7 @@ export default function RegistrarPrecoScreen() {
           {submitting ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.btnSalvarTexto}>Registrar Preço</Text>
+            <Text style={styles.btnSalvarTexto}>Confirmar e Salvar</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
