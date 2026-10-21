@@ -2,13 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator, // <-- Adicionado de volta!
   Alert,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { api } from "../services/API";
 
@@ -21,7 +22,6 @@ interface Posto {
   longitude: number;
 }
 
-// CORREÇÃO: Gasolina Aditivada adicionada aqui!
 const TIPOS_COMBUSTIVEL = [
   "Gasolina Comum",
   "Gasolina Aditivada",
@@ -78,6 +78,7 @@ export default function RegistrarPrecoScreen() {
         longitude: Number(postoSelecionado.longitude),
       };
 
+      // A barra no final protege-nos contra o redirecionamento!
       await api.post("/precos/", payload);
       Alert.alert("Sucesso!", `Preço do ${tipoCombustivel} registado!`, [
         { text: "OK", onPress: () => router.replace("/") },
@@ -93,16 +94,22 @@ export default function RegistrarPrecoScreen() {
 
   return (
     <>
-      {/* CORREÇÃO: Esconde o cabeçalho padrão duplicado do sistema */}
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
       >
+        {/* CORREÇÃO 1: Botão blindado de voltar no TOPO */}
         <TouchableOpacity
           style={styles.btnVoltar}
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/");
+            }
+          }}
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
           <Text style={styles.btnVoltarTexto}>Voltar</Text>
@@ -189,18 +196,18 @@ export default function RegistrarPrecoScreen() {
           />
         </View>
 
+        {/* CORREÇÃO 2: Botão de Salvar original de volta ao fundo da tela! */}
         <TouchableOpacity
-          style={styles.btnVoltar}
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/");
-            }
-          }}
+          style={styles.btnSalvar}
+          activeOpacity={0.8}
+          onPress={handleSalvarPreco}
+          disabled={submitting}
         >
-          <Ionicons name="arrow-back" size={24} color="#333" />
-          <Text style={styles.btnVoltarTexto}>Voltar</Text>
+          {submitting ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <Text style={styles.btnSalvarTexto}>Confirmar e Salvar</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </>
