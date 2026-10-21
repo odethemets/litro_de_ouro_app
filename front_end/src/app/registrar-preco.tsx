@@ -22,7 +22,6 @@ interface Posto {
   longitude: number;
 }
 
-// CORREÇÃO: Gasolina Aditivada adicionada aqui!
 const TIPOS_COMBUSTIVEL = [
   "Gasolina Comum",
   "Gasolina Aditivada",
@@ -37,6 +36,7 @@ export default function RegistrarPrecoScreen() {
   const [postoSelecionado, setPostoSelecionado] = useState<Posto | null>(null);
   const [tipoCombustivel, setTipoCombustivel] = useState("Gasolina Comum");
   const [precoInformado, setPrecoInformado] = useState("");
+  const [busca, setBusca] = useState(""); // Novo estado para a busca
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -92,9 +92,18 @@ export default function RegistrarPrecoScreen() {
     }
   };
 
+  // Filtra os postos em tempo real pelo nome, bairro ou endereço
+  const postosFiltrados = postos.filter((p) => {
+    const termo = busca.toLowerCase();
+    return (
+      p.nome.toLowerCase().includes(termo) ||
+      (p.bairro && p.bairro.toLowerCase().includes(termo)) ||
+      (p.endereco && p.endereco.toLowerCase().includes(termo))
+    );
+  });
+
   return (
     <>
-      {/* CORREÇÃO: Esconde o cabeçalho padrão duplicado do sistema */}
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView
@@ -103,7 +112,13 @@ export default function RegistrarPrecoScreen() {
       >
         <TouchableOpacity
           style={styles.btnVoltar}
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/");
+            }
+          }}
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
           <Text style={styles.btnVoltarTexto}>Voltar</Text>
@@ -115,8 +130,31 @@ export default function RegistrarPrecoScreen() {
         </Text>
 
         <Text style={styles.label}>1. Selecione o Posto:</Text>
+
+        {/* Barra de Pesquisa */}
+        <View style={styles.buscaContainer}>
+          <Ionicons
+            name="search"
+            size={20}
+            color="#666"
+            style={{ marginRight: 8 }}
+          />
+          <TextInput
+            style={styles.inputBusca}
+            placeholder="Buscar por nome ou bairro..."
+            placeholderTextColor="#999"
+            value={busca}
+            onChangeText={setBusca}
+          />
+          {busca.length > 0 && (
+            <TouchableOpacity onPress={() => setBusca("")}>
+              <Ionicons name="close-circle" size={18} color="#999" />
+            </TouchableOpacity>
+          )}
+        </View>
+
         <View style={styles.listaPostos}>
-          {postos.map((item) => {
+          {postosFiltrados.map((item) => {
             const isSelected = postoSelecionado?.id === item.id;
             return (
               <TouchableOpacity
@@ -225,6 +263,22 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 10,
     marginTop: 10,
+  },
+  buscaContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 44,
+    marginBottom: 15,
+  },
+  inputBusca: {
+    flex: 1,
+    fontSize: 14,
+    color: "#333",
   },
   listaPostos: { marginBottom: 15 },
   cardPosto: {
