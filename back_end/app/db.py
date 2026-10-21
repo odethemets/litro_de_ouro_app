@@ -11,7 +11,7 @@ def get_db_connection():
     db_password = os.getenv('DB_PASSWORD') or os.environ.get('DB_PASSWORD')
     db_host = os.getenv('DB_HOST') or os.environ.get('DB_HOST')
 
-    return pymysql.connect(
+    conn = pymysql.connect(
         host=db_host,
         port=26841,
         user='avnadmin',
@@ -21,3 +21,9 @@ def get_db_connection():
         autocommit=False,
         ssl={'ssl': {}}
     )
+
+    # Força a sessão do banco a rodar no fuso de João Pessoa (UTC-3)
+    with conn.cursor() as cursor:
+        cursor.execute("SET time_zone = '-03:00';")
+
+    return conn
