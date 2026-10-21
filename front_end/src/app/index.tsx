@@ -16,6 +16,7 @@ import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 
+import { api } from "../services/API";
 import { getToken } from "../utils/token";
 
 // 1. Interface definida no escopo GLOBAL
@@ -34,7 +35,27 @@ export interface Posto {
   tipo_posto?: "Convencional" | "Eletroposto";
 }
 
-// 2. Componente principal da aplicação
+// 2. Fórmula para calcular a distância em km entre duas coordenadas (Haversine)
+const calcularDistanciaKM = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+) => {
+  const R = 6371; // Raio da Terra em km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// 3. Componente principal da aplicação
 export default function HomeScreen() {
   const router = useRouter();
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -47,6 +68,54 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [postos, setPostos] = useState<Posto[]>([]);
   const [postoSelecionado, setPostoSelecionado] = useState<Posto | null>(null);
+
+  // NOVO: Fluxo de Inicialização (Localização + Busca de Dados da API)
+  useEffect(() => {
+    const carregarDadosEMapa = async () => {
+      try {
+        setLoading(true);
+        let coordsUsuario = { latitude: -7.1153, longitude: -34.861 }; // Default João Pessoa
+
+        // 1. Pedir permissão e buscar GPS (Funciona na Web e Mobile)
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const loc = await Location.getCurrentPositionAsync({});
+          setLocation(loc);
+          coordsUsuario = {
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          };
+        } else {
+          console.warn("Permissão de GPS negada. Usando coordenadas padrão.");
+        }
+
+        // 2. Buscar postos da API
+        const response = await api.get("/postos/");
+        const postosBanco: Posto[] = response.data;
+
+        // 3. Calcular a distância para cada posto e ordenar do mais perto para o mais longe
+        const postosComDistancia = postosBanco
+          .map((posto) => ({
+            ...posto,
+            distancia: calcularDistanciaKM(
+              coordsUsuario.latitude,
+              coordsUsuario.longitude,
+              posto.latitude,
+              posto.longitude,
+            ),
+          }))
+          .sort((a, b) => (a.distancia || 0) - (b.distancia || 0));
+
+        setPostos(postosComDistancia);
+      } catch (error) {
+        console.error("Erro ao carregar mapa e GPS:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    carregarDadosEMapa();
+  }, []);
 
   // Escuta de cliques do mapa Leaflet (iframe) especificamente no navegador Web
   useEffect(() => {
@@ -78,7 +147,7 @@ export default function HomeScreen() {
     };
   }, [postos]);
 
-  // Escuta os cliques dos marcadores vindos do HTML/Leaflet
+  // Escuta os cliques dos marcadores vindos do HTML/Leaflet no Mobile
   const handleWebViewMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
@@ -119,15 +188,14 @@ export default function HomeScreen() {
 
   // Gerador dinâmico do HTML com Leaflet
   const generateMapHTML = () => {
-    // Coordenadas padrão de João Pessoa se o GPS não estiver pronto
     const userLat = location?.coords.latitude ?? -7.1153;
     const userLng = location?.coords.longitude ?? -34.861;
 
-    // Lógica alterada para suportar a cor dinâmica de Convencional x Eletroposto
     const markersJS = postos
       .map((posto) => {
+        // Regra visual: Verde para Eletroposto, Vermelho para Convencional
         const isEletro = posto.tipo_posto === "Eletroposto";
-        const pinColor = isEletro ? "#10B981" : "#d32f2f"; // Verde para elétrico, Vermelho para gasolina
+        const pinColor = isEletro ? "#10B981" : "#d32f2f";
 
         return `
           var iconHtml_${posto.id} = L.divIcon({
@@ -169,6 +237,7 @@ export default function HomeScreen() {
           
           L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
+          // PINO DO USUÁRIO AZUL
           var userIcon = L.divIcon({
             className: 'custom-user-icon',
             html: "<div style='background-color:#208AEF; width:18px; height:18px; border-radius:50%; border:3px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);'></div>",
@@ -236,8 +305,8 @@ export default function HomeScreen() {
               <Text style={styles.postoNome}>{postoSelecionado.nome}</Text>
               <Text style={styles.distancia}>
                 {postoSelecionado.horario_funcionamento || "24 Horas"} •{" "}
-                {postoSelecionado.distancia
-                  ? `${postoSelecionado.distancia} de si`
+                {postoSelecionado.distancia !== undefined
+                  ? `${postoSelecionado.distancia.toFixed(1)} km de si`
                   : postoSelecionado.bairro || "João Pessoa"}
               </Text>
               <View style={styles.precoCard}>
