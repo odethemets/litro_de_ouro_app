@@ -12,7 +12,7 @@ def listar_postos():
             cursor.execute("""
                 SELECT 
                     p.id, p.nome, p.bairro, p.endereco, 
-                    p.latitude, p.longitude,
+                    p.latitude, p.longitude, p.horario_funcionamento,
                     (SELECT preco FROM registos_preco rp 
                      WHERE rp.posto_id = p.id 
                      ORDER BY data_registro DESC LIMIT 1) as preco_gasolina
@@ -28,6 +28,10 @@ def listar_postos():
                 
                 posto['latitude'] = float(posto['latitude'])
                 posto['longitude'] = float(posto['longitude'])
+                
+                # Trata nulos ou vazios garantindo fallback limpo
+                if not posto.get('horario_funcionamento'):
+                    posto['horario_funcionamento'] = '24 Horas'
 
         return jsonify(postos), 200
     except Exception as e:
