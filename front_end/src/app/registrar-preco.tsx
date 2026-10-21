@@ -20,14 +20,17 @@ interface Posto {
   endereco?: string;
   latitude: number;
   longitude: number;
+  tipo_posto?: "Convencional" | "Eletroposto"; // Adicionado para identificar no frontend
 }
 
-const TIPOS_COMBUSTIVEL = [
+// Arrays separados para manter a organização
+const TIPOS_COMBUSTIVEL_CONVENCIONAL = [
   "Gasolina Comum",
   "Gasolina Aditivada",
   "Etanol",
   "Diesel",
 ];
+const TIPOS_RECARGA_ELETRICA = ["Recarga Elétrica (kWh)"];
 
 export default function RegistrarPrecoScreen() {
   const router = useRouter();
@@ -36,13 +39,24 @@ export default function RegistrarPrecoScreen() {
   const [postoSelecionado, setPostoSelecionado] = useState<Posto | null>(null);
   const [tipoCombustivel, setTipoCombustivel] = useState("Gasolina Comum");
   const [precoInformado, setPrecoInformado] = useState("");
-  const [busca, setBusca] = useState(""); // Novo estado para a busca
+  const [busca, setBusca] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     carregarPostos();
   }, []);
+
+  // Inteligência de troca automática: Se mudar o posto, adapta o tipo selecionado
+  useEffect(() => {
+    if (postoSelecionado) {
+      if (postoSelecionado.tipo_posto === "Eletroposto") {
+        setTipoCombustivel(TIPOS_RECARGA_ELETRICA[0]);
+      } else if (tipoCombustivel === TIPOS_RECARGA_ELETRICA[0]) {
+        setTipoCombustivel(TIPOS_COMBUSTIVEL_CONVENCIONAL[0]);
+      }
+    }
+  }, [postoSelecionado]);
 
   const carregarPostos = async () => {
     try {
@@ -92,7 +106,6 @@ export default function RegistrarPrecoScreen() {
     }
   };
 
-  // Filtra os postos em tempo real pelo nome, bairro ou endereço
   const postosFiltrados = postos.filter((p) => {
     const termo = busca.toLowerCase();
     return (
@@ -101,6 +114,12 @@ export default function RegistrarPrecoScreen() {
       (p.endereco && p.endereco.toLowerCase().includes(termo))
     );
   });
+
+  // Decide qual lista mostrar no ecrã com base no posto clicado
+  const opcoesCombustivel =
+    postoSelecionado?.tipo_posto === "Eletroposto"
+      ? TIPOS_RECARGA_ELETRICA
+      : TIPOS_COMBUSTIVEL_CONVENCIONAL;
 
   return (
     <>
@@ -131,7 +150,6 @@ export default function RegistrarPrecoScreen() {
 
         <Text style={styles.label}>1. Selecione o Posto:</Text>
 
-        {/* Barra de Pesquisa */}
         <View style={styles.buscaContainer}>
           <Ionicons
             name="search"
@@ -195,7 +213,8 @@ export default function RegistrarPrecoScreen() {
           showsHorizontalScrollIndicator={false}
           style={styles.scrollCombustivel}
         >
-          {TIPOS_COMBUSTIVEL.map((tipo) => (
+          {/* Mapeamento Dinâmico */}
+          {opcoesCombustivel.map((tipo) => (
             <TouchableOpacity
               key={tipo}
               style={[
