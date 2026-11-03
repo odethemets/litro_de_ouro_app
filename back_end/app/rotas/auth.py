@@ -1,93 +1,242 @@
-from flask import Blueprint, request, jsonify
-import bcrypt
-import jwt
-import datetime
 import os
+import random
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime, timedelta
+import jwt
+from flask import Blueprint, request, jsonify, current_app
+from werkzeug.security import check_password_hash, generate_password_hash
 from app.db import get_db_connection
-from app.utils.auth_middleware import token_required
+from app.utils.decorator import token_required
 
 auth_bp = Blueprint('auth', __name__)
-SECRET_KEY = os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY") or "chave_super_secreta_para_tokens_jwt"
 
-@auth_bp.route('/registrar', methods=['POST'], strict_slashes=False)
-def registrar_usuario():
-    # force=True OBRIGA o Flask a ler o corpo como JSON, ignorando os cabeçalhos do navegador
-    dados = request.get_json(force=True, silent=True) or {}
+# =========================================================
+# MOTOR DE E-MAIL (SMTP GMAIL BLINDADO COM TIMEOUT)
+# =========================================================
+def enviar_email_codigo(destinatario, codigo, tipo="verificacao"):
+    remetente = os.getenv("EMAIL_REMETENTE", "litrodeourooficial@gmail.com")
+    senha_app = os.getenv("EMAIL_SENHA_APP", "qugsurxrqbgptkwq")
     
-    nome = dados.get('nome')
-    email = dados.get('email')
-    senha = dados.get('senha') or dados.get('password')
+    assunto = "Litro de Ouro - Código de Acesso" if tipo == "verificacao" else "Litro de Ouro - Recuperação de Senha"
+    
+    mensagem_html = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; color: #333; text-align: center; padding: 20px;">
+        <h2>Litro de Ouro</h2>
+        <p>Aqui está o seu código de segurança:</p>
+        <h1 style="font-size: 32px; letter-spacing: 5px; color: #F59E0B; background: #1E1E1E; padding: 15px; border-radius: 8px; display: inline-block;">
+          {codigo}
+        </h1>
+        <p style="color: #666; font-size: 12px; margin-top: 20px;">Este código expira em 15 minutos.</p>
+      </body>
+    </html>
+    """
 
-    if not nome or not email or not senha:
-        return jsonify({"error": "Todos os campos (nome, email, senha) são obrigatórios."}), 400
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"Litro de Ouro <{remetente}>"
+        msg['To'] = destinatario
+        msg['Subject'] = assunto
+        msg.attach(MIMEText(mensagem_html, 'html'))
 
-    email = str(email).strip()
+        # ADICIONADO timeout=10: Evita travamento de 15s no frontend Axios
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.starttls()
+        server.login(remetente, senha_app)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"[SMTP ERRO] Falha ao enviar e-mail para {destinatario}: {e}")
+        return False
 
+# =========================================================
+# LOGIN
+# =========================================================
+@auth_bp.route('/login', methods=['POST'], strict_slashes=False)
+def login():
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip()
+    senha = data.get('senha', '')
+
+    if not email or not senha:
+        return jsonify({"error": "Informe e-mail e senha."}), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT id, senha, email_verificado FROM usuarios WHERE email = %s", (email,))
+            usuario = cursor.fetchone()
+
+            if not usuario:
+                return jsonify({"error": "E-mail ou senha incorretos."}), 401
+
+            try:
+                senha_valida = check_password_hash(usuario['senha'], senha)
+            except ValueError:
+                senha_valida = False
+
+            if not senha_valida:
+                return jsonify({"error": "E-mail ou senha incorretos."}), 401
+
+            # Lógica de Email não verificado
+            if not usuario['email_verificado']:
+                novo_codigo = str(random.randint(100000, 999999))
+                expiracao = datetime.utcnow() + timedelta(minutes=15)
+                
+                cursor.execute(
+                    "UPDATE usuarios SET token_verificacao = %s, token_expiracao = %s WHERE email = %s",
+                    (novo_codigo, expiracao, email)
+                )
+                conn.commit()
+                
+                enviar_email_codigo(email, novo_codigo, "verificacao")
+                
+                return jsonify({
+                    "error": "Conta não verificada. Enviámos um novo código.",
+                    "require_validation": True
+                }), 403
+
+            segredo = current_app.config.get('SECRET_KEY') or 'segredo-padrao-temporario'
+            token = jwt.encode({
+                'usuario_id': usuario['id'],
+                'exp': datetime.utcnow() + timedelta(days=7)
+            }, segredo, algorithm='HS256')
+
+            return jsonify({
+                "message": "Login realizado com sucesso",
+                "token": token
+            }), 200
+
+    except Exception as e:
+        current_app.logger.exception('Erro no login')
+        return jsonify({"error": "Erro interno ao processar o login."}), 500
+    finally:
+        if conn and conn.open:
+            conn.close()
+
+# =========================================================
+# CONFIRMAR E-MAIL
+# =========================================================
+@auth_bp.route('/confirmar-email', methods=['POST'], strict_slashes=False)
+def confirmar_email():
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip()
+    codigo = data.get('codigo', '').strip()
+
+    if not email or not codigo:
+        return jsonify({"error": "E-mail e código são obrigatórios."}), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT id FROM usuarios WHERE email = %s AND token_verificacao = %s AND token_expiracao > %s",
+                (email, codigo, datetime.utcnow())
+            )
+            if not cursor.fetchone():
+                return jsonify({"error": "Código inválido ou expirado."}), 400
+            
+            cursor.execute(
+                "UPDATE usuarios SET email_verificado = 1, token_verificacao = NULL WHERE email = %s",
+                (email,)
+            )
+            conn.commit()
+            return jsonify({"message": "E-mail confirmado com sucesso!"}), 200
+    except Exception as e:
+        current_app.logger.exception('Erro na confirmacao')
+        return jsonify({"error": "Erro interno."}), 500
+    finally:
+        if conn and conn.open:
+            conn.close()
+
+# =========================================================
+# RECUPERAR SENHA (GERAR CÓDIGO)
+# =========================================================
+@auth_bp.route('/recuperar-senha', methods=['POST'], strict_slashes=False)
+def recuperar_senha():
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip()
+    
+    if not email:
+        return jsonify({"error": "Informe o e-mail."}), 400
+        
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
             cursor.execute("SELECT id FROM usuarios WHERE email = %s", (email,))
-            if cursor.fetchone():
-                return jsonify({"error": "E-mail já está em uso."}), 409
-
-            senha= bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            if not cursor.fetchone():
+                return jsonify({"message": "Se o e-mail existir, receberá um código."}), 200
+                
+            codigo = str(random.randint(100000, 999999))
+            expiracao = datetime.utcnow() + timedelta(minutes=15)
             
-            cursor.execute("""
-                INSERT INTO usuarios (nome, email, senha, karma)
-                VALUES (%s, %s, %s, 0)
-            """, (nome, email, senha))
+            cursor.execute(
+                "UPDATE usuarios SET token_recuperacao = %s, token_expiracao = %s WHERE email = %s",
+                (codigo, expiracao, email)
+            )
             conn.commit()
             
-        return jsonify({"mensagem": "Usuário registrado com sucesso!"}), 201
+            # Executa o envio de e-mail (com timeout de segurança de 10s)
+            enviar_email_codigo(email, codigo, "recuperacao")
+            
+            return jsonify({"message": "Código de recuperação gerado com sucesso!"}), 200
+            
     except Exception as e:
-        if conn: conn.rollback()
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if conn: conn.close()
-
-@auth_bp.route('/login', methods=['POST'], strict_slashes=False)
-def login():
-    dados = request.get_json(force=True, silent=True) or {}
-    
-    email = dados.get('email')
-    senha = dados.get('senha') or dados.get('password')
-
-    if not email or not senha:
-        return jsonify({"error": "E-mail e senha são obrigatórios."}), 400
-
-    email = str(email).strip()
-
-    conn = None
-    try:
-        conn = get_db_connection()
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT * FROM usuarios WHERE email = %s", (email,))
-            usuario = cursor.fetchone()
-
-            if usuario and bcrypt.checkpw(senha.encode('utf-8'), usuario['senha'].encode('utf-8')):
-                # Garante uma chave secreta válida mesmo se o .env do Render falhar
-                secret = os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY") or "chave_super_secreta_para_tokens_jwt"
-                
-                # Tenta capturar o ID da coluna correta
-                user_id = usuario.get('id') or usuario.get('id_usuario')
-
-                token = jwt.encode({
-                    'user_id': user_id,
-                    'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-                }, secret, algorithm="HS256")
-
-                return jsonify({"mensagem": "Login efetuado.", "token": token}), 200
-            else:
-                return jsonify({"error": "Credenciais inválidas."}), 401
-    except Exception as e:
-        # RETORNA O DETALHE DO ERRO PARA DIAGNÓSTICO IMEDIATO
-        print(f"Erro no Login: {str(e)}")
-        return jsonify({"error": "Erro interno no servidor ao realizar login", "detalhes": str(e)}), 500
+        current_app.logger.exception('Erro em recuperar-senha')
+        return jsonify({"error": "Erro interno."}), 500
     finally:
         if conn and conn.open:
             conn.close()
 
+# =========================================================
+# REDEFINIR SENHA
+# =========================================================
+@auth_bp.route('/redefinir-senha', methods=['POST'], strict_slashes=False)
+def redefinir_senha():
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip()
+    codigo = data.get('codigo', '').strip()
+    nova_senha = data.get('nova_senha', '')
+    
+    if not email or not codigo or not nova_senha:
+        return jsonify({"error": "Dados incompletos."}), 400
+        
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT id FROM usuarios WHERE email = %s AND token_recuperacao = %s AND token_expiracao > %s",
+                (email, codigo, datetime.utcnow())
+            )
+            if not cursor.fetchone():
+                return jsonify({"error": "Código inválido ou expirado."}), 400
+                
+            senha_hash = generate_password_hash(nova_senha)
+            
+            cursor.execute(
+                "UPDATE usuarios SET senha = %s, token_recuperacao = NULL, email_verificado = 1 WHERE email = %s",
+                (senha_hash, email)
+            )
+            conn.commit()
+            return jsonify({"message": "Palavra-passe redefinida com sucesso."}), 200
+            
+    except Exception as e:
+        current_app.logger.exception('Erro em redefinir-senha')
+        return jsonify({"error": "Erro interno."}), 500
+    finally:
+        if conn and conn.open:
+            conn.close()
+
+# =========================================================
+# PERFIL DO UTILIZADOR
+# =========================================================
 @auth_bp.route('/perfil', methods=['GET'], strict_slashes=False)
 @token_required
 def obter_perfil(current_user_id):
@@ -95,73 +244,65 @@ def obter_perfil(current_user_id):
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            cursor.execute("SELECT id, nome, email, plano, karma FROM usuarios WHERE id = %s", (current_user_id,))
+            cursor.execute("""
+                SELECT nome, email, plano, karma, 
+                       DATE_FORMAT(criado_em, '%%d/%%m/%%Y') as membro_desde 
+                FROM usuarios 
+                WHERE id = %s
+            """, (current_user_id,))
+            
             usuario = cursor.fetchone()
             
-            if usuario:
-                return jsonify(usuario), 200
-            return jsonify({"error": "Usuário não encontrado."}), 404
+            if not usuario:
+                return jsonify({"error": "Utilizador não encontrado."}), 404
+                
+            return jsonify(usuario), 200
+            
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.exception('Erro ao buscar perfil')
+        return jsonify({"error": "Erro interno ao buscar os dados."}), 500
     finally:
-        if conn: conn.close()
+        if conn and conn.open:
+            conn.close()
 
+# =========================================================
+# CADASTRO (CRIAR CONTA)
+# =========================================================
+@auth_bp.route('/cadastro', methods=['POST'], strict_slashes=False)
+def cadastro():
+    data = request.get_json(silent=True) or {}
+    nome = data.get('nome', '').strip()
+    email = data.get('email', '').strip()
+    senha = data.get('senha', '')
 
-        # NOVA ROTA: Atualizar dados do Perfil (Nome, Email, Senha)
-@auth_bp.route('/perfil', methods=['PUT'], strict_slashes=False)
-@token_required
-def atualizar_perfil(current_user_id):
-    dados = request.get_json(force=True, silent=True) or {}
-    
-    nome = dados.get('nome')
-    email = dados.get('email')
-    senha = dados.get('senha')
-
-    if not nome and not email and not senha:
-         return jsonify({"error": "Nenhum dado enviado para atualização."}), 400
+    if not nome or not email or not senha:
+        return jsonify({"error": "Preencha todos os campos obrigatórios."}), 400
 
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            # 1. Se tentou mudar o email, verifica se não pertence a outra pessoa
-            if email:
-                email = str(email).strip()
-                cursor.execute("SELECT id FROM usuarios WHERE email = %s AND id != %s", (email, current_user_id))
-                if cursor.fetchone():
-                    return jsonify({"error": "Este e-mail já está em uso por outra conta."}), 409
+            cursor.execute("SELECT id FROM usuarios WHERE email = %s", (email,))
+            if cursor.fetchone():
+                return jsonify({"error": "Este e-mail já está registado."}), 400
 
-            # 2. Monta a query de update dinamicamente
-            campos_para_atualizar = []
-            valores = []
+            senha_hash = generate_password_hash(senha)
+            codigo = str(random.randint(100000, 999999))
+            expiracao = datetime.utcnow() + timedelta(minutes=15)
 
-            if nome:
-                campos_para_atualizar.append("nome = %s")
-                valores.append(nome)
-            
-            if email:
-                campos_para_atualizar.append("email = %s")
-                valores.append(email)
+            cursor.execute("""
+                INSERT INTO usuarios (nome, email, senha, plano, karma, email_verificado, token_verificacao, token_expiracao)
+                VALUES (%s, %s, %s, 'gratis', 0, 0, %s, %s)
+            """, (nome, email, senha_hash, codigo, expiracao))
+            conn.commit()
 
-            if senha:
-                # O motor encripta a nova senha antes de guardar
-                hash_nova = bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-                campos_para_atualizar.append("senha = %s")
-                valores.append(hash_nova)
+            enviar_email_codigo(email, codigo, "verificacao")
 
-            # Executa apenas se houver campos reais
-            if campos_para_atualizar:
-                query = f"UPDATE usuarios SET {', '.join(campos_para_atualizar)} WHERE id = %s"
-                valores.append(current_user_id)
-                
-                cursor.execute(query, tuple(valores))
-                conn.commit()
-            
-        return jsonify({"mensagem": "Perfil atualizado com sucesso!"}), 200
+            return jsonify({"message": "Conta criada com sucesso! Verifique o seu e-mail."}), 201
+
     except Exception as e:
-        if conn: conn.rollback()
-        print(f"Erro ao atualizar perfil: {str(e)}")
-        return jsonify({"error": "Erro interno ao atualizar perfil.", "detalhes": str(e)}), 500
+        current_app.logger.exception('Erro no cadastro')
+        return jsonify({"error": "Erro interno ao criar a conta."}), 500
     finally:
-        if conn and conn.open: 
+        if conn and conn.open:
             conn.close()

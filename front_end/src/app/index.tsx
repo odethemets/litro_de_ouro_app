@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import axios from "axios";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,17 +13,19 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { WebView } from "react-native-webview";
 
-import { Ionicons } from "@expo/vector-icons";
-import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
-import * as Location from "expo-location";
-import { useRouter } from "expo-router";
-
+import MapaLeaflet from "../components/mapa/MapaLeaflet";
+import type {
+  MapaLeafletHandle,
+  PosicaoUsuario,
+  PostoNoMapa,
+  RegiaoMapa,
+} from "../components/mapa/tipos";
 import { api } from "../services/API";
-import { getToken } from "../utils/token";
+import { calcularCorDoPosto } from "../utils/cores";
+import { ErroGps, obterPosicao } from "../utils/localizacao";
+import { getToken, removeToken } from "../utils/token";
 
-// 1. Interface definida no escopo GLOBAL
 export interface Posto {
   id: number;
   nome: string;
@@ -30,19 +36,31 @@ export interface Posto {
   latitude: number;
   longitude: number;
   preco_gasolina: number;
+  data_atualizacao?: string | null;
   distancia?: number;
   horario_funcionamento?: string;
   tipo_posto?: "Convencional" | "Eletroposto";
 }
 
-// 2. Fórmula para calcular a distância em km entre duas coordenadas (Haversine)
+type FiltroMapa = "Todos" | "Convencional" | "Eletroposto";
+
+const FILTROS: { id: FiltroMapa; rotulo: string }[] = [
+  { id: "Todos", rotulo: "Todos" },
+  { id: "Convencional", rotulo: "Combustão" },
+  { id: "Eletroposto", rotulo: "Elétricos" },
+];
+
+const COR_ELETROPOSTO = "#208AEF";
+const FALLBACK = { lat: -7.1153, lon: -34.861 }; // João Pessoa, quando não há GPS
+const REBUSCA_KM = 3; // só busca postos de novo quando o mapa andar mais do que isto
+
 const calcularDistanciaKM = (
   lat1: number,
   lon1: number,
   lat2: number,
   lon2: number,
 ) => {
-  const R = 6371; // Raio da Terra em km
+  const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
   const a =
@@ -55,226 +73,244 @@ const calcularDistanciaKM = (
   return R * c;
 };
 
-// 3. Componente principal da aplicação
 export default function HomeScreen() {
   const router = useRouter();
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const webViewRef = useRef<WebView>(null);
+  const mapaRef = useRef<MapaLeafletHandle>(null);
   const snapPoints = useMemo(() => ["25%", "40%"], []);
 
-  const [location, setLocation] = useState<Location.LocationObject | null>(
-    null,
-  );
-  const [loading, setLoading] = useState(true);
+  const [posicao, setPosicao] = useState<PosicaoUsuario | null>(null);
+  const [carregandoInicial, setCarregandoInicial] = useState(true);
   const [postos, setPostos] = useState<Posto[]>([]);
   const [postoSelecionado, setPostoSelecionado] = useState<Posto | null>(null);
+  const [filtroMapa, setFiltroMapa] = useState<FiltroMapa>("Todos");
 
-  // NOVO: Fluxo de Inicialização (Localização + Busca de Dados da API)
-  useEffect(() => {
-    const carregarDadosEMapa = async () => {
+  // Controle de requisições: cancela a anterior e lembra onde foi a última busca bem-sucedida.
+  const abortRef = useRef<AbortController | null>(null);
+  const ultimaBuscaRef = useRef<{ lat: number; lon: number } | null>(null);
+  const origemRef = useRef(FALLBACK); // ponto de onde as distâncias são medidas
+  const sessaoAvisadaRef = useRef(false);
+
+  const carregarPostos = useCallback(
+    async (centro: { lat: number; lon: number }) => {
+      const token = await getToken();
+      if (!token) {
+        console.warn("Token ausente. Navegação para login recomendada.");
+        setPostos([]);
+        return;
+      }
+
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       try {
-        setLoading(true);
-        let coordsUsuario = { latitude: -7.1153, longitude: -34.861 }; // Default João Pessoa
+        const response = await api.get("/postos", {
+          params: { lat: centro.lat, lng: centro.lon },
+          signal: controller.signal,
+        });
 
-        // 1. Pedir permissão e buscar GPS (Funciona na Web e Mobile)
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === "granted") {
-          const loc = await Location.getCurrentPositionAsync({});
-          setLocation(loc);
-          coordsUsuario = {
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          };
-        } else {
-          console.warn("Permissão de GPS negada. Usando coordenadas padrão.");
+        if (!Array.isArray(response.data)) {
+          console.error("API não devolveu uma lista:", response.data);
+          setPostos([]);
+          return;
         }
 
-        // 2. Buscar postos da API
-        const response = await api.get("/postos/");
-        const postosBanco: Posto[] = response.data;
-
-        // 3. Calcular a distância para cada posto e ordenar do mais perto para o mais longe
-        const postosComDistancia = postosBanco
+        const origem = origemRef.current;
+        const lista = (response.data as Posto[])
           .map((posto) => ({
             ...posto,
             distancia: calcularDistanciaKM(
-              coordsUsuario.latitude,
-              coordsUsuario.longitude,
+              origem.lat,
+              origem.lon,
               posto.latitude,
               posto.longitude,
             ),
           }))
           .sort((a, b) => (a.distancia || 0) - (b.distancia || 0));
 
-        setPostos(postosComDistancia);
-      } catch (error) {
-        console.error("Erro ao carregar mapa e GPS:", error);
-      } finally {
-        setLoading(false);
+        ultimaBuscaRef.current = centro;
+        setPostos(lista);
+      } catch (error: any) {
+        if (axios.isCancel(error)) return; // substituída por uma busca mais nova
+        console.error("Erro na API de postos:", error.message);
+
+        if (error.response?.status === 401 && !sessaoAvisadaRef.current) {
+          sessaoAvisadaRef.current = true;
+          Alert.alert("Sessão Expirada", "Por favor, faça login novamente.");
+          await removeToken();
+        }
+        // Em outros erros mantém os postos já exibidos em vez de esvaziar o mapa.
       }
-    };
+    },
+    [],
+  );
 
-    carregarDadosEMapa();
-  }, []);
-
-  // Escuta de cliques do mapa Leaflet (iframe) especificamente no navegador Web
+  // Carga inicial: GPS (com tratamento de falhas) -> centraliza o mapa -> busca postos.
   useEffect(() => {
-    const handleWebMessage = (event: MessageEvent) => {
-      try {
-        const data =
-          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+    let ativo = true;
 
-        if (data && data.type === "MARKER_CLICKED") {
-          const posto = postos.find((p) => p.id === data.id);
-          if (posto) {
-            setPostoSelecionado(posto);
-            bottomSheetRef.current?.expand();
-          }
+    (async () => {
+      let origem = FALLBACK;
+      try {
+        const pos = await obterPosicao("mapa");
+        origem = { lat: pos.latitude, lon: pos.longitude };
+        if (ativo) {
+          setPosicao({
+            lat: pos.latitude,
+            lon: pos.longitude,
+            precisaoM: pos.precisaoM,
+          });
         }
       } catch (e) {
-        // Ignora mensagens de extensões ou outros scripts do navegador
-      }
-    };
-
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.addEventListener("message", handleWebMessage);
-    }
-
-    return () => {
-      if (Platform.OS === "web" && typeof window !== "undefined") {
-        window.removeEventListener("message", handleWebMessage);
-      }
-    };
-  }, [postos]);
-
-  // Escuta os cliques dos marcadores vindos do HTML/Leaflet no Mobile
-  const handleWebViewMessage = (event: any) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === "MARKER_CLICKED") {
-        const posto = postos.find((p) => p.id === data.id);
-        if (posto) {
-          setPostoSelecionado(posto);
-          bottomSheetRef.current?.expand();
+        if (e instanceof ErroGps && ativo) {
+          Alert.alert(
+            "Localização indisponível",
+            `${e.message}\n\nMostrando João Pessoa.`,
+            e.codigo === "PERMISSAO_NEGADA" && !e.podePedirNovamente
+              ? [
+                  {
+                    text: "Abrir configurações",
+                    onPress: () => Linking.openSettings(),
+                  },
+                  { text: "Continuar", style: "cancel" },
+                ]
+              : undefined,
+          );
+        } else {
+          console.warn("Falha inesperada ao obter localização:", e);
         }
       }
-    } catch (error) {
-      console.warn("Erro ao interpretar mensagem da WebView:", error);
-    }
+      if (!ativo) return;
+
+      origemRef.current = origem;
+      mapaRef.current?.centralizar(origem.lat, origem.lon, 14);
+      await carregarPostos(origem);
+      if (ativo) setCarregandoInicial(false);
+    })();
+
+    return () => {
+      ativo = false;
+      abortRef.current?.abort();
+    };
+  }, [carregarPostos]);
+
+  // Ao arrastar o mapa para longe da última busca, carrega os postos dessa região.
+  const aoMudarRegiao = useCallback(
+    (regiao: RegiaoMapa) => {
+      const ultima = ultimaBuscaRef.current;
+      if (!ultima) return; // ainda na carga inicial
+      if (
+        calcularDistanciaKM(ultima.lat, ultima.lon, regiao.lat, regiao.lon) <
+        REBUSCA_KM
+      )
+        return;
+      carregarPostos({ lat: regiao.lat, lon: regiao.lon });
+    },
+    [carregarPostos],
+  );
+
+  const aoSelecionarPosto = useCallback(
+    (id: number) => {
+      const posto = postos.find((p) => p.id === id);
+      if (posto) {
+        setPostoSelecionado(posto);
+        bottomSheetRef.current?.expand();
+      }
+    },
+    [postos],
+  );
+
+  // Dados do mapa derivados e memoizados: só mudam quando postos/filtro mudam.
+  const postosNoMapa = useMemo<PostoNoMapa[]>(() => {
+    const visiveis = postos.filter((p) => {
+      if (filtroMapa === "Todos") return true;
+      if (filtroMapa === "Eletroposto") return p.tipo_posto === "Eletroposto";
+      return p.tipo_posto !== "Eletroposto";
+    });
+
+    // Concorrência: menor e maior preço entre os postos exibidos
+    const precos = visiveis
+      .filter((p) => p.preco_gasolina > 0)
+      .map((p) => Number(p.preco_gasolina));
+    const menor = precos.length > 0 ? Math.min(...precos) : 0;
+    const maior = precos.length > 0 ? Math.max(...precos) : 0;
+
+    return visiveis.map((p) => ({
+      id: p.id,
+      lat: p.latitude,
+      lon: p.longitude,
+      cor:
+        p.tipo_posto === "Eletroposto"
+          ? COR_ELETROPOSTO
+          : calcularCorDoPosto(
+              p.preco_gasolina,
+              menor,
+              maior,
+              p.data_atualizacao,
+            ),
+    }));
+  }, [postos, filtroMapa]);
+
+  const selecionarFiltro = (filtro: FiltroMapa) => {
+    setFiltroMapa(filtro);
+    setPostoSelecionado(null);
+    bottomSheetRef.current?.close();
   };
 
-  // Navegação para a página de perfil ou login
   const handleProfileClick = async () => {
     try {
       const token = await getToken();
-      if (token) {
-        router.push("/perfil");
-      } else {
-        router.push("/login");
-      }
+      if (token) router.push("/perfil");
+      else router.push("/login");
     } catch (e) {
       router.push("/login");
     }
   };
 
-  // Traçar rota no Google Maps
   const handleTracarRota = (posto: Posto) => {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${posto.latitude},${posto.longitude}`;
-
     Linking.openURL(url).catch(() => {
       Alert.alert("Erro", "Não foi possível abrir o aplicativo de mapas.");
     });
   };
 
-  // Gerador dinâmico do HTML com Leaflet
-  const generateMapHTML = () => {
-    const userLat = location?.coords.latitude ?? -7.1153;
-    const userLng = location?.coords.longitude ?? -34.861;
-
-    const markersJS = postos
-      .map((posto) => {
-        // Regra visual: Verde para Eletroposto, Vermelho para Convencional
-        const isEletro = posto.tipo_posto === "Eletroposto";
-        const pinColor = isEletro ? "#10B981" : "#d32f2f";
-
-        return `
-          var iconHtml_${posto.id} = L.divIcon({
-            className: 'custom-pin',
-            html: "<div style='background-color:${pinColor}; width:20px; height:20px; border-radius:50%; border:2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.4);'></div>",
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
-          });
-          
-          L.marker([${posto.latitude}, ${posto.longitude}], { icon: iconHtml_${posto.id} }).addTo(map)
-            .on('click', function() {
-              if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: ${posto.id} }));
-              } else if (window.parent) {
-                window.parent.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: ${posto.id} }), '*');
-              }
-            });
-        `;
-      })
-      .join("\n");
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-        <style>
-          body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: #f5f5f5; }
-          #map { height: 100vh; width: 100vw; }
-          .leaflet-control-attribution { display: none; }
-        </style>
-      </head>
-      <body>
-        <div id="map"></div>
-        <script>
-          var map = L.map('map', { zoomControl: false }).setView([${userLat}, ${userLng}], 14);
-          
-          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-
-          // PINO DO USUÁRIO AZUL
-          var userIcon = L.divIcon({
-            className: 'custom-user-icon',
-            html: "<div style='background-color:#208AEF; width:18px; height:18px; border-radius:50%; border:3px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);'></div>",
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
-          });
-          L.marker([${userLat}, ${userLng}], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
-
-          ${markersJS}
-        </script>
-      </body>
-      </html>
-    `;
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#d79b00" />
-        <Text style={{ marginTop: 10 }}>A preparar o motor geográfico...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <WebView
-        ref={webViewRef}
-        style={styles.map}
-        originWhitelist={["*"]}
-        source={{ html: generateMapHTML() }}
-        onMessage={handleWebViewMessage}
-        scrollEnabled={false}
-        bounces={false}
-      />
+      {/* O mapa fica montado desde o início e nunca recarrega: a página Leaflet é carregada uma
+          única vez e só recebe comandos (postos, posição, centro). */}
+      <View style={styles.map}>
+        <MapaLeaflet
+          ref={mapaRef}
+          postos={postosNoMapa}
+          usuario={posicao}
+          onSelecionarPosto={aoSelecionarPosto}
+          onRegiaoMudou={aoMudarRegiao}
+        />
+      </View>
 
-      {/* Botão de Perfil */}
+      <View style={styles.mapFilterContainer}>
+        {FILTROS.map((filtro) => (
+          <TouchableOpacity
+            key={filtro.id}
+            style={[
+              styles.filterButton,
+              filtroMapa === filtro.id && styles.filterButtonActive,
+            ]}
+            onPress={() => selecionarFiltro(filtro.id)}
+          >
+            <Text
+              style={[
+                styles.filterText,
+                filtroMapa === filtro.id && styles.filterTextActive,
+              ]}
+            >
+              {filtro.rotulo}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <TouchableOpacity
         style={styles.loginButton}
         activeOpacity={0.8}
@@ -283,7 +319,6 @@ export default function HomeScreen() {
         <Ionicons name="person-circle" size={45} color="#d79b00" />
       </TouchableOpacity>
 
-      {/* Botão Adicionar Preço */}
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.8}
@@ -292,7 +327,6 @@ export default function HomeScreen() {
         <Ionicons name="add" size={30} color="#FFF" />
       </TouchableOpacity>
 
-      {/* BottomSheet de Detalhes */}
       <BottomSheet
         ref={bottomSheetRef}
         index={-1}
@@ -317,7 +351,7 @@ export default function HomeScreen() {
                 </Text>
                 <Text style={styles.precoDestaque}>
                   R${" "}
-                  {Number(postoSelecionado?.preco_gasolina ?? 0)
+                  {Number(postoSelecionado.preco_gasolina ?? 0)
                     .toFixed(2)
                     .replace(".", ",")}
                 </Text>
@@ -325,7 +359,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.btnRota}
                 activeOpacity={0.8}
-                onPress={() => handleTracarRota(postoSelecionado!)}
+                onPress={() => handleTracarRota(postoSelecionado)}
               >
                 <Text style={styles.btnRotaText}>Traçar Rota</Text>
               </TouchableOpacity>
@@ -335,6 +369,21 @@ export default function HomeScreen() {
           )}
         </BottomSheetView>
       </BottomSheet>
+
+      {carregandoInicial && (
+        <View
+          style={[
+            styles.loadingContainer,
+            StyleSheet.absoluteFill,
+            { backgroundColor: "#FFF", zIndex: 30 },
+          ]}
+        >
+          <ActivityIndicator size="large" color="#d79b00" />
+          <Text style={{ marginTop: 10 }}>
+            A preparar o motor geográfico...
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -361,9 +410,42 @@ const styles = StyleSheet.create({
     height: "100%",
     zIndex: 1,
   },
-  loginButton: {
+  mapFilterContainer: {
     position: "absolute",
     top: 50,
+    left: 20,
+    right: 80,
+    flexDirection: "row",
+    backgroundColor: "#FFF",
+    borderRadius: 25,
+    padding: 4,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    zIndex: 10,
+  },
+  filterButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 20,
+  },
+  filterButtonActive: {
+    backgroundColor: "#d79b00",
+  },
+  filterText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#666",
+  },
+  filterTextActive: {
+    color: "#FFF",
+  },
+  loginButton: {
+    position: "absolute",
+    top: 45,
     right: 20,
     backgroundColor: "#FFF",
     width: 50,

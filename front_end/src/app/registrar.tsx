@@ -1,194 +1,140 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { api } from "../services/API"; // <- USO DO AXIOS
+import { api } from "../services/API"; // O ficheiro que configurámos com o IP local
 
-export default function RegistrarScreen() {
-  const router = useRouter();
+export default function Registrar() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleRegister = async () => {
-    if (!nome || !email || !password) {
+    if (!nome.trim() || !email.trim() || !senha.trim()) {
       Alert.alert("Atenção", "Por favor, preencha todos os campos.");
       return;
     }
-
+    if (senha.length < 6) {
+      Alert.alert("Atenção", "A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
     setLoading(true);
-
     try {
-      await api.post("/auth/registrar", { nome, email, senha: password });
+      // 1. Rota corrigida para português (bate certo com o auth.py)
+      const response = await api.post("/auth/registrar", {
+        nome: nome.trim(),
+        email: email.trim().toLowerCase(),
+        senha: senha,
+      });
 
-      Alert.alert(
-        "Sucesso!",
-        "Conta criada com sucesso. Faça login para continuar.",
-      );
-      router.replace("/login");
+      Alert.alert("Conta Criada! 🎉", response.data.mensagem, [
+        { text: "Ir para Login", onPress: () => router.replace("/login") },
+      ]);
     } catch (error: any) {
-      const msgErro = error.response?.data?.error || "Erro ao criar conta.";
-      Alert.alert("Erro", msgErro);
+      // 2. Extração de erro corrigida (data.error em vez de data.erro)
+      const mensagemErro =
+        error.response?.data?.error ||
+        (error.response
+          ? "O servidor recusou o pedido."
+          : "Não foi possível contactar o servidor. Verifique o IP e a rede.");
+      Alert.alert("Falha no Registo", mensagemErro);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={28} color="#333" />
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <Text style={styles.title}>Criar Conta</Text>
 
-      <View style={styles.content}>
-        <Text style={styles.title}>Criar Conta</Text>
-        <Text style={styles.subtitle}>Junte-se ao Litro de Ouro</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="O seu nome"
+        value={nome}
+        onChangeText={setNome}
+        autoCapitalize="words"
+      />
 
-        <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="person-outline"
-              size={20}
-              color="#666"
-              style={styles.inputIcon}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Nome Completo"
-              value={nome}
-              onChangeText={setNome}
-              autoCapitalize="words"
-              editable={!loading}
-            />
-          </View>
+      <TextInput
+        style={styles.input}
+        placeholder="E-mail (ex: joao123@email.com)"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
 
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="mail-outline"
-              size={20}
-              color="#666"
-              style={styles.inputIcon}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!loading}
-            />
-          </View>
+      <TextInput
+        style={styles.input}
+        placeholder="Senha (mínimo 6 caracteres)"
+        value={senha}
+        onChangeText={setSenha}
+        secureTextEntry
+      />
 
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="lock-closed-outline"
-              size={20}
-              color="#666"
-              style={styles.inputIcon}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Senha"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              editable={!loading}
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeIcon}
-            >
-              <Ionicons
-                name={showPassword ? "eye-outline" : "eye-off-outline"}
-                size={20}
-                color="#666"
-              />
-            </TouchableOpacity>
-          </View>
+      <TouchableOpacity
+        style={[styles.button, loading && styles.buttonDisabled]}
+        onPress={handleRegister}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#1F2937" />
+        ) : (
+          <Text style={styles.buttonText}>Registar</Text>
+        )}
+      </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
-            activeOpacity={0.8}
-            onPress={handleRegister}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.loginBtnText}>Registrar</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+      <TouchableOpacity
+        onPress={() => router.replace("/login")}
+        style={styles.linkButton}
+      >
+        <Text style={styles.linkText}>Já tem conta? Inicie sessão aqui.</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
+// Estilos básicos (pode adaptar à identidade visual amarela/escura do Litro de Ouro)
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFF" },
-  header: {
-    paddingTop: Platform.OS === "ios" ? 50 : 30,
-    paddingHorizontal: 20,
-  },
-  backButton: { width: 40, height: 40, justifyContent: "center" },
-  content: {
+  container: {
     flex: 1,
-    paddingHorizontal: 30,
+    padding: 20,
     justifyContent: "center",
-    marginTop: -50,
+    backgroundColor: "#F9FAFB",
   },
-  title: { fontSize: 28, fontWeight: "bold", color: "#333", marginBottom: 5 },
-  subtitle: { fontSize: 16, color: "#666", marginBottom: 30 },
-  form: { width: "100%" },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F5F5F5",
-    borderRadius: 10,
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#1F2937",
+    marginBottom: 30,
+    textAlign: "center",
+  },
+  input: {
+    backgroundColor: "#FFFFFF",
+    padding: 15,
+    borderRadius: 8,
     marginBottom: 15,
-    paddingHorizontal: 15,
-    height: 55,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: "#E5E7EB",
   },
-  inputIcon: { marginRight: 10 },
-  input: { flex: 1, height: "100%", color: "#333", fontSize: 16 },
-  eyeIcon: { padding: 10 },
-  loginBtn: {
-    backgroundColor: "#d79b00",
-    height: 55,
-    borderRadius: 10,
-    justifyContent: "center",
+  button: {
+    backgroundColor: "#FACC15",
+    padding: 15,
+    borderRadius: 8,
     alignItems: "center",
-    marginTop: 20,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+    marginTop: 10,
   },
-  loginBtnDisabled: { backgroundColor: "#e8c366", elevation: 0 },
-  loginBtnText: { color: "#FFF", fontSize: 18, fontWeight: "bold" },
+  buttonDisabled: { opacity: 0.7 },
+  buttonText: { color: "#1F2937", fontWeight: "bold", fontSize: 16 },
+  linkButton: { marginTop: 20, alignItems: "center" },
+  linkText: { color: "#4B5563", fontSize: 14, textDecorationLine: "underline" },
 });

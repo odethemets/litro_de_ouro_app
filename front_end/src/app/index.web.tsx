@@ -16,12 +16,17 @@ import {
 import { api } from "../services/API";
 import { getToken } from "../utils/token";
 
+import { calcularCorDoPosto } from "../utils/cores";
+
 export interface Posto {
   id: number;
   nome: string;
   bairro?: string;
   latitude: number;
   longitude: number;
+  preco_gasolina?: number; // <-- ADICIONADO
+  data_atualizacao?: string; // <-- ADICIONADO
+  tipo_posto?: string; // <-- ADICIONADO
 }
 
 const TIPOS_COMBUSTIVEL = [
@@ -48,7 +53,13 @@ export default function HomeScreenWeb() {
   useEffect(() => {
     const fetchPostos = async () => {
       try {
-        const response = await api.get("/postos/");
+        // Agora envia as coordenadas para "acordar" o Mapbox no Backend!
+        const response = await api.get("/postos/", {
+          params: {
+            lat: centerPos.lat,
+            lng: centerPos.lng,
+          },
+        });
         setPostos(response.data);
       } catch (error) {
         console.warn("Aviso: Backend pode estar indisponível.");
@@ -151,6 +162,26 @@ export default function HomeScreenWeb() {
 
   if (Platform.OS !== "web" || typeof window === "undefined") return null;
 
+  // AVALIAÇÃO PRÉVIA DAS CORES ANTES DE INJETAR NO IFRAME
+  const precosValidos = postos
+    .filter((p) => (p.preco_gasolina || 0) > 0)
+    .map((p) => Number(p.preco_gasolina));
+  const menorGlobal = precosValidos.length > 0 ? Math.min(...precosValidos) : 0;
+  const maiorGlobal = precosValidos.length > 0 ? Math.max(...precosValidos) : 0;
+
+  const postosComCor = postos.map((p) => ({
+    ...p,
+    corPin:
+      p.tipo_posto === "Eletroposto"
+        ? "#208AEF"
+        : calcularCorDoPosto(
+            p.preco_gasolina || 0,
+            menorGlobal,
+            maiorGlobal,
+            p.data_atualizacao,
+          ),
+  }));
+
   const mapHtml = `
     <!DOCTYPE html>
     <html lang="pt-PT">
@@ -171,31 +202,31 @@ export default function HomeScreenWeb() {
         var map = L.map('map', { zoomControl: false }).setView([${centerPos.lat}, ${centerPos.lng}], 14);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
         
-        var customIcon = L.icon({
-          iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-          iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-        });
+        var postosArray = ${JSON.stringify(postosComCor)};
         
-        var postos = ${JSON.stringify(postos)};
-        postos.forEach(function(posto) {
-          L.marker([posto.latitude, posto.longitude], { icon: customIcon }).addTo(map)
+        postosArray.forEach(function(posto) {
+          // Usa o mesmo formato de bolinha colorida do Mobile
+          var coloredIcon = L.divIcon({
+            className: 'custom-pin-web',
+            html: "<div style='background-color:" + posto.corPin + "; width:20px; height:20px; border-radius:50%; border:2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.4);'></div>",
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          });
+          
+          L.marker([posto.latitude, posto.longitude], { icon: coloredIcon }).addTo(map)
             .bindPopup(posto.nome)
             .on('click', function() {
               window.parent.postMessage(JSON.stringify({ type: 'MARKER_CLICKED', id: posto.id }), '*');
             });
         });
 
-        // OUVINTE: Recebe a localização enviada pelo React Native e voa até ela
         var userMarker = null;
         window.addEventListener('message', function(event) {
           try {
             var data = JSON.parse(event.data);
             if (data.type === 'FLY_TO') {
               map.flyTo([data.lat, data.lng], 15, { duration: 1.5 });
-              
               if (userMarker) map.removeLayer(userMarker);
-              
               userMarker = L.circleMarker([data.lat, data.lng], {
                 radius: 8, fillColor: "#208AEF", color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.8
               }).addTo(map).bindPopup("Você está aqui!").openPopup();

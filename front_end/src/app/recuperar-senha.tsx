@@ -12,6 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+// IMPORTAR A NOSSA API CENTRALIZADA
+import { api } from "../services/API";
 
 export default function RecuperarSenhaScreen() {
   const router = useRouter();
@@ -27,24 +29,18 @@ export default function RecuperarSenhaScreen() {
     setLoading(true);
 
     try {
-      // IMPORTANTE: Substitua pelo IP da sua máquina
-      const API_URL =
-        Platform.OS === "web"
-          ? "https://litro-de-ouro-app.onrender.com"
-          : "https://litro-de-ouro-app.onrender.com";
-
-      const response = await fetch(`${API_URL}/auth/recuperar-senha`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+      // Usar a nossa instância do Axios configurada no API.ts
+      const response = await api.post("/auth/recuperar-senha", {
+        email: email.trim().toLowerCase(),
       });
 
-      const data = await response.json();
-
-      Alert.alert("Recuperação", data.message);
-      router.back(); // Volta ao ecrã anterior
+      Alert.alert("Sucesso", response.data.mensagem);
+      router.back();
     } catch (error: any) {
-      Alert.alert("Erro", "Não foi possível conectar ao servidor.");
+      const mensagemErro =
+        error.response?.data?.error ||
+        "Não foi possível contactar o servidor. Verifique a rede.";
+      Alert.alert("Erro na Recuperação", mensagemErro);
     } finally {
       setLoading(false);
     }
