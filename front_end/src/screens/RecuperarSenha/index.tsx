@@ -132,21 +132,12 @@ export default function RecuperarSenha({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  // O container agora centra tudo no meio do ecrã
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  // O wrapper impede que os inputs fiquem gigantes em monitores Web
-  contentWrapper: {
-    width: "100%",
-    maxWidth: 400,
-    paddingHorizontal: 24,
-  },
+  container: { flex: 1, justifyContent: "center", alignItems: "center" },
+  contentWrapper: { width: "100%", maxWidth: 400, paddingHorizontal: 24 },
   header: { marginBottom: 48, alignItems: "center" },
   title: { fontSize: 32, fontWeight: "bold", marginBottom: 8 },
-  subtitle: { fontSize: 16, textAlign: "center" },
+  subtitle: { fontSize: 16, textAlign: "center", marginBottom: 4 },
+  emailHighlight: { fontSize: 16, fontWeight: "bold", textAlign: "center" },
   form: { width: "100%" },
   input: {
     height: 54,
@@ -166,4 +157,5 @@ const styles = StyleSheet.create({
   buttonText: { color: "#121212", fontSize: 16, fontWeight: "bold" },
   backButton: { marginTop: 24, alignItems: "center" },
   backButtonText: { fontSize: 16 },
+  linksContainer: { marginTop: 24, alignItems: "center" },
 });

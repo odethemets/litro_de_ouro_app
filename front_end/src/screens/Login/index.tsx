@@ -193,7 +193,8 @@ const styles = StyleSheet.create({
   contentWrapper: { width: "100%", maxWidth: 400, paddingHorizontal: 24 },
   header: { marginBottom: 48, alignItems: "center" },
   title: { fontSize: 32, fontWeight: "bold", marginBottom: 8 },
-  subtitle: { fontSize: 16, textAlign: "center" },
+  subtitle: { fontSize: 16, textAlign: "center", marginBottom: 4 },
+  emailHighlight: { fontSize: 16, fontWeight: "bold", textAlign: "center" },
   form: { width: "100%" },
   input: {
     height: 54,
@@ -211,5 +212,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   buttonText: { color: "#121212", fontSize: 16, fontWeight: "bold" },
+  backButton: { marginTop: 24, alignItems: "center" },
+  backButtonText: { fontSize: 16 },
   linksContainer: { marginTop: 24, alignItems: "center" },
 });

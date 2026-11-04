@@ -1,8 +1,6 @@
-// src/screens/RedefinirSenha/index.tsx
 import { CommonActions } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useContext, useState } from "react";
-// (Coloque isto junto às outras importações do react-navigation)
 import {
   ActivityIndicator,
   Alert,
@@ -52,12 +50,8 @@ export default function RedefinirSenha({ route, navigation }: Props) {
         nova_senha: novaSenha,
       });
 
-      Alert.alert(
-        "Sucesso",
-        "Palavra-passe atualizada com sucesso! Já pode iniciar sessão.",
-      );
+      Alert.alert("Sucesso", "Palavra-passe atualizada com sucesso!");
 
-      // A CORREÇÃO: Limpa a stack de navegação e atira para o Login
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
@@ -95,7 +89,7 @@ export default function RedefinirSenha({ route, navigation }: Props) {
                 Nova Palavra-passe
               </Text>
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                Escolha uma senha forte e segura para a sua conta.
+                Escolha uma senha forte para a sua conta.
               </Text>
             </View>
 
@@ -112,7 +106,7 @@ export default function RedefinirSenha({ route, navigation }: Props) {
                 placeholder="Nova palavra-passe"
                 placeholderTextColor={colors.textSecondary}
                 secureTextEntry
-                autoCapitalize="none" // <-- ADICIONE ISTO AQUI
+                autoCapitalize="none"
                 value={novaSenha}
                 onChangeText={setNovaSenha}
                 editable={!isLoading}
@@ -130,23 +124,22 @@ export default function RedefinirSenha({ route, navigation }: Props) {
                 placeholder="Confirmar palavra-passe"
                 placeholderTextColor={colors.textSecondary}
                 secureTextEntry
-                autoCapitalize="none" // <-- E AQUI TAMBÉM
+                autoCapitalize="none"
                 value={confirmarSenha}
                 onChangeText={setConfirmarSenha}
                 editable={!isLoading}
               />
 
+              {/* CORREÇÃO: Botão com estilo correto apontando para a API */}
               <TouchableOpacity
-                style={styles.backButton}
-                // A CORREÇÃO NO BOTÃO CANCELAR:
-                onPress={() =>
-                  navigation.dispatch(
-                    CommonActions.reset({
-                      index: 0,
-                      routes: [{ name: "Login" }],
-                    }),
-                  )
-                }
+                style={[
+                  styles.button,
+                  {
+                    backgroundColor: colors.primary,
+                    opacity: isLoading ? 0.7 : 1,
+                  },
+                ]}
+                onPress={handleAtualizarSenha}
                 disabled={isLoading}
               >
                 {isLoading ? (

@@ -218,11 +218,11 @@ def redefinir_senha():
             if not cursor.fetchone():
                 return jsonify({"error": "Código inválido ou expirado."}), 400
                 
-            senha_hash = generate_password_hash(nova_senha)
+            senha = generate_password_hash(nova_senha)
             
             cursor.execute(
                 "UPDATE usuarios SET senha = %s, token_recuperacao = NULL, email_verificado = 1 WHERE email = %s",
-                (senha_hash, email)
+                (senha, email)
             )
             conn.commit()
             return jsonify({"message": "Palavra-passe redefinida com sucesso."}), 200
@@ -286,14 +286,15 @@ def cadastro():
             if cursor.fetchone():
                 return jsonify({"error": "Este e-mail já está registado."}), 400
 
-            senha_hash = generate_password_hash(senha)
+            senha= generate_password_hash(senha)
             codigo = str(random.randint(100000, 999999))
+            print(f"CÓDIGO DE TESTE PARA {email}: {codigo}", flush=True)
             expiracao = datetime.utcnow() + timedelta(minutes=15)
 
             cursor.execute("""
                 INSERT INTO usuarios (nome, email, senha, plano, karma, email_verificado, token_verificacao, token_expiracao)
                 VALUES (%s, %s, %s, 'gratis', 0, 0, %s, %s)
-            """, (nome, email, senha_hash, codigo, expiracao))
+            """, (nome, email, senha, codigo, expiracao))
             conn.commit()
 
             enviar_email_codigo(email, codigo, "verificacao")
