@@ -193,11 +193,21 @@ def enviar_email_codigo(destinatario, codigo, tipo="verificacao"):
 
         return True
 
-    except Exception:
-        # Não registrar senha, código, conteúdo do e-mail ou exceção SMTP.
+    except Exception as erro:
+        # Registra somente o tipo da falha e o status SMTP.
+        # Não expõe senha, destinatário, código ou resposta do servidor.
+        codigo_smtp = getattr(erro, "smtp_code", None)
+
+        if not isinstance(codigo_smtp, int):
+            codigo_smtp = None
+
         current_app.logger.error(
-            "Falha no envio de código por e-mail."
+            "Falha no envio de código por e-mail: "
+            "tipo=%s; codigo_smtp=%s",
+            type(erro).__name__,
+            codigo_smtp,
         )
+
         return False
 
 

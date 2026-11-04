@@ -1,4 +1,7 @@
 {
+  "framework": null,
+  "installCommand": "npm ci",
+  "buildCommand": "node scripts/check-vercel-env.cjs && npm run vercel-build",
   "outputDirectory": "dist",
   "rewrites": [
     {

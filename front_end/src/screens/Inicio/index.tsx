@@ -5,8 +5,7 @@ import * as Location from "expo-location";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
-  Linking, // <-- IMPORT NOVO PARA ABRIR O GPS
+  Linking,
   Modal,
   Platform,
   StyleSheet,
@@ -17,6 +16,7 @@ import {
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+import { FeedbackAcao } from "../../components/feedback-acao";
 import MapaLeaflet from "../../components/mapa/MapaLeaflet";
 import type {
   MapaLeafletHandle,
@@ -26,6 +26,11 @@ import type {
 import { ThemeContext } from "../../contexts/ThemeContext";
 import { api } from "../../services/API";
 import { registrarPostoVisto } from "../../services/historicoVistos";
+import {
+  falhaCadastroPreco,
+  normalizarPreco,
+  type MensagemAcao,
+} from "../../utils/feedbackPostos";
 
 interface PostoDetalhado extends PostoNoMapa {
   nome: string;
@@ -47,11 +52,22 @@ const OPCOES_COMBUSTIVEL = [
 const CONSUMO_MEDIO_KM_L = 10;
 
 export default function Inicio() {
-  const { colors } = useContext(ThemeContext) as any;
+  const { colors } = useContext(ThemeContext);
 
   const mapaRef = useRef<MapaLeafletHandle>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ["15%", "45%", "85%"], []);
+
+  const [feedback, setFeedback] = useState<MensagemAcao | null>(null);
+  const [feedbackFormulario, setFeedbackFormulario] =
+    useState<MensagemAcao | null>(null);
+  const [isLoadingPostos, setIsLoadingPostos] = useState(true);
+  const [erroPostos, setErroPostos] = useState("");
+  const [erroPrecos, setErroPrecos] = useState("");
+  const buscaEmAndamento = useRef(false);
+  const envioEmAndamento = useRef(false);
+  const postoSelecionadoId = useRef<number | null>(null);
+  const requisicaoPrecos = useRef(0);
 
   // Estados Globais
   const [postos, setPostos] = useState<PostoDetalhado[]>([]);
@@ -95,75 +111,128 @@ export default function Inicio() {
   };
 
   const buscarLocalizacaoEPostos = async (forcarRequisicao = false) => {
+    if (buscaEmAndamento.current) return;
+    buscaEmAndamento.current = true;
     setIsLoadingLocalizacao(true);
-    let latAtual = null;
-    let lonAtual = null;
+    setIsLoadingPostos(true);
+    setErroPostos("");
+    let latAtual: number | null = null;
+    let lonAtual: number | null = null;
 
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === "granted") {
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        latAtual = loc.coords.latitude;
-        lonAtual = loc.coords.longitude;
-
-        setUsuario({
-          lat: latAtual,
-          lon: lonAtual,
-          precisaoM: loc.coords.accuracy,
-        });
-
-        if (forcarRequisicao) {
-          mapaRef.current?.centralizar(latAtual, lonAtual, 14);
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const loc = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          latAtual = loc.coords.latitude;
+          lonAtual = loc.coords.longitude;
+          setUsuario({
+            lat: latAtual,
+            lon: lonAtual,
+            precisaoM: loc.coords.accuracy,
+          });
+          if (forcarRequisicao)
+            mapaRef.current?.centralizar(latAtual, lonAtual, 14);
+        } else {
+          setUsuario(null);
         }
+      } catch {
+        setUsuario(null);
+      } finally {
+        setIsLoadingLocalizacao(false);
       }
-    } catch (error) {
-      console.warn("Permissão recusada ou GPS inativo.");
-    } finally {
-      setIsLoadingLocalizacao(false);
-    }
 
-    try {
       const endpoint =
-        latAtual && lonAtual
+        latAtual !== null && lonAtual !== null
           ? `/postos?lat=${latAtual}&lng=${lonAtual}`
-          : `/postos`;
-
+          : "/postos";
       const response = await api.get(endpoint);
-      setPostos(mapearDadosDoBanco(response.data));
-    } catch (error: any) {
-      console.error("[Inicio] Erro ao buscar postos:", error.message);
+      const resultado = mapearDadosDoBanco(response.data);
+      setPostos(resultado);
+      setFeedback(
+        latAtual === null
+          ? {
+              tipo: "aviso",
+              titulo: "Localização indisponível",
+              mensagem:
+                "A lista foi carregada, mas as distâncias dependem da localização. Permita o acesso e atualize pelo botão de localização.",
+            }
+          : {
+              tipo: "sucesso",
+              titulo: "Postos atualizados",
+              mensagem: resultado.length
+                ? `${resultado.length} postos encontrados na sua região.`
+                : "Nenhum posto encontrado nesta região.",
+            },
+      );
+    } catch {
+      setErroPostos(
+        "Não foi possível atualizar os postos. Os dados já carregados foram mantidos.",
+      );
+      setFeedback({
+        tipo: "erro",
+        titulo: "Falha ao buscar postos",
+        mensagem:
+          "Confira sua conexão e tente atualizar novamente pelo botão de localização.",
+      });
+    } finally {
+      buscaEmAndamento.current = false;
+      setIsLoadingPostos(false);
+      setIsLoadingLocalizacao(false);
     }
   };
 
   useEffect(() => {
-    buscarLocalizacaoEPostos(true);
+    void buscarLocalizacaoEPostos(true);
   }, []);
 
-  // --- INTERAÇÕES DO UTILIZADOR ---
-  const focarNoPosto = async (posto: PostoDetalhado) => {
+  const carregarPrecos = async (postoId: number, aposCadastro = false) => {
+    const pedido = ++requisicaoPrecos.current;
+    setIsLoadingPrecos(true);
+    setErroPrecos("");
+    try {
+      const response = await api.get(`/postos/${postoId}/precos`);
+      if (
+        postoSelecionadoId.current === postoId &&
+        pedido === requisicaoPrecos.current
+      ) {
+        setPrecosDetalhe(response.data);
+      }
+    } catch {
+      if (
+        postoSelecionadoId.current === postoId &&
+        pedido === requisicaoPrecos.current
+      ) {
+        setErroPrecos(
+          aposCadastro
+            ? "O preço foi cadastrado, mas a consulta não foi atualizada. Tente consultar novamente."
+            : "Não foi possível carregar os preços deste posto. Tente novamente.",
+        );
+      }
+    } finally {
+      if (
+        postoSelecionadoId.current === postoId &&
+        pedido === requisicaoPrecos.current
+      )
+        setIsLoadingPrecos(false);
+    }
+  };
+
+  const focarNoPosto = (posto: PostoDetalhado) => {
+    postoSelecionadoId.current = posto.id;
     setPostoSelecionado(posto);
+    setPrecosDetalhe([]);
+    setErroPrecos("");
     mapaRef.current?.centralizar(posto.lat, posto.lon, 16);
     bottomSheetRef.current?.snapToIndex(1);
-
-    // Guardar histórico local
-    registrarPostoVisto({
+    void registrarPostoVisto({
       id: posto.id,
       nome: posto.nome,
       endereco: posto.endereco,
     });
-
-    setIsLoadingPrecos(true);
-    try {
-      const response = await api.get(`/postos/${posto.id}/precos`);
-      setPrecosDetalhe(response.data);
-    } catch (error) {
-      console.error("Erro ao buscar preços:", error);
-      setPrecosDetalhe([]);
-    } finally {
-      setIsLoadingPrecos(false);
-    }
+    void carregarPrecos(posto.id);
   };
 
   const handlePinoClicado = (id: number) => {
@@ -172,82 +241,164 @@ export default function Inicio() {
   };
 
   const handleVoltarParaLista = () => {
+    postoSelecionadoId.current = null;
+    requisicaoPrecos.current += 1;
     setPostoSelecionado(null);
     setPrecosDetalhe([]);
+    setErroPrecos("");
+    setIsLoadingPrecos(false);
     bottomSheetRef.current?.snapToIndex(1);
     if (usuario) mapaRef.current?.centralizar(usuario.lat, usuario.lon, 14);
   };
 
-  // --- NOVA FUNCIONALIDADE: TRAÇAR ROTA ---
-  const abrirRotaMapaApp = () => {
+  const abrirRotaMapaApp = async () => {
     if (!postoSelecionado) return;
-    // URL Universal que funciona e abre a app nativa no Android e iOS
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${postoSelecionado.lat},${postoSelecionado.lon}`;
-    Linking.openURL(url);
+    try {
+      await Linking.openURL(
+        `https://www.google.com/maps/dir/?api=1&destination=${postoSelecionado.lat},${postoSelecionado.lon}`,
+      );
+      setFeedback({
+        tipo: "info",
+        titulo: "Rota solicitada",
+        mensagem: `Destino: ${postoSelecionado.nome}.`,
+      });
+    } catch {
+      setFeedback({
+        tipo: "erro",
+        titulo: "Não foi possível abrir a rota",
+        mensagem: "Confira sua conexão e tente novamente.",
+      });
+    }
   };
 
-  // --- NOVA FUNCIONALIDADE: EMERGÊNCIA (Mais próximo) ---
   const handleEmergencia = () => {
     if (postos.length === 0) {
-      Alert.alert("Aviso", "Ainda não carregamos os postos na sua região.");
+      setFeedback({
+        tipo: "aviso",
+        titulo: "Nenhum posto disponível",
+        mensagem: "Atualize a lista antes de buscar o posto mais próximo.",
+      });
       return;
     }
-    // Como o backend já ordena por distância, ou garantimos localmente:
-    const postosOrdenados = [...postos].sort((a, b) => {
-      const distA = a.distancia_m !== undefined ? a.distancia_m : 999999;
-      const distB = b.distancia_m !== undefined ? b.distancia_m : 999999;
-      return distA - distB;
+    const candidatos = postos.filter((p) => Number.isFinite(p.distancia_m));
+    if (!candidatos.length) {
+      setFeedback({
+        tipo: "aviso",
+        titulo: "Precisamos da sua localização",
+        mensagem:
+          "Permita o acesso à localização e atualize a lista para encontrar o posto mais próximo.",
+      });
+      return;
+    }
+    candidatos.sort((a, b) => a.distancia_m! - b.distancia_m!);
+    const maisProximo = candidatos[0];
+    focarNoPosto(maisProximo);
+    setFeedback({
+      tipo: "info",
+      titulo: "Posto mais próximo selecionado",
+      mensagem: maisProximo.nome,
     });
-
-    const postoMaisProximo = postosOrdenados[0];
-    focarNoPosto(postoMaisProximo);
-    Alert.alert(
-      "Modo Emergência",
-      `Focámos no posto mais próximo:\n${postoMaisProximo.nome}`,
-    );
   };
 
-  // --- SUBMISSÃO DE PREÇO ---
   const abrirModalPreco = async () => {
-    const token = await AsyncStorage.getItem("@LitroDeOuro:token");
-    if (!token) {
-      Alert.alert(
-        "Autenticação Necessária",
-        "Precisa de ter sessão iniciada para registrar novos preços.",
-        [{ text: "OK" }],
-      );
-      return;
+    if (envioEmAndamento.current || !postoSelecionado) return;
+    try {
+      const token = await AsyncStorage.getItem("@LitroDeOuro:token");
+      if (!token) {
+        setFeedback({
+          tipo: "aviso",
+          titulo: "Faça login para cadastrar",
+          mensagem:
+            "Sua sessão não está disponível. Entre novamente para registrar um preço.",
+        });
+        return;
+      }
+      setNovoPrecoInput("");
+      setCombustivelSelecionado(postoSelecionado.combustivel);
+      setFeedbackFormulario(null);
+      setFeedback(null);
+      setModalVisivel(true);
+    } catch {
+      setFeedback({
+        tipo: "erro",
+        titulo: "Não foi possível verificar a sessão",
+        mensagem: "Tente novamente antes de cadastrar o preço.",
+      });
     }
-    setNovoPrecoInput("");
-    setModalVisivel(true);
   };
 
   const handleSalvarPreco = async () => {
-    if (!novoPrecoInput.trim() || !postoSelecionado) {
-      Alert.alert("Erro", "Por favor, digite o valor do combustível.");
+    if (envioEmAndamento.current) return;
+    const posto = postoSelecionado;
+    if (!posto) return;
+    const valor = normalizarPreco(novoPrecoInput);
+    if (valor === null) {
+      setFeedbackFormulario({
+        tipo: "erro",
+        titulo: "Confira o preço",
+        mensagem:
+          "Informe um valor entre R$ 0,01 e R$ 20,00, com até duas casas decimais. Exemplo: 5,89.",
+      });
       return;
     }
-    const valorNormalizado = parseFloat(novoPrecoInput.replace(",", "."));
-    if (isNaN(valorNormalizado) || valorNormalizado <= 0) {
-      Alert.alert("Erro", "Introduza um preço válido.");
-      return;
-    }
+
+    const combustivel = combustivelSelecionado;
+    envioEmAndamento.current = true;
     setIsEnviandoPreco(true);
+    setFeedbackFormulario(null);
     try {
       const token = await AsyncStorage.getItem("@LitroDeOuro:token");
+      if (!token) {
+        setFeedbackFormulario({
+          tipo: "erro",
+          titulo: "Sessão indisponível",
+          mensagem: "Entre novamente para cadastrar este preço.",
+        });
+        return;
+      }
       await api.post(
-        `/postos/${postoSelecionado.id}/precos`,
-        { tipo_combustivel: combustivelSelecionado, preco: valorNormalizado },
+        `/postos/${posto.id}/precos`,
+        { tipo_combustivel: combustivel, preco: valor },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      Alert.alert("Sucesso", "Preço registrado com sucesso!");
+
+      // Confirmação somente após resposta de sucesso da API.
+      const formatado = valor.toFixed(2).replace(".", ",");
       setModalVisivel(false);
-      focarNoPosto(postoSelecionado);
-    } catch (error: any) {
-      const msg =
-        error.response?.data?.error || "Não foi possível salvar o preço.";
-      Alert.alert("Erro ao Salvar", msg);
+      setFeedback({
+        tipo: "sucesso",
+        titulo: "Preço cadastrado",
+        mensagem: `${combustivel}: R$ ${formatado} em ${posto.nome}.`,
+      });
+
+      // Atualiza o mapa e a lista sem refazer uma consulta de localização.
+      const atualizar = (p: PostoDetalhado) =>
+        p.id === posto.id && p.combustivel === combustivel
+          ? {
+              ...p,
+              rotulo: formatado,
+              cor:
+                combustivel === "Recarga Elétrica (kWh)"
+                  ? "#3B82F6"
+                  : "#10B981",
+            }
+          : p;
+      setPostos((anteriores) => anteriores.map(atualizar));
+      setPostoSelecionado((atual) => (atual ? atualizar(atual) : atual));
+      setPrecosDetalhe((anteriores) => [
+        ...anteriores.filter((p) => p.tipo_combustivel !== combustivel),
+        {
+          tipo_combustivel: combustivel,
+          preco: valor,
+          data_formatada: "Agora",
+        },
+      ]);
+      // Falha nessa consulta não transforma o cadastro confirmado em erro de envio.
+      void carregarPrecos(posto.id, true);
+    } catch (erro: unknown) {
+      setFeedbackFormulario(falhaCadastroPreco(erro));
     } finally {
+      envioEmAndamento.current = false;
       setIsEnviandoPreco(false);
     }
   };
@@ -353,13 +504,31 @@ export default function Inicio() {
             Preços Cadastrados
           </Text>
 
+          {erroPrecos ? (
+            <View style={{ marginBottom: 12 }}>
+              <FeedbackAcao
+                feedback={{
+                  tipo: "aviso",
+                  titulo: "Consulta não atualizada",
+                  mensagem: erroPrecos,
+                }}
+                acao={{
+                  rotulo: "Consultar novamente",
+                  executar: () => {
+                    void carregarPrecos(postoSelecionado.id);
+                  },
+                }}
+              />
+            </View>
+          ) : null}
+
           {isLoadingPrecos ? (
             <ActivityIndicator
               size="large"
               color={colors.primary}
               style={{ marginVertical: 20 }}
             />
-          ) : precosDetalhe.length === 0 ? (
+          ) : precosDetalhe.length === 0 && !erroPrecos ? (
             <Text style={{ color: colors.textSecondary, marginVertical: 10 }}>
               Nenhum preço registrado para este posto recentemente.
             </Text>
@@ -448,9 +617,37 @@ export default function Inicio() {
             Postos na Região
           </Text>
           <Text style={[styles.sheetSubtitle, { color: colors.textSecondary }]}>
-            {postos.length} postos encontrados.
+            {isLoadingPostos
+              ? "Buscando postos…"
+              : `${postos.length} postos encontrados.`}
           </Text>
         </View>
+
+        {isLoadingPostos && (
+          <ActivityIndicator
+            color={colors.primary}
+            style={{ marginVertical: 16 }}
+          />
+        )}
+        {erroPostos ? (
+          <FeedbackAcao
+            feedback={{
+              tipo: "erro",
+              titulo: "Lista não atualizada",
+              mensagem: erroPostos,
+            }}
+            acao={{
+              rotulo: "Tentar novamente",
+              executar: () => {
+                void buscarLocalizacaoEPostos(true);
+              },
+            }}
+          />
+        ) : !isLoadingPostos && postos.length === 0 ? (
+          <Text style={{ color: colors.textSecondary, marginVertical: 16 }}>
+            Nenhum posto encontrado. Tente atualizar a localização.
+          </Text>
+        ) : null}
 
         {postos.map((posto) => (
           <TouchableOpacity
@@ -512,9 +709,9 @@ export default function Inicio() {
             },
           ]}
           onPress={() => buscarLocalizacaoEPostos(true)}
-          disabled={isLoadingLocalizacao}
+          disabled={isLoadingLocalizacao || isLoadingPostos}
         >
-          {isLoadingLocalizacao ? (
+          {isLoadingLocalizacao || isLoadingPostos ? (
             <ActivityIndicator size="small" color={colors.primary} />
           ) : (
             <Text style={{ fontSize: 20 }}>📍</Text>
@@ -548,12 +745,20 @@ export default function Inicio() {
         <BottomSheetScrollView>{renderConteudoGaveta()}</BottomSheetScrollView>
       </BottomSheet>
 
-      {/* MODAL DE PREÇOS MANTIDO INTACTO */}
+      {!modalVisivel && feedback && (
+        <View style={styles.feedbackOverlay}>
+          <FeedbackAcao feedback={feedback} onClose={() => setFeedback(null)} />
+        </View>
+      )}
+
+      {/* O formulário permanece aberto e preenchido quando o envio falha. */}
       <Modal
         visible={modalVisivel}
         transparent
         animationType="fade"
-        onRequestClose={() => setModalVisivel(false)}
+        onRequestClose={() => {
+          if (!envioEmAndamento.current) setModalVisivel(false);
+        }}
       >
         <View style={styles.modalOverlay}>
           <View
@@ -568,6 +773,14 @@ export default function Inicio() {
             <Text style={{ color: colors.textSecondary, marginBottom: 16 }}>
               {postoSelecionado?.nome}
             </Text>
+            {feedbackFormulario && (
+              <View style={{ marginBottom: 16 }}>
+                <FeedbackAcao
+                  feedback={feedbackFormulario}
+                  onClose={() => setFeedbackFormulario(null)}
+                />
+              </View>
+            )}
             <Text style={[styles.labelInput, { color: colors.textPrimary }]}>
               Combustível:
             </Text>
@@ -585,6 +798,7 @@ export default function Inicio() {
                           : "transparent",
                     },
                   ]}
+                  disabled={isEnviandoPreco}
                   onPress={() => setCombustivelSelecionado(item)}
                 >
                   <Text
@@ -624,11 +838,14 @@ export default function Inicio() {
               keyboardType="decimal-pad"
               value={novoPrecoInput}
               onChangeText={setNovoPrecoInput}
+              editable={!isEnviandoPreco}
             />
             <View style={styles.modalButtonsContainer}>
               <TouchableOpacity
                 style={[styles.btnCancel, { borderColor: colors.border }]}
-                onPress={() => setModalVisivel(false)}
+                onPress={() => {
+                  if (!envioEmAndamento.current) setModalVisivel(false);
+                }}
                 disabled={isEnviandoPreco}
               >
                 <Text
@@ -643,7 +860,18 @@ export default function Inicio() {
                 disabled={isEnviandoPreco}
               >
                 {isEnviandoPreco ? (
-                  <ActivityIndicator color="#121212" size="small" />
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <ActivityIndicator color="#121212" size="small" />
+                    <Text style={{ color: "#121212", fontWeight: "bold" }}>
+                      Cadastrando…
+                    </Text>
+                  </View>
                 ) : (
                   <Text style={{ color: "#121212", fontWeight: "bold" }}>
                     Salvar
@@ -660,6 +888,14 @@ export default function Inicio() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  feedbackOverlay: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    right: 84,
+    zIndex: 100,
+    elevation: 8,
+  },
   fabContainer: { position: "absolute", top: 60, right: 20, zIndex: 99 },
   fab: {
     width: 48,

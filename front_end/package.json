@@ -42,6 +42,8 @@
   "devDependencies": {
     "@types/leaflet": "^1.9.22",
     "@types/react": "~19.3.0",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~58.0.4",
     "leaflet": "^1.9.4",
     "typescript": "~6.0.3"
   },
