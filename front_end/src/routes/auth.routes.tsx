@@ -1,4 +1,3 @@
-// src/routes/auth.routes.tsx
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import Login from "../screens/Login";
@@ -8,11 +7,33 @@ import RedefinirSenha from "../screens/RedefinirSenha";
 import Registo from "../screens/Registro";
 
 export type AuthStackParamList = {
-  Login: undefined;
+  // Mensagem de confirmação ou de alteração de senha.
+  Login:
+    | {
+        message?: string;
+      }
+    | undefined;
+
   Registo: undefined;
-  RecuperarSenha: { emailBase?: string } | undefined;
-  ValidarCodigo: { email: string; finalidade: "recuperacao" | "registo" };
-  RedefinirSenha: { email: string; codigo: string };
+
+  RecuperarSenha:
+    | {
+        emailBase?: string;
+      }
+    | undefined;
+
+  ValidarCodigo: {
+    email: string;
+    finalidade: "recuperacao" | "registo";
+
+    // Permite enviar e ler a mensagem sem torná-la obrigatória.
+    message?: string;
+  };
+
+  RedefinirSenha: {
+    email: string;
+    codigo: string;
+  };
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
