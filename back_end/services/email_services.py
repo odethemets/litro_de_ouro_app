@@ -1,127 +1,194 @@
-# back_end/services/email_services.py
+"""Envio pelo Resend/HTTPS. Não gera nem grava códigos no banco."""
 
+import json
+import logging
 import os
-import smtplib
-import ssl
+import re
 
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from html import escape
+from http.client import HTTPException
+from urllib.error import HTTPError, URLError
+from urllib.request import (
+    HTTPRedirectHandler,
+    Request,
+    build_opener,
+)
 
-from flask import current_app
+log = logging.getLogger(__name__)
+
+RESEND_URL = "https://api.resend.com/emails"
+TIMEOUT_SEGUNDOS = 10
+MAX_RESPOSTA_BYTES = 64 * 1024
 
 
-def _obter_credenciais():
-    # Não existem credenciais padrão no código.
-    remetente = os.getenv("EMAIL_REMETENTE")
-    senha_app = os.getenv("EMAIL_SENHA_APP")
+class _SemRedirecionamento(HTTPRedirectHandler):
+    def redirect_request(
+        self, req, fp, code, msg, headers, newurl
+    ):
+        # Evita encaminhar a chave para outro endereço.
+        return None
 
-    return remetente, senha_app
 
+def enviar_email_codigo(
+    destinatario,
+    codigo,
+    tipo="verificacao",
+) -> bool:
+    # True significa aceitação pela API, não entrega na caixa.
+    chave = os.getenv("RESEND_API_KEY", "").strip()
+    remetente = os.getenv("RESEND_FROM", "").strip()
 
-def _enviar_email(destinatario: str, assunto: str, html: str) -> bool:
-    """
-    Centraliza o transporte SMTP.
-
-    As funções públicas de confirmação e recuperação são preservadas.
-    """
-    remetente, senha_app = _obter_credenciais()
-
-    if not remetente or not senha_app:
-        current_app.logger.error(
-            "Credenciais de e-mail não configuradas."
+    if (
+        not chave
+        or not remetente
+        or any(c in chave + remetente for c in "\r\n")
+    ):
+        log.error(
+            "Resend: configure RESEND_API_KEY "
+            "e RESEND_FROM no backend."
         )
         return False
+
+    if (
+        not isinstance(destinatario, str)
+        or not destinatario.strip()
+    ):
+        log.error("Resend: destinatário ausente ou inválido.")
+        return False
+
+    if (
+        not isinstance(codigo, str)
+        or not re.fullmatch(r"[0-9]{6}", codigo)
+    ):
+        log.error("Resend: código ausente ou inválido.")
+        return False
+
+    assunto = (
+        "Litro de Ouro - Código de Acesso"
+        if tipo == "verificacao"
+        else "Litro de Ouro - Recuperação de Senha"
+    )
+
+    codigo_html = escape(codigo)
+
+    html = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; color: #333;
+                   text-align: center; padding: 20px;">
+        <h2>Litro de Ouro</h2>
+        <p>Aqui está o seu código de segurança:</p>
+        <h1 style="font-size: 32px; letter-spacing: 5px;
+                   color: #F59E0B; background: #1E1E1E;
+                   padding: 15px; border-radius: 8px;
+                   display: inline-block;">
+          {codigo_html}
+        </h1>
+        <p>Este código expira em 15 minutos.</p>
+      </body>
+    </html>
+    """
+
+    payload = {
+        "from": remetente,
+        "to": [destinatario.strip()],
+        "subject": assunto,
+        "html": html,
+        "text": (
+            f"Litro de Ouro\n"
+            f"Seu código de segurança: {codigo}\n"
+            f"Este código expira em 15 minutos."
+        ),
+    }
 
     try:
-        mensagem = MIMEMultipart()
-        mensagem["From"] = f"Litro de Ouro <{remetente}>"
-        mensagem["To"] = destinatario
-        mensagem["Subject"] = assunto
-        mensagem.attach(MIMEText(html, "html", "utf-8"))
+        requisicao = Request(
+            RESEND_URL,
+            data=json.dumps(
+                payload,
+                ensure_ascii=False,
+            ).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {chave}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "LitroDeOuro/1.0",
+            },
+            method="POST",
+        )
 
-        # Verifica o certificado e a identidade do servidor SMTP.
-        contexto_tls = ssl.create_default_context()
+        # Usa HTTPS com verificação TLS padrão.
+        # Não repete automaticamente um envio de resultado incerto.
+        with build_opener(
+            _SemRedirecionamento()
+        ).open(
+            requisicao,
+            timeout=TIMEOUT_SEGUNDOS,
+        ) as resposta:
+            status = resposta.status
+            dados = resposta.read(MAX_RESPOSTA_BYTES + 1)
 
-        # Encerra a conexão mesmo quando ocorre uma falha.
-        with smtplib.SMTP(
-            "smtp.gmail.com",
-            587,
-            timeout=10,
-        ) as servidor:
-            servidor.starttls(context=contexto_tls)
-            servidor.login(remetente, senha_app)
-            servidor.send_message(mensagem)
+        if (
+            not 200 <= status < 300
+            or len(dados) > MAX_RESPOSTA_BYTES
+        ):
+            log.error(
+                "Resend: resposta inesperada; status_http=%s",
+                status,
+            )
+            return False
 
+        corpo = json.loads(dados)
+
+        if (
+            not isinstance(corpo, dict)
+            or not isinstance(corpo.get("id"), str)
+            or not corpo["id"].strip()
+        ):
+            log.error(
+                "Resend: resposta sem identificador de aceitação."
+            )
+            return False
+
+        log.info(
+            "Resend: envio aceito pela API; status_http=%s",
+            status,
+        )
         return True
 
-    except Exception:
-        # Não registrar destinatário, credenciais, código ou conteúdo
-        # de exceções SMTP que possam carregar informações sensíveis.
-        current_app.logger.error(
-            "Falha no envio de e-mail."
+    except HTTPError as erro:
+        erro.close()
+
+        # Não registra o corpo, que pode conter dados sensíveis.
+        log.error(
+            "Resend: envio recusado; status_http=%s",
+            erro.code,
+        )
+        return False
+
+    except (
+        URLError,
+        TimeoutError,
+        OSError,
+        HTTPException,
+        ValueError,
+        TypeError,
+    ) as erro:
+        log.error(
+            "Resend: falha no envio; tipo=%s",
+            type(erro).__name__,
         )
         return False
 
 
+# Mantém as funções que já existiam no projeto.
 def enviar_email_confirmacao(
     destinatario: str,
     codigo_confirmacao: str,
 ) -> bool:
-    # Evita interpretar como HTML um valor recebido por esta função.
-    codigo_seguro = escape(str(codigo_confirmacao))
-
-    assunto = "Confirmação de Cadastro - Litro de Ouro"
-
-    html = f"""
-    <div style="
-        font-family: Arial, sans-serif;
-        max-width: 600px;
-        margin: auto;
-        padding: 20px;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-    ">
-        <h2 style="color: #d79b00; text-align: center;">
-            Bem-vindo ao Litro de Ouro!
-        </h2>
-
-        <p>Olá,</p>
-
-        <p>
-            Falta muito pouco para começar a economizar
-            e ajudar a comunidade.
-        </p>
-
-        <p>
-            Utilize o código de confirmação abaixo
-            no aplicativo para ativar a sua conta:
-        </p>
-
-        <div style="text-align: center; margin: 30px 0;">
-            <span style="
-                font-size: 20px;
-                font-weight: bold;
-                background-color: #f4f4f4;
-                padding: 10px 20px;
-                border-radius: 5px;
-                word-break: break-all;
-            ">
-                {codigo_seguro}
-            </span>
-        </div>
-
-        <p style="font-size: 12px; color: #777;">
-            Se não se cadastrou no Litro de Ouro,
-            ignore este e-mail.
-        </p>
-    </div>
-    """
-
-    return _enviar_email(
+    return enviar_email_codigo(
         destinatario,
-        assunto,
-        html,
+        codigo_confirmacao,
+        "verificacao",
     )
 
 
@@ -129,57 +196,8 @@ def enviar_email_recuperacao(
     destinatario: str,
     codigo_recuperacao: str,
 ) -> bool:
-    codigo_seguro = escape(str(codigo_recuperacao))
-
-    assunto = "Recuperação de Senha - Litro de Ouro"
-
-    html = f"""
-    <div style="
-        font-family: Arial, sans-serif;
-        max-width: 600px;
-        margin: auto;
-        padding: 20px;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-    ">
-        <h2 style="color: #d79b00; text-align: center;">
-            Litro de Ouro
-        </h2>
-
-        <p>Olá,</p>
-
-        <p>
-            Recebemos uma solicitação para redefinir
-            a sua senha.
-        </p>
-
-        <p>
-            Utilize o código de recuperação abaixo
-            na aplicação:
-        </p>
-
-        <div style="text-align: center; margin: 30px 0;">
-            <span style="
-                font-size: 20px;
-                font-weight: bold;
-                background-color: #f4f4f4;
-                padding: 10px 20px;
-                border-radius: 5px;
-                word-break: break-all;
-            ">
-                {codigo_seguro}
-            </span>
-        </div>
-
-        <p style="font-size: 12px; color: #777;">
-            Se não solicitou esta alteração,
-            ignore este e-mail.
-        </p>
-    </div>
-    """
-
-    return _enviar_email(
+    return enviar_email_codigo(
         destinatario,
-        assunto,
-        html,
+        codigo_recuperacao,
+        "recuperacao",
     )
