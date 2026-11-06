@@ -7,20 +7,15 @@ from ..utils.geofence import (
     validar_coordenadas,
     haversine_m,
 )
+from .precos import registrar_preco_validado
 
-from services.grid_postos import (
-    delta_graus,
-    garantir_cobertura_async,
-)
-
-# Nova fonte de descoberta: OpenStreetMap via Overpass.
+from services.grid_postos import delta_graus
 from services.osm_service import (
     ATRIBUICAO,
     LICENCA_URL,
     OSMIndisponivel,
     buscar_postos_por_bbox,
     dentro_da_area,
-    sincronizacao_habilitada,
 )
 
 
@@ -35,11 +30,8 @@ COMBUSTIVEL_PADRAO = "Gasolina Comum"
 COMBUSTIVEL_ELETRICO = "Recarga Elétrica (kWh)"
 
 
-# Mantém preço e data da mesma publicação.
-# Para eletropostos, usa recarga elétrica; nos demais, gasolina comum.
-#
+# Preço e data pertencem à mesma publicação.
 # O trecho {where} recebe somente SQL fixo definido neste arquivo.
-# Todos os valores recebidos são enviados como parâmetros.
 SQL_POSTOS = """
     SELECT
         p.id,
@@ -109,28 +101,8 @@ def listar_postos():
 
         raio_km = _ler_raio_km()
 
-    # A importação só acontece com OSM_SYNC_ENABLED=true.
-    # Consultas fora da área configurada continuam lendo o banco,
-    # mas não disparam descoberta externa.
-    #
-    # O trabalho ocorre em segundo plano. A resposta desta requisição
-    # pode conter apenas os postos que já estavam cadastrados.
-    if centro and sincronizacao_habilitada():
-        try:
-            if dentro_da_area(*centro):
-                garantir_cobertura_async(
-                    get_db_connection,
-                    centro[0],
-                    centro[1],
-                    raio_km,
-                    buscar_postos_por_bbox,
-                )
-        except Exception:
-            current_app.logger.exception(
-                "Falha ao agendar sincronização com OpenStreetMap"
-            )
-
-    # Mantém a listagem baseada nos registros locais.
+    # A listagem pública consulta somente o MySQL.
+    # A importação OSM é executada pelo script administrativo.
     conn = None
 
     try:
@@ -150,6 +122,7 @@ def listar_postos():
             ]
 
             limite = LIMITE_SEM_COORDENADAS
+
         else:
             where = ""
             filtros = []
@@ -182,7 +155,6 @@ def listar_postos():
             posto["latitude"] = float(posto["latitude"])
             posto["longitude"] = float(posto["longitude"])
 
-            # Não apresentar funcionamento 24h sem essa informação.
             if not posto.get("horario_funcionamento"):
                 posto["horario_funcionamento"] = (
                     "Horário não informado"
@@ -202,8 +174,7 @@ def listar_postos():
                     posto["longitude"],
                 )
 
-                # O filtro SQL usa uma caixa.
-                # Aqui mantemos somente o círculo solicitado.
+                # A caixa SQL é refinada para o raio circular.
                 if distancia > raio_km * 1000:
                     continue
 
@@ -233,19 +204,13 @@ def listar_postos():
 @postos_bp.route("/descoberta", methods=["GET"])
 @token_required
 def previa_descoberta(current_user_id):
-    """
-    Consulta autenticada de prévia.
-
-    Não abre conexão com o MySQL.
-    Não insere postos.
-    Não inicia o sincronizador.
-    """
-
+    """Prévia autenticada da OSM, sem gravação no MySQL."""
     try:
         lat, lon = validar_coordenadas(
             request.args.get("lat"),
             request.args.get("lng"),
         )
+
     except GeofenceError as erro:
         return _erro_coordenadas(erro)
 
@@ -258,8 +223,7 @@ def previa_descoberta(current_user_id):
                 )
             }), 400
 
-        # Caixa pequena para o primeiro teste:
-        # aproximadamente 2 km por lado.
+        # Caixa pequena de aproximadamente 2 km por lado.
         dlat, dlon = delta_graus(lat, 1.0)
 
         resultado = buscar_postos_por_bbox((
@@ -282,7 +246,7 @@ def previa_descoberta(current_user_id):
         return (
             jsonify({"error": str(erro)}),
             503,
-            {"Retry-After": "30"},
+            {"Retry-After": str(erro.retry_after)},
         )
 
     except ValueError:
@@ -295,11 +259,6 @@ def previa_descoberta(current_user_id):
                 "Área de descoberta configurada incorretamente."
             )
         }), 503
-
-
-# Se houver uma implementação adicional de /menores-precos
-# no seu arquivo local, mantenha essa implementação aqui.
-# Ela não estava presente no arquivo enviado.
 
 
 @postos_bp.route(
@@ -421,81 +380,10 @@ def precos_atuais_posto(posto_id):
 )
 @token_required
 def cadastrar_preco(current_user_id, posto_id):
-    # Mantém o comportamento da rota existente.
-    data = request.get_json(silent=True) or {}
-
-    tipo_combustivel = data.get("tipo_combustivel")
-    preco = data.get("preco")
-
-    if not tipo_combustivel or preco is None:
-        return jsonify({
-            "error": "Informe o tipo de combustível e o preço."
-        }), 400
-
-    try:
-        preco_float = float(preco)
-
-        if preco_float <= 0 or preco_float > 20:
-            return jsonify({
-                "error": "Preço fora dos limites permitidos."
-            }), 400
-
-    except (ValueError, TypeError):
-        return jsonify({
-            "error": "Valor de preço inválido."
-        }), 400
-
-    conn = None
-
-    try:
-        conn = get_db_connection()
-
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT id FROM postos WHERE id = %s",
-                (posto_id,),
-            )
-
-            if not cursor.fetchone():
-                return jsonify({
-                    "error": "Posto não encontrado."
-                }), 404
-
-            cursor.execute(
-                """
-                INSERT INTO registos_preco (
-                    posto_id,
-                    usuario_id,
-                    tipo_combustivel,
-                    preco,
-                    data_registro
-                )
-                VALUES (%s, %s, %s, %s, NOW())
-                """,
-                (
-                    posto_id,
-                    current_user_id,
-                    tipo_combustivel,
-                    preco_float,
-                ),
-            )
-
-            conn.commit()
-
-        return jsonify({
-            "message": "Preço registrado com sucesso!"
-        }), 201
-
-    except Exception:
-        current_app.logger.exception(
-            "Erro ao cadastrar preço para posto %s",
-            posto_id,
-        )
-
-        return jsonify({
-            "error": "Erro interno ao salvar preço."
-        }), 500
-
-    finally:
-        if conn and conn.open:
-            conn.close()
+    # Mantém a URL utilizada pelo aplicativo.
+    # Todas as validações são compartilhadas com POST /precos.
+    return registrar_preco_validado(
+        current_user_id,
+        request.get_json(silent=True),
+        posto_id_rota=posto_id,
+    )

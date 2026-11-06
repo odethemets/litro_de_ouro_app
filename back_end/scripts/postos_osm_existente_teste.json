@@ -1,0 +1,15 @@
+{
+  "elements": [
+    {
+      "type": "node",
+      "id": 900000000000000003,
+      "lat": -7.106409,
+      "lon": -34.8566119,
+      "tags": {
+        "amenity": "fuel",
+        "name": "Posto Frei Damião + GNV",
+        "addr:street": "Rodovia BR-230"
+      }
+    }
+  ]
+}

@@ -2,7 +2,14 @@
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -28,7 +35,6 @@ import { api } from "../../services/API";
 import { registrarPostoVisto } from "../../services/historicoVistos";
 import {
   falhaCadastroPreco,
-  normalizarPreco,
   type MensagemAcao,
 } from "../../utils/feedbackPostos";
 
@@ -48,8 +54,51 @@ const OPCOES_COMBUSTIVEL = [
   "Recarga Elétrica (kWh)",
 ];
 
-// Pode futuramente vir das configurações do utilizador!
 const CONSUMO_MEDIO_KM_L = 10;
+
+function normalizarPrecoCadastro(texto: string): number | null {
+  const limpo = texto.trim();
+
+  // Aceita vírgula ou ponto e até duas casas decimais.
+  if (!/^\d+(?:[.,]\d{1,2})?$/.test(limpo)) return null;
+
+  const numero = Number(limpo.replace(",", "."));
+
+  return Number.isFinite(numero) && numero >= 0.01 && numero <= 25
+    ? numero
+    : null;
+}
+
+async function obterLocalizacaoParaCadastro() {
+  const { status } = await Location.requestForegroundPermissionsAsync();
+
+  if (status !== "granted") {
+    throw new Error("Permita o acesso à localização para registrar um preço.");
+  }
+
+  let temporizador: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      }),
+      new Promise<never>((_, rejeitar) => {
+        temporizador = setTimeout(() => {
+          rejeitar(
+            new Error(
+              "A localização demorou a responder. Ative o GPS e tente novamente.",
+            ),
+          );
+        }, 20000);
+      }),
+    ]);
+  } finally {
+    if (temporizador !== undefined) {
+      clearTimeout(temporizador);
+    }
+  }
+}
 
 export default function Inicio() {
   const { colors } = useContext(ThemeContext);
@@ -64,136 +113,186 @@ export default function Inicio() {
   const [isLoadingPostos, setIsLoadingPostos] = useState(true);
   const [erroPostos, setErroPostos] = useState("");
   const [erroPrecos, setErroPrecos] = useState("");
+
   const buscaEmAndamento = useRef(false);
   const envioEmAndamento = useRef(false);
   const postoSelecionadoId = useRef<number | null>(null);
   const requisicaoPrecos = useRef(0);
 
-  // Estados Globais
+  // Estados da lista e localização.
   const [postos, setPostos] = useState<PostoDetalhado[]>([]);
   const [usuario, setUsuario] = useState<PosicaoUsuario | null>(null);
   const [isLoadingLocalizacao, setIsLoadingLocalizacao] = useState(false);
 
-  // Estados de Detalhe
+  // Estados dos detalhes.
   const [postoSelecionado, setPostoSelecionado] =
     useState<PostoDetalhado | null>(null);
   const [precosDetalhe, setPrecosDetalhe] = useState<any[]>([]);
   const [isLoadingPrecos, setIsLoadingPrecos] = useState(false);
 
-  // Estados do Modal de Registo de Preço
+  // Estados do formulário.
   const [modalVisivel, setModalVisivel] = useState(false);
   const [combustivelSelecionado, setCombustivelSelecionado] =
     useState("Gasolina Comum");
   const [novoPrecoInput, setNovoPrecoInput] = useState("");
   const [isEnviandoPreco, setIsEnviandoPreco] = useState(false);
 
-  // --- BUSCA DE DADOS ---
-  const mapearDadosDoBanco = (dados: any[]): PostoDetalhado[] => {
-    return dados.map((p) => {
-      const isEletrico = p.tipo_posto === "Eletroposto";
-      const temPreco = p.preco_gasolina && p.preco_gasolina > 0;
-      const precoFormatado = temPreco
-        ? p.preco_gasolina.toFixed(2).replace(".", ",")
-        : "---";
+  const combustiveisDoPosto =
+    postoSelecionado?.combustivel === "Recarga Elétrica (kWh)"
+      ? ["Recarga Elétrica (kWh)"]
+      : OPCOES_COMBUSTIVEL.filter((item) => item !== "Recarga Elétrica (kWh)");
+
+  const telaAtiva = useRef(true);
+
+  const mapearDadosDoBanco = useCallback((dados: any[]): PostoDetalhado[] => {
+    return dados.map((posto) => {
+      const eletrico = posto.tipo_posto === "Eletroposto";
+
+      const temPreco = posto.preco_gasolina && posto.preco_gasolina > 0;
 
       return {
-        id: p.id,
-        lat: p.latitude,
-        lon: p.longitude,
-        nome: p.nome,
-        endereco: p.bairro ? `${p.endereco}\n${p.bairro}` : p.endereco,
-        combustivel: isEletrico ? "Recarga Elétrica (kWh)" : "Gasolina Comum",
-        cor: isEletrico ? "#3B82F6" : temPreco ? "#10B981" : "#9CA3AF",
-        rotulo: precoFormatado,
-        distancia_m: p.distancia_m, // O backend já devolve a distância calculada!
+        id: posto.id,
+        lat: posto.latitude,
+        lon: posto.longitude,
+        nome: posto.nome,
+        endereco: posto.bairro
+          ? `${posto.endereco}\n${posto.bairro}`
+          : posto.endereco,
+        combustivel: eletrico ? "Recarga Elétrica (kWh)" : "Gasolina Comum",
+        cor: eletrico ? "#3B82F6" : temPreco ? "#10B981" : "#9CA3AF",
+        rotulo: temPreco
+          ? posto.preco_gasolina.toFixed(2).replace(".", ",")
+          : "---",
+        distancia_m: posto.distancia_m,
       };
     });
-  };
+  }, []);
 
-  const buscarLocalizacaoEPostos = async (forcarRequisicao = false) => {
+  const buscarLocalizacaoEPostos = useCallback(
+    (forcarRequisicao = false) => {
+      if (buscaEmAndamento.current) return;
+
+      buscaEmAndamento.current = true;
+
+      // Esta operação obtém dados sem alterar estados React.
+      const obterDados = async () => {
+        let posicao: PosicaoUsuario | null = null;
+
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+
+          if (status === "granted") {
+            const localizacao = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+
+            posicao = {
+              lat: localizacao.coords.latitude,
+              lon: localizacao.coords.longitude,
+              precisaoM: localizacao.coords.accuracy,
+            };
+          }
+        } catch {
+          posicao = null;
+        }
+
+        const endpoint = posicao
+          ? `/postos?lat=${posicao.lat}&lng=${posicao.lon}`
+          : "/postos";
+
+        const response = await api.get(endpoint);
+
+        return {
+          posicao,
+          resultado: mapearDadosDoBanco(response.data),
+        };
+      };
+
+      // Atualizações de estado acontecem após a resposta assíncrona.
+      return obterDados()
+        .then(({ posicao, resultado }) => {
+          if (!telaAtiva.current) return;
+
+          setUsuario(posicao);
+          setPostos(resultado);
+          setErroPostos("");
+
+          if (forcarRequisicao && posicao) {
+            mapaRef.current?.centralizar(posicao.lat, posicao.lon, 14);
+          }
+
+          setFeedback(
+            posicao
+              ? {
+                  tipo: "sucesso",
+                  titulo: "Postos atualizados",
+                  mensagem: resultado.length
+                    ? `${resultado.length} postos encontrados na sua região.`
+                    : "Nenhum posto encontrado nesta região.",
+                }
+              : {
+                  tipo: "aviso",
+                  titulo: "Localização indisponível",
+                  mensagem:
+                    "A lista foi carregada, mas as distâncias dependem da localização. Permita o acesso e atualize pelo botão de localização.",
+                },
+          );
+        })
+        .catch(() => {
+          if (!telaAtiva.current) return;
+
+          setErroPostos(
+            "Não foi possível atualizar os postos. Os dados já carregados foram mantidos.",
+          );
+
+          setFeedback({
+            tipo: "erro",
+            titulo: "Falha ao buscar postos",
+            mensagem:
+              "Confira sua conexão e tente atualizar novamente pelo botão de localização.",
+          });
+        })
+        .finally(() => {
+          buscaEmAndamento.current = false;
+
+          if (!telaAtiva.current) return;
+
+          setIsLoadingPostos(false);
+          setIsLoadingLocalizacao(false);
+        });
+    },
+    [mapearDadosDoBanco],
+  );
+
+  // Os botões iniciam os indicadores de carregamento.
+  const atualizarPostos = () => {
     if (buscaEmAndamento.current) return;
-    buscaEmAndamento.current = true;
+
     setIsLoadingLocalizacao(true);
     setIsLoadingPostos(true);
     setErroPostos("");
-    let latAtual: number | null = null;
-    let lonAtual: number | null = null;
 
-    try {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === "granted") {
-          const loc = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          latAtual = loc.coords.latitude;
-          lonAtual = loc.coords.longitude;
-          setUsuario({
-            lat: latAtual,
-            lon: lonAtual,
-            precisaoM: loc.coords.accuracy,
-          });
-          if (forcarRequisicao)
-            mapaRef.current?.centralizar(latAtual, lonAtual, 14);
-        } else {
-          setUsuario(null);
-        }
-      } catch {
-        setUsuario(null);
-      } finally {
-        setIsLoadingLocalizacao(false);
-      }
-
-      const endpoint =
-        latAtual !== null && lonAtual !== null
-          ? `/postos?lat=${latAtual}&lng=${lonAtual}`
-          : "/postos";
-      const response = await api.get(endpoint);
-      const resultado = mapearDadosDoBanco(response.data);
-      setPostos(resultado);
-      setFeedback(
-        latAtual === null
-          ? {
-              tipo: "aviso",
-              titulo: "Localização indisponível",
-              mensagem:
-                "A lista foi carregada, mas as distâncias dependem da localização. Permita o acesso e atualize pelo botão de localização.",
-            }
-          : {
-              tipo: "sucesso",
-              titulo: "Postos atualizados",
-              mensagem: resultado.length
-                ? `${resultado.length} postos encontrados na sua região.`
-                : "Nenhum posto encontrado nesta região.",
-            },
-      );
-    } catch {
-      setErroPostos(
-        "Não foi possível atualizar os postos. Os dados já carregados foram mantidos.",
-      );
-      setFeedback({
-        tipo: "erro",
-        titulo: "Falha ao buscar postos",
-        mensagem:
-          "Confira sua conexão e tente atualizar novamente pelo botão de localização.",
-      });
-    } finally {
-      buscaEmAndamento.current = false;
-      setIsLoadingPostos(false);
-      setIsLoadingLocalizacao(false);
-    }
+    void buscarLocalizacaoEPostos(true);
   };
 
   useEffect(() => {
-    void buscarLocalizacaoEPostos(true);
-  }, []);
+    telaAtiva.current = true;
 
+    void buscarLocalizacaoEPostos(true);
+
+    return () => {
+      telaAtiva.current = false;
+    };
+  }, [buscarLocalizacaoEPostos]);
   const carregarPrecos = async (postoId: number, aposCadastro = false) => {
     const pedido = ++requisicaoPrecos.current;
+
     setIsLoadingPrecos(true);
     setErroPrecos("");
+
     try {
       const response = await api.get(`/postos/${postoId}/precos`);
+
       if (
         postoSelecionadoId.current === postoId &&
         pedido === requisicaoPrecos.current
@@ -215,8 +314,9 @@ export default function Inicio() {
       if (
         postoSelecionadoId.current === postoId &&
         pedido === requisicaoPrecos.current
-      )
+      ) {
         setIsLoadingPrecos(false);
+      }
     }
   };
 
@@ -225,38 +325,51 @@ export default function Inicio() {
     setPostoSelecionado(posto);
     setPrecosDetalhe([]);
     setErroPrecos("");
+
     mapaRef.current?.centralizar(posto.lat, posto.lon, 16);
     bottomSheetRef.current?.snapToIndex(1);
+
     void registrarPostoVisto({
       id: posto.id,
       nome: posto.nome,
       endereco: posto.endereco,
     });
+
     void carregarPrecos(posto.id);
   };
 
   const handlePinoClicado = (id: number) => {
     const posto = postos.find((p) => p.id === id);
-    if (posto) focarNoPosto(posto);
+
+    if (posto) {
+      focarNoPosto(posto);
+    }
   };
 
   const handleVoltarParaLista = () => {
     postoSelecionadoId.current = null;
     requisicaoPrecos.current += 1;
+
     setPostoSelecionado(null);
     setPrecosDetalhe([]);
     setErroPrecos("");
     setIsLoadingPrecos(false);
+
     bottomSheetRef.current?.snapToIndex(1);
-    if (usuario) mapaRef.current?.centralizar(usuario.lat, usuario.lon, 14);
+
+    if (usuario) {
+      mapaRef.current?.centralizar(usuario.lat, usuario.lon, 14);
+    }
   };
 
   const abrirRotaMapaApp = async () => {
     if (!postoSelecionado) return;
+
     try {
       await Linking.openURL(
         `https://www.google.com/maps/dir/?api=1&destination=${postoSelecionado.lat},${postoSelecionado.lon}`,
       );
+
       setFeedback({
         tipo: "info",
         titulo: "Rota solicitada",
@@ -280,7 +393,9 @@ export default function Inicio() {
       });
       return;
     }
+
     const candidatos = postos.filter((p) => Number.isFinite(p.distancia_m));
+
     if (!candidatos.length) {
       setFeedback({
         tipo: "aviso",
@@ -290,9 +405,13 @@ export default function Inicio() {
       });
       return;
     }
+
     candidatos.sort((a, b) => a.distancia_m! - b.distancia_m!);
+
     const maisProximo = candidatos[0];
+
     focarNoPosto(maisProximo);
+
     setFeedback({
       tipo: "info",
       titulo: "Posto mais próximo selecionado",
@@ -302,8 +421,10 @@ export default function Inicio() {
 
   const abrirModalPreco = async () => {
     if (envioEmAndamento.current || !postoSelecionado) return;
+
     try {
       const token = await AsyncStorage.getItem("@LitroDeOuro:token");
+
       if (!token) {
         setFeedback({
           tipo: "aviso",
@@ -313,6 +434,7 @@ export default function Inicio() {
         });
         return;
       }
+
       setNovoPrecoInput("");
       setCombustivelSelecionado(postoSelecionado.combustivel);
       setFeedbackFormulario(null);
@@ -329,25 +451,31 @@ export default function Inicio() {
 
   const handleSalvarPreco = async () => {
     if (envioEmAndamento.current) return;
+
     const posto = postoSelecionado;
     if (!posto) return;
-    const valor = normalizarPreco(novoPrecoInput);
+
+    const valor = normalizarPrecoCadastro(novoPrecoInput);
+
     if (valor === null) {
       setFeedbackFormulario({
         tipo: "erro",
         titulo: "Confira o preço",
         mensagem:
-          "Informe um valor entre R$ 0,01 e R$ 20,00, com até duas casas decimais. Exemplo: 5,89.",
+          "Informe um valor entre R$ 0,01 e R$ 25,00, com até duas casas decimais. Exemplo: 5,89.",
       });
       return;
     }
 
     const combustivel = combustivelSelecionado;
+
     envioEmAndamento.current = true;
     setIsEnviandoPreco(true);
     setFeedbackFormulario(null);
+
     try {
       const token = await AsyncStorage.getItem("@LitroDeOuro:token");
+
       if (!token) {
         setFeedbackFormulario({
           tipo: "erro",
@@ -356,22 +484,63 @@ export default function Inicio() {
         });
         return;
       }
-      await api.post(
-        `/postos/${posto.id}/precos`,
-        { tipo_combustivel: combustivel, preco: valor },
-        { headers: { Authorization: `Bearer ${token}` } },
+
+      // Solicita uma posição nova no momento do cadastro.
+      const localizacao = await obterLocalizacaoParaCadastro().catch(
+        (erro: unknown) => {
+          setFeedbackFormulario({
+            tipo: "aviso",
+            titulo: "Precisamos da sua localização",
+            mensagem:
+              erro instanceof Error
+                ? erro.message
+                : "Não foi possível obter sua localização. Ative o GPS e tente novamente.",
+          });
+
+          return null;
+        },
       );
 
-      // Confirmação somente após resposta de sucesso da API.
+      if (!localizacao) return;
+
+      const { latitude, longitude, accuracy } = localizacao.coords;
+
+      const simulada = "mocked" in localizacao && localizacao.mocked === true;
+
+      setUsuario({
+        lat: latitude,
+        lon: longitude,
+        precisaoM: accuracy,
+      });
+
+      await api.post(
+        `/postos/${posto.id}/precos`,
+        {
+          tipo_combustivel: combustivel,
+          preco: valor,
+          latitude,
+          longitude,
+          precisao_m: accuracy,
+          simulada,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      // Exibe sucesso somente depois da confirmação da API.
       const formatado = valor.toFixed(2).replace(".", ",");
+
       setModalVisivel(false);
+
       setFeedback({
         tipo: "sucesso",
         titulo: "Preço cadastrado",
-        mensagem: `${combustivel}: R$ ${formatado} em ${posto.nome}.`,
+        mensagem: `${combustivel}: R$ ${formatado} em ${posto.nome}. Você ganhou +5 pontos de Karma!`,
       });
 
-      // Atualiza o mapa e a lista sem refazer uma consulta de localização.
       const atualizar = (p: PostoDetalhado) =>
         p.id === posto.id && p.combustivel === combustivel
           ? {
@@ -383,18 +552,24 @@ export default function Inicio() {
                   : "#10B981",
             }
           : p;
+
       setPostos((anteriores) => anteriores.map(atualizar));
-      setPostoSelecionado((atual) => (atual ? atualizar(atual) : atual));
-      setPrecosDetalhe((anteriores) => [
-        ...anteriores.filter((p) => p.tipo_combustivel !== combustivel),
-        {
-          tipo_combustivel: combustivel,
-          preco: valor,
-          data_formatada: "Agora",
-        },
-      ]);
-      // Falha nessa consulta não transforma o cadastro confirmado em erro de envio.
-      void carregarPrecos(posto.id, true);
+
+      if (postoSelecionadoId.current === posto.id) {
+        setPostoSelecionado((atual) => (atual ? atualizar(atual) : atual));
+
+        setPrecosDetalhe((anteriores) => [
+          ...anteriores.filter((p) => p.tipo_combustivel !== combustivel),
+          {
+            tipo_combustivel: combustivel,
+            preco: valor,
+            data_formatada: "Agora",
+          },
+        ]);
+
+        // Falha na leitura posterior não desfaz o cadastro confirmado.
+        void carregarPrecos(posto.id, true);
+      }
     } catch (erro: unknown) {
       setFeedbackFormulario(falhaCadastroPreco(erro));
     } finally {
@@ -403,21 +578,21 @@ export default function Inicio() {
     }
   };
 
-  // --- GAVETA DESLIZANTE ---
   const renderConteudoGaveta = () => {
     if (postoSelecionado) {
-      // Cálculo do Custo de Rota
       let custoDaViagemFormatado = null;
+
       if (postoSelecionado.distancia_m && precosDetalhe.length > 0) {
-        // Pega o preço principal
         const precoItem =
           precosDetalhe.find(
             (p) => p.tipo_combustivel === postoSelecionado.combustivel,
           ) || precosDetalhe[0];
+
         if (precoItem && precoItem.preco > 0) {
           const distanciaKm = postoSelecionado.distancia_m / 1000;
           const litrosNecessarios = distanciaKm / CONSUMO_MEDIO_KM_L;
           const custo = litrosNecessarios * precoItem.preco;
+
           custoDaViagemFormatado = `Custo aprox. p/ chegar: R$ ${custo.toFixed(2).replace(".", ",")}`;
         }
       }
@@ -444,6 +619,7 @@ export default function Inicio() {
           >
             {postoSelecionado.nome}
           </Text>
+
           <Text
             style={{
               color: colors.textSecondary,
@@ -468,11 +644,13 @@ export default function Inicio() {
             </Text>
           )}
 
-          {/* BOTÃO TRAÇAR ROTA */}
           <TouchableOpacity
             style={[
               styles.btnRota,
-              { backgroundColor: colors.surface, borderColor: colors.primary },
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.primary,
+              },
             ]}
             onPress={abrirRotaMapaApp}
           >
@@ -492,8 +670,14 @@ export default function Inicio() {
               >
                 🧭 Traçar Rota
               </Text>
+
               {custoDaViagemFormatado && (
-                <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+                <Text
+                  style={{
+                    color: colors.textSecondary,
+                    fontSize: 13,
+                  }}
+                >
                   {custoDaViagemFormatado}
                 </Text>
               )}
@@ -529,13 +713,19 @@ export default function Inicio() {
               style={{ marginVertical: 20 }}
             />
           ) : precosDetalhe.length === 0 && !erroPrecos ? (
-            <Text style={{ color: colors.textSecondary, marginVertical: 10 }}>
+            <Text
+              style={{
+                color: colors.textSecondary,
+                marginVertical: 10,
+              }}
+            >
               Nenhum preço registrado para este posto recentemente.
             </Text>
           ) : (
             precosDetalhe.map((item, index) => {
               const isMainFuel =
                 item.tipo_combustivel === postoSelecionado.combustivel;
+
               return (
                 <View
                   key={index}
@@ -556,6 +746,7 @@ export default function Inicio() {
                     >
                       {item.tipo_combustivel}
                     </Text>
+
                     <Text
                       style={{
                         color: colors.textSecondary,
@@ -566,6 +757,7 @@ export default function Inicio() {
                       Atualizado em: {item.data_formatada}
                     </Text>
                   </View>
+
                   <View
                     style={[
                       styles.precoContainerGrande,
@@ -616,6 +808,7 @@ export default function Inicio() {
           <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>
             Postos na Região
           </Text>
+
           <Text style={[styles.sheetSubtitle, { color: colors.textSecondary }]}>
             {isLoadingPostos
               ? "Buscando postos…"
@@ -629,6 +822,7 @@ export default function Inicio() {
             style={{ marginVertical: 16 }}
           />
         )}
+
         {erroPostos ? (
           <FeedbackAcao
             feedback={{
@@ -639,12 +833,17 @@ export default function Inicio() {
             acao={{
               rotulo: "Tentar novamente",
               executar: () => {
-                void buscarLocalizacaoEPostos(true);
+                atualizarPostos();
               },
             }}
           />
         ) : !isLoadingPostos && postos.length === 0 ? (
-          <Text style={{ color: colors.textSecondary, marginVertical: 16 }}>
+          <Text
+            style={{
+              color: colors.textSecondary,
+              marginVertical: 16,
+            }}
+          >
             Nenhum posto encontrado. Tente atualizar a localização.
           </Text>
         ) : null}
@@ -659,6 +858,7 @@ export default function Inicio() {
               <Text style={[styles.postoNome, { color: colors.textPrimary }]}>
                 {posto.nome}
               </Text>
+
               <Text
                 style={[
                   styles.combustivelText,
@@ -667,16 +867,21 @@ export default function Inicio() {
               >
                 ⛽ {posto.combustivel}
               </Text>
+
               <Text
-                style={{ color: colors.textSecondary, fontSize: 12 }}
+                style={{
+                  color: colors.textSecondary,
+                  fontSize: 12,
+                }}
                 numberOfLines={1}
               >
                 {posto.distancia_m
                   ? `📍 ${(posto.distancia_m / 1000).toFixed(1)} km - `
-                  : `📍 `}
+                  : "📍 "}
                 {posto.endereco}
               </Text>
             </View>
+
             <View style={styles.precoContainerLista}>
               <Text style={[styles.precoTextLista, { color: posto.cor }]}>
                 R$ {posto.rotulo}
@@ -698,7 +903,6 @@ export default function Inicio() {
       />
 
       <View style={styles.fabContainer}>
-        {/* BOTÃO ATUALIZAR GPS */}
         <TouchableOpacity
           style={[
             styles.fab,
@@ -708,7 +912,7 @@ export default function Inicio() {
               marginBottom: 12,
             },
           ]}
-          onPress={() => buscarLocalizacaoEPostos(true)}
+          onPress={atualizarPostos}
           disabled={isLoadingLocalizacao || isLoadingPostos}
         >
           {isLoadingLocalizacao || isLoadingPostos ? (
@@ -718,12 +922,14 @@ export default function Inicio() {
           )}
         </TouchableOpacity>
 
-        {/* NOVO BOTÃO EMERGÊNCIA */}
         <TouchableOpacity
           style={[
             styles.fab,
-            { backgroundColor: "#EF4444", borderColor: "#B91C1C" },
-          ]} // Vermelho chamativo
+            {
+              backgroundColor: "#EF4444",
+              borderColor: "#B91C1C",
+            },
+          ]}
           onPress={handleEmergencia}
         >
           <Text style={{ fontSize: 20 }}>⛽</Text>
@@ -734,11 +940,19 @@ export default function Inicio() {
         ref={bottomSheetRef}
         index={0}
         snapPoints={snapPoints}
-        backgroundStyle={{ backgroundColor: colors.background }}
-        handleIndicatorStyle={{ backgroundColor: colors.textSecondary }}
+        backgroundStyle={{
+          backgroundColor: colors.background,
+        }}
+        handleIndicatorStyle={{
+          backgroundColor: colors.textSecondary,
+        }}
         style={
           Platform.OS === "web"
-            ? { width: "100%", maxWidth: 480, alignSelf: "center" }
+            ? {
+                width: "100%",
+                maxWidth: 480,
+                alignSelf: "center",
+              }
             : {}
         }
       >
@@ -751,28 +965,39 @@ export default function Inicio() {
         </View>
       )}
 
-      {/* O formulário permanece aberto e preenchido quando o envio falha. */}
       <Modal
         visible={modalVisivel}
         transparent
         animationType="fade"
         onRequestClose={() => {
-          if (!envioEmAndamento.current) setModalVisivel(false);
+          if (!envioEmAndamento.current) {
+            setModalVisivel(false);
+          }
         }}
       >
         <View style={styles.modalOverlay}>
           <View
             style={[
               styles.modalContent,
-              { backgroundColor: colors.surface, borderColor: colors.border },
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
             ]}
           >
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
               Registrar Preço
             </Text>
-            <Text style={{ color: colors.textSecondary, marginBottom: 16 }}>
+
+            <Text
+              style={{
+                color: colors.textSecondary,
+                marginBottom: 16,
+              }}
+            >
               {postoSelecionado?.nome}
             </Text>
+
             {feedbackFormulario && (
               <View style={{ marginBottom: 16 }}>
                 <FeedbackAcao
@@ -781,11 +1006,13 @@ export default function Inicio() {
                 />
               </View>
             )}
+
             <Text style={[styles.labelInput, { color: colors.textPrimary }]}>
               Combustível:
             </Text>
+
             <View style={styles.optionsContainer}>
-              {OPCOES_COMBUSTIVEL.map((item) => (
+              {combustiveisDoPosto.map((item) => (
                 <TouchableOpacity
                   key={item}
                   style={[
@@ -816,14 +1043,19 @@ export default function Inicio() {
                 </TouchableOpacity>
               ))}
             </View>
+
             <Text
               style={[
                 styles.labelInput,
-                { color: colors.textPrimary, marginTop: 16 },
+                {
+                  color: colors.textPrimary,
+                  marginTop: 16,
+                },
               ]}
             >
               Preço (R$):
             </Text>
+
             <TextInput
               style={[
                 styles.inputPreco,
@@ -840,20 +1072,27 @@ export default function Inicio() {
               onChangeText={setNovoPrecoInput}
               editable={!isEnviandoPreco}
             />
+
             <View style={styles.modalButtonsContainer}>
               <TouchableOpacity
                 style={[styles.btnCancel, { borderColor: colors.border }]}
                 onPress={() => {
-                  if (!envioEmAndamento.current) setModalVisivel(false);
+                  if (!envioEmAndamento.current) {
+                    setModalVisivel(false);
+                  }
                 }}
                 disabled={isEnviandoPreco}
               >
                 <Text
-                  style={{ color: colors.textSecondary, fontWeight: "bold" }}
+                  style={{
+                    color: colors.textSecondary,
+                    fontWeight: "bold",
+                  }}
                 >
                   Cancelar
                 </Text>
               </TouchableOpacity>
+
               <TouchableOpacity
                 style={[styles.btnSave, { backgroundColor: colors.primary }]}
                 onPress={handleSalvarPreco}
@@ -868,12 +1107,22 @@ export default function Inicio() {
                     }}
                   >
                     <ActivityIndicator color="#121212" size="small" />
-                    <Text style={{ color: "#121212", fontWeight: "bold" }}>
+                    <Text
+                      style={{
+                        color: "#121212",
+                        fontWeight: "bold",
+                      }}
+                    >
                       Cadastrando…
                     </Text>
                   </View>
                 ) : (
-                  <Text style={{ color: "#121212", fontWeight: "bold" }}>
+                  <Text
+                    style={{
+                      color: "#121212",
+                      fontWeight: "bold",
+                    }}
+                  >
                     Salvar
                   </Text>
                 )}
@@ -896,7 +1145,12 @@ const styles = StyleSheet.create({
     zIndex: 100,
     elevation: 8,
   },
-  fabContainer: { position: "absolute", top: 60, right: 20, zIndex: 99 },
+  fabContainer: {
+    position: "absolute",
+    top: 60,
+    right: 20,
+    zIndex: 99,
+  },
   fab: {
     width: 48,
     height: 48,
@@ -918,7 +1172,11 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   sheetHeader: { marginBottom: 16 },
-  sheetTitle: { fontSize: 22, fontWeight: "bold", marginBottom: 2 },
+  sheetTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 2,
+  },
   sheetSubtitle: { fontSize: 14 },
   postoCard: {
     flexDirection: "row",
@@ -928,8 +1186,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   postoInfo: { flex: 1, paddingRight: 12 },
-  postoNome: { fontSize: 16, fontWeight: "bold", marginBottom: 4 },
-  combustivelText: { fontSize: 13, fontWeight: "600", marginBottom: 4 },
+  postoNome: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  combustivelText: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
   precoContainerLista: {
     backgroundColor: "#1E1E1E",
     paddingHorizontal: 12,
@@ -940,7 +1206,11 @@ const styles = StyleSheet.create({
   },
   precoTextLista: { fontSize: 16, fontWeight: "bold" },
   btnVoltar: { paddingVertical: 12, marginBottom: 8 },
-  postoSelecionadoNome: { fontSize: 24, fontWeight: "bold", marginBottom: 2 },
+  postoSelecionadoNome: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 2,
+  },
   btnRota: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -963,21 +1233,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 12,
   },
-  combustivelDetalheText: { fontSize: 16, fontWeight: "bold" },
+  combustivelDetalheText: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
   precoContainerGrande: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1.5,
   },
-  precoTextGrande: { fontSize: 20, fontWeight: "900" },
+  precoTextGrande: {
+    fontSize: 20,
+    fontWeight: "900",
+  },
   btnAtualizarPreco: {
     marginTop: 24,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
   },
-  btnAtualizarText: { color: "#121212", fontSize: 16, fontWeight: "bold" },
+  btnAtualizarText: {
+    color: "#121212",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.6)",
@@ -992,9 +1272,21 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
   },
-  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 4 },
-  labelInput: { fontSize: 14, fontWeight: "bold", marginBottom: 8 },
-  optionsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  labelInput: {
+    fontSize: 14,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  optionsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
   chipOption: {
     paddingHorizontal: 10,
     paddingVertical: 6,

@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "node",
+      "id": 900000000000000001,
+      "lat": -7.25,
+      "lon": -34.95,
+      "tags": {
+        "amenity": "fuel",
+        "name": "TESTE — Posto fictício",
+        "addr:city": "João Pessoa",
+        "addr:state": "PB"
+      }
+    },
+    {
+      "type": "node",
+      "id": 900000000000000002,
+      "lat": -7.1149075,
+      "lon": -34.86109731,
+      "tags": {
+        "amenity": "fuel",
+        "name": "TESTE — Nome conflitante"
+      }
+    }
+  ]
+}

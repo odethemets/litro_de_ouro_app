@@ -1,0 +1,149 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.4 2390de5a",
+  "osm3s": {
+    "timestamp_osm_base": "2026-11-05T20:23:06Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "node",
+  "id": 2789543097,
+  "lat": -7.1199567,
+  "lon": -34.8621614,
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Presidente Epitácio Pessoa",
+    "amenity": "fuel",
+    "name": "Posto Santa Júlia"
+  }
+},
+{
+  "type": "node",
+  "id": 2885800138,
+  "lat": -7.1196735,
+  "lon": -34.8676637,
+  "tags": {
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "node",
+  "id": 2885800139,
+  "lat": -7.1195273,
+  "lon": -34.8672662,
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 9964842855,
+  "lat": -7.1063626,
+  "lon": -34.8566496,
+  "tags": {
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "node",
+  "id": 9964842858,
+  "lat": -7.1039999,
+  "lon": -34.8646467,
+  "tags": {
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "node",
+  "id": 9964842859,
+  "lat": -7.1137003,
+  "lon": -34.8554835,
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 9964842861,
+  "lat": -7.1000977,
+  "lon": -34.8602019,
+  "tags": {
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "way",
+  "id": 343276515,
+  "center": {
+    "lat": -7.1184562,
+    "lon": -34.8592522
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Amazonas",
+    "addr:suburb": "Bairro dos Estados",
+    "amenity": "fuel",
+    "building": "yes",
+    "compressed_air": "yes",
+    "name": "Posto Extra",
+    "opening_hours": "Mo-Su,PH 06:00-22:00"
+  }
+},
+{
+  "type": "way",
+  "id": 1278659952,
+  "center": {
+    "lat": -7.1147326,
+    "lon": -34.8612587
+  },
+  "tags": {
+    "amenity": "fuel",
+    "name": "Posto Santa Catarina",
+    "self_service": "no"
+  }
+},
+{
+  "type": "way",
+  "id": 1278659959,
+  "center": {
+    "lat": -7.1186162,
+    "lon": -34.8697787
+  },
+  "tags": {
+    "amenity": "fuel",
+    "name": "Auto Posto Independência"
+  }
+},
+{
+  "type": "way",
+  "id": 1278659960,
+  "center": {
+    "lat": -7.1194492,
+    "lon": -34.8672864
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Shell",
+    "brand:wikidata": "Q110716465",
+    "name": "Posto Shell"
+  }
+},
+{
+  "type": "way",
+  "id": 1421070338,
+  "center": {
+    "lat": -7.1104137,
+    "lon": -34.8559767
+  },
+  "tags": {
+    "amenity": "fuel",
+    "name": "Posto São Luiz VI"
+  }
+}
+
+  ]
+}

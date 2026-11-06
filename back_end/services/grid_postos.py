@@ -244,7 +244,7 @@ def _eh_duplicado(exc: Exception) -> bool:
 
 
 def _id_externo(lugar: Lugar) -> str:
-    # Aceita o novo formato e mantém compatibilidade com o cliente antigo.
+    # Mantém compatibilidade com o cliente antigo.
     ident = lugar.get("id_externo") or lugar.get("mapbox_id")
 
     if (
@@ -253,10 +253,10 @@ def _id_externo(lugar: Lugar) -> str:
         or len(ident) > 100
     ):
         raise ValueError(
-            "Identificador externo ausente ou maior que 100 caracteres."
+            "Identificador externo ausente "
+            "ou maior que 100 caracteres."
         )
 
-    # Nunca cortar um identificador: isso poderia causar colisões.
     return ident
 
 
@@ -267,9 +267,8 @@ def _normalizar(texto: Any) -> str:
     )
 
     sem_acentos = "".join(
-        caractere
-        for caractere in texto
-        if not unicodedata.combining(caractere)
+        c for c in texto
+        if not unicodedata.combining(c)
     )
 
     return re.sub(
@@ -292,182 +291,326 @@ def _mesmo_estabelecimento(
         candidato.get("tipo_posto") or "Convencional"
     )
 
-    # Um eletroposto não deve adotar o histórico de um posto convencional.
     if tipo_novo != tipo_existente:
         return False
 
     nome = _normalizar(lugar.get("nome"))
 
-    nomes_genericos = (
+    if nome in (
         "",
         "posto",
         "posto sem nome",
         "eletroposto sem nome",
-    )
-
-    if nome in nomes_genericos:
+    ):
         return False
 
     if nome != _normalizar(candidato.get("nome")):
         return False
 
-    endereco_novo = _normalizar(lugar.get("endereco"))
-    endereco_existente = _normalizar(candidato.get("endereco"))
+    endereco = _normalizar(lugar.get("endereco"))
+    endereco_existente = _normalizar(
+        candidato.get("endereco")
+    )
 
-    if endereco_novo and endereco_existente:
-        return endereco_novo == endereco_existente
+    if endereco and endereco_existente:
+        return endereco == endereco_existente
 
-    # Sem endereço, exige o mesmo nome e uma distância bem menor.
+    # Sem endereço para comparar, exige maior proximidade.
     return distancia <= 15
 
 
-# -------------------------------------------------------------------
-# Persistência
-# -------------------------------------------------------------------
+def classificar_lugar(
+    cursor,
+    lugar: Lugar,
+    virtuais=None,
+) -> dict:
+    """Classifica o posto usando apenas consultas SELECT."""
+    ident = _id_externo(lugar)
+    lat = float(lugar["latitude"])
+    lon = float(lugar["longitude"])
 
-def _gravar_lugares(cursor, lugares: list[Lugar]) -> int:
-    """
-    Insere postos novos ou associa registros existentes.
+    if not (
+        math.isfinite(lat)
+        and math.isfinite(lon)
+        and -90 <= lat <= 90
+        and -180 <= lon <= 180
+    ):
+        raise ValueError("Coordenadas inválidas.")
 
-    Não altera preços, históricos, nomes ou IDs internos.
-    Retorna somente a quantidade de novos postos inseridos.
-    """
+    cursor.execute(
+        "SELECT id FROM postos WHERE mapbox_id = %s",
+        (ident,),
+    )
+    existente = cursor.fetchone()
 
-    inseridos = 0
+    item = {
+        "id_externo": ident,
+        "nome": lugar["nome"],
+        "categoria": "existentes",
+        "acao": "manter",
+        "motivo": "Identificador externo já cadastrado.",
+        "posto_id": None,
+        "candidatos": [],
+    }
+
+    if existente:
+        item["posto_id"] = (
+            existente["id"]
+            if isinstance(existente, dict)
+            else existente[0]
+        )
+        return item
+
     margem = 0.0012
 
-    for lugar in lugares:
-        ident = _id_externo(lugar)
-        lat = lugar["latitude"]
-        lon = lugar["longitude"]
+    cursor.execute(
+        """
+        SELECT
+            id,
+            latitude,
+            longitude,
+            nome,
+            endereco,
+            tipo_posto,
+            mapbox_id
+        FROM postos
+        WHERE latitude BETWEEN %s AND %s
+          AND longitude BETWEEN %s AND %s
+        """,
+        (
+            lat - margem,
+            lat + margem,
+            lon - margem,
+            lon + margem,
+        ),
+    )
 
-        cursor.execute(
-            "SELECT id FROM postos WHERE mapbox_id = %s",
-            (ident,),
+    campos = (
+        "id",
+        "latitude",
+        "longitude",
+        "nome",
+        "endereco",
+        "tipo_posto",
+        "mapbox_id",
+    )
+
+    linhas = [
+        linha
+        if isinstance(linha, dict)
+        else dict(zip(campos, linha))
+        for linha in cursor.fetchall()
+    ]
+
+    por_id = {linha["id"]: linha for linha in linhas}
+
+    # Considera também os registros planejados no mesmo lote.
+    por_id.update(virtuais or {})
+
+    proximos = []
+
+    for registro in por_id.values():
+        distancia = haversine_m(
+            lat,
+            lon,
+            float(registro["latitude"]),
+            float(registro["longitude"]),
         )
 
-        if cursor.fetchone():
-            continue
+        mesmo_tipo = (
+            registro.get("tipo_posto") or "Convencional"
+        ) == lugar.get("tipo_posto", "Convencional")
 
-        cursor.execute(
-            """
-            SELECT id, latitude, longitude, nome, endereco,
-                   tipo_posto, mapbox_id
-            FROM postos
-            WHERE latitude BETWEEN %s AND %s
-              AND longitude BETWEEN %s AND %s
-            """,
-            (
-                lat - margem,
-                lat + margem,
-                lon - margem,
-                lon + margem,
+        if distancia <= TOLERANCIA_ADOCAO_M and mesmo_tipo:
+            proximos.append((registro, distancia))
+
+    if not proximos:
+        item.update(
+            categoria="novos",
+            acao="inserir",
+            motivo="Nenhum candidato local próximo.",
+        )
+
+    elif (
+        len(proximos) == 1
+        and not proximos[0][0].get("mapbox_id")
+        and _mesmo_estabelecimento(lugar, *proximos[0])
+    ):
+        item["_registro_vinculo"] = proximos[0][0]
+
+        item.update(
+            acao="vincular",
+            posto_id=proximos[0][0]["id"],
+            motivo=(
+                "Único posto manual compatível em nome, "
+                "tipo e localização/endereço."
             ),
         )
 
-        candidatos = []
+    else:
+        # Casos duvidosos ficam para revisão manual.
+        item.update(
+            categoria="ambiguos",
+            acao="ignorar",
+            motivo=(
+                "Candidatos próximos, conflitantes ou já "
+                "vinculados a outro identificador."
+            ),
+        )
 
-        for registro in cursor.fetchall():
-            # Compatibilidade com DictCursor e cursor de tuplas.
-            if not isinstance(registro, dict):
-                registro = dict(
-                    zip(
-                        (
-                            "id",
-                            "latitude",
-                            "longitude",
-                            "nome",
-                            "endereco",
-                            "tipo_posto",
-                            "mapbox_id",
-                        ),
-                        registro,
-                    )
+        item["candidatos"] = [
+            {
+                "id": registro["id"],
+                "distancia_m": round(distancia, 1),
+            }
+            for registro, distancia in proximos
+        ]
+
+    return item
+
+
+def processar_lugares(
+    cursor,
+    lugares: list[Lugar],
+    aplicar=False,
+) -> dict:
+    """Prévia por padrão; o chamador controla commit e rollback."""
+    relatorio = {
+        "modo": "aplicar" if aplicar else "dry-run",
+        "novos": 0,
+        "existentes": 0,
+        "ambiguos": 0,
+        "inseridos": 0,
+        "vinculados": 0,
+        "duplicados_na_entrada": 0,
+        "itens": [],
+    }
+
+    vistos = {}
+    virtuais = {}
+
+    for lugar in lugares:
+        ident = _id_externo(lugar)
+
+        if ident in vistos:
+            if vistos[ident] != lugar:
+                raise ValueError(
+                    "Identificador externo repetido "
+                    "com dados conflitantes."
                 )
 
-            distancia = haversine_m(
-                lat,
-                lon,
-                float(registro["latitude"]),
-                float(registro["longitude"]),
-            )
-
-            if _mesmo_estabelecimento(
-                lugar,
-                registro,
-                distancia,
-            ):
-                candidatos.append(registro)
-
-        if candidatos:
-            if (
-                len(candidatos) == 1
-                and not candidatos[0].get("mapbox_id")
-            ):
-                try:
-                    # Preserva o ID interno e só preenche a referência externa.
-                    cursor.execute(
-                        """
-                        UPDATE postos
-                        SET mapbox_id = %s
-                        WHERE id = %s
-                          AND mapbox_id IS NULL
-                        """,
-                        (ident, candidatos[0]["id"]),
-                    )
-                except Exception as exc:
-                    if not _eh_duplicado(exc):
-                        raise
-
-            elif len(candidatos) > 1:
-                log.warning(
-                    "Posto externo com múltiplas correspondências "
-                    "locais; associação ignorada."
-                )
-
-            # Registros já vinculados mantêm seu identificador original.
+            relatorio["duplicados_na_entrada"] += 1
             continue
 
-        try:
-            cursor.execute(
-                """
-                INSERT INTO postos (
-                    mapbox_id,
-                    nome,
-                    endereco,
-                    bairro,
-                    cidade,
-                    uf,
-                    latitude,
-                    longitude,
-                    horario_funcionamento,
-                    tipo_posto
+        vistos[ident] = lugar
+
+        item = classificar_lugar(
+            cursor,
+            lugar,
+            virtuais,
+        )
+
+        registro_vinculo = item.pop(
+            "_registro_vinculo",
+            None,
+        )
+
+        relatorio[item["categoria"]] += 1
+        relatorio["itens"].append(item)
+
+        if item["acao"] == "inserir":
+            posto_id = "planejado:" + ident
+
+            if aplicar:
+                cursor.execute(
+                    """
+                    INSERT INTO postos (
+                        mapbox_id,
+                        nome,
+                        endereco,
+                        bairro,
+                        cidade,
+                        uf,
+                        latitude,
+                        longitude,
+                        horario_funcionamento,
+                        tipo_posto
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s
+                    )
+                    """,
+                    (
+                        ident,
+                        lugar["nome"],
+                        lugar["endereco"],
+                        lugar["bairro"],
+                        lugar["cidade"],
+                        lugar["uf"],
+                        lugar["latitude"],
+                        lugar["longitude"],
+                        lugar.get("horario_funcionamento")
+                        or "Horário não informado",
+                        lugar.get(
+                            "tipo_posto",
+                            "Convencional",
+                        ),
+                    ),
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    ident,
-                    lugar["nome"],
-                    lugar["endereco"],
-                    lugar["bairro"],
-                    lugar["cidade"],
-                    lugar["uf"],
-                    lat,
-                    lon,
-                    lugar.get("horario_funcionamento")
-                    or "Horário não informado",
-                    lugar.get("tipo_posto", "Convencional"),
-                ),
+
+                posto_id = cursor.lastrowid
+                item["posto_id"] = posto_id
+                relatorio["inseridos"] += 1
+
+            virtuais[posto_id] = dict(
+                lugar,
+                id=posto_id,
+                mapbox_id=ident,
             )
 
-            inseridos += 1
+        elif item["acao"] == "vincular":
+            if aplicar:
+                # Atualiza apenas o identificador externo.
+                cursor.execute(
+                    """
+                    UPDATE postos
+                    SET mapbox_id = %s
+                    WHERE id = %s
+                      AND mapbox_id IS NULL
+                    """,
+                    (ident, item["posto_id"]),
+                )
 
-        except Exception as exc:
-            # Outro worker pode ter inserido o mesmo identificador.
-            if not _eh_duplicado(exc):
-                raise
+                if cursor.rowcount != 1:
+                    raise RuntimeError(
+                        "Vínculo mudou durante a importação; "
+                        "execute nova prévia."
+                    )
 
-    return inseridos
+                relatorio["vinculados"] += 1
+
+            virtuais[item["posto_id"]] = dict(
+                registro_vinculo,
+                mapbox_id=ident,
+            )
+
+        elif item["categoria"] == "ambiguos":
+            log.warning(
+                "Posto externo ambíguo: não será associado "
+                "ou inserido automaticamente."
+            )
+
+    return relatorio
+
+
+def _gravar_lugares(cursor, lugares: list[Lugar]) -> int:
+    """Mantém compatibilidade com o sincronizador legado."""
+    return processar_lugares(
+        cursor,
+        lugares,
+        aplicar=True,
+    )["inseridos"]
 
 
 # -------------------------------------------------------------------

@@ -1,0 +1,40 @@
+{
+  "elements": [
+    {
+      "type": "node",
+      "id": 2789543097,
+      "lat": -7.1199567,
+      "lon": -34.8621614,
+      "tags": {
+        "addr:city": "João Pessoa",
+        "addr:street": "Avenida Presidente Epitácio Pessoa",
+        "amenity": "fuel",
+        "name": "Posto Santa Júlia"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1278659959,
+      "center": {
+        "lat": -7.1186162,
+        "lon": -34.8697787
+      },
+      "tags": {
+        "amenity": "fuel",
+        "name": "Auto Posto Independência"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1421070338,
+      "center": {
+        "lat": -7.1104137,
+        "lon": -34.8559767
+      },
+      "tags": {
+        "amenity": "fuel",
+        "name": "Posto São Luiz VI"
+      }
+    }
+  ]
+}

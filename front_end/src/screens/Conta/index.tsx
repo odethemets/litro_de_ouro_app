@@ -1,5 +1,6 @@
 // src/screens/Conta/index.tsx
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { isAxiosError } from "axios";
 import { useCallback, useContext, useState } from "react";
 import {
   ActivityIndicator,
@@ -35,37 +36,57 @@ export default function Conta() {
 
   useFocusEffect(
     useCallback(() => {
-      carregarPerfil();
-    }, []),
-  );
+      let ativo = true;
+      const controller = new AbortController();
 
-  const carregarPerfil = async () => {
-    setIsLoading(true);
-    try {
-      const response = await api.get("/auth/perfil");
-      setPerfil(response.data);
-    } catch (error: any) {
-      console.error("Erro ao carregar perfil:", error);
-      if (error.response?.status === 401) {
-        signOut();
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      // Recarrega o perfil ao entrar ou voltar para a Conta.
+      // Depois da primeira carga, mantém os dados visíveis na atualização.
+      void api
+        .get<PerfilUsuario>("/auth/perfil", {
+          signal: controller.signal,
+        })
+        .then((response) => {
+          if (ativo) {
+            setPerfil(response.data);
+          }
+        })
+        .catch(async (error: unknown) => {
+          if (!ativo) return;
+
+          if (isAxiosError(error) && error.response?.status === 401) {
+            await signOut();
+            return;
+          }
+
+          console.error("Não foi possível atualizar o perfil.");
+        })
+        .finally(() => {
+          if (ativo) {
+            setIsLoading(false);
+          }
+        });
+
+      return () => {
+        ativo = false;
+        controller.abort();
+      };
+    }, [signOut]),
+  );
 
   const handleLogout = async () => {
     if (Platform.OS === "web") {
-      // Na Web, o Alert.alert não executa botões. Usamos a confirmação nativa da Web:
       const confirmou = window.confirm("Tem a certeza de que deseja sair?");
+
       if (confirmou) {
         setIsLoggingOut(true);
         await signOut();
       }
     } else {
-      // No iOS/Android, o Alert.alert funciona perfeitamente:
       Alert.alert("Terminar Sessão", "Tem a certeza de que deseja sair?", [
-        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
         {
           text: "Sair",
           style: "destructive",
@@ -83,7 +104,9 @@ export default function Conta() {
       <View
         style={[
           styles.center,
-          { backgroundColor: colors?.background || "#121212" },
+          {
+            backgroundColor: colors?.background || "#121212",
+          },
         ]}
       >
         <ActivityIndicator size="large" color={colors?.primary || "#F59E0B"} />
@@ -96,15 +119,25 @@ export default function Conta() {
       <View
         style={[
           styles.center,
-          { backgroundColor: colors?.background || "#121212" },
+          {
+            backgroundColor: colors?.background || "#121212",
+          },
         ]}
       >
-        <Text style={{ color: colors?.textSecondary || "#A1A1AA" }}>
+        <Text
+          style={{
+            color: colors?.textSecondary || "#A1A1AA",
+          }}
+        >
           Não foi possível carregar o perfil.
         </Text>
+
         <TouchableOpacity style={{ marginTop: 16 }} onPress={handleLogout}>
           <Text
-            style={{ color: colors?.primary || "#F59E0B", fontWeight: "bold" }}
+            style={{
+              color: colors?.primary || "#F59E0B",
+              fontWeight: "bold",
+            }}
           >
             Voltar ao Login
           </Text>
@@ -117,7 +150,7 @@ export default function Conta() {
     ? perfil.nome
         .split(" ")
         .slice(0, 2)
-        .map((n) => n[0])
+        .map((nome) => nome[0])
         .join("")
         .toUpperCase()
     : "U";
@@ -126,12 +159,19 @@ export default function Conta() {
     <ScrollView
       style={[
         styles.container,
-        { backgroundColor: colors?.background || "#121212" },
+        {
+          backgroundColor: colors?.background || "#121212",
+        },
       ]}
     >
       <View style={styles.header}>
         <Text
-          style={[styles.title, { color: colors?.textPrimary || "#FFFFFF" }]}
+          style={[
+            styles.title,
+            {
+              color: colors?.textPrimary || "#FFFFFF",
+            },
+          ]}
         >
           Meu Perfil
         </Text>
@@ -150,18 +190,31 @@ export default function Conta() {
           <View
             style={[
               styles.avatar,
-              { backgroundColor: colors?.primary || "#F59E0B" },
+              {
+                backgroundColor: colors?.primary || "#F59E0B",
+              },
             ]}
           >
             <Text style={styles.avatarText}>{iniciais}</Text>
           </View>
+
           <View style={styles.profileInfo}>
             <Text
-              style={[styles.name, { color: colors?.textPrimary || "#FFFFFF" }]}
+              style={[
+                styles.name,
+                {
+                  color: colors?.textPrimary || "#FFFFFF",
+                },
+              ]}
             >
               {perfil.nome}
             </Text>
-            <Text style={{ color: colors?.textSecondary || "#A1A1AA" }}>
+
+            <Text
+              style={{
+                color: colors?.textSecondary || "#A1A1AA",
+              }}
+            >
               {perfil.email}
             </Text>
           </View>
@@ -174,11 +227,14 @@ export default function Conta() {
             <Text
               style={[
                 styles.statValue,
-                { color: colors?.primary || "#F59E0B" },
+                {
+                  color: colors?.primary || "#F59E0B",
+                },
               ]}
             >
               {perfil.karma}
             </Text>
+
             <Text
               style={{
                 color: colors?.textSecondary || "#A1A1AA",
@@ -188,15 +244,19 @@ export default function Conta() {
               Karma 🏆
             </Text>
           </View>
+
           <View style={styles.statItem}>
             <Text
               style={[
                 styles.statValue,
-                { color: colors?.textPrimary || "#FFFFFF" },
+                {
+                  color: colors?.textPrimary || "#FFFFFF",
+                },
               ]}
             >
               {perfil.plano === "gratis" ? "Grátis" : "Premium"}
             </Text>
+
             <Text
               style={{
                 color: colors?.textSecondary || "#A1A1AA",
@@ -206,6 +266,7 @@ export default function Conta() {
               Plano
             </Text>
           </View>
+
           <View style={styles.statItem}>
             <Text
               style={[
@@ -219,6 +280,7 @@ export default function Conta() {
             >
               {perfil.membro_desde}
             </Text>
+
             <Text
               style={{
                 color: colors?.textSecondary || "#A1A1AA",
@@ -235,41 +297,62 @@ export default function Conta() {
         <TouchableOpacity
           style={[
             styles.menuItem,
-            { borderBottomColor: colors?.border || "#333333" },
+            {
+              borderBottomColor: colors?.border || "#333333",
+            },
           ]}
           onPress={() => navigation.navigate("Definicoes" as never)}
         >
           <Text
             style={[
               styles.menuText,
-              { color: colors?.textPrimary || "#FFFFFF" },
+              {
+                color: colors?.textPrimary || "#FFFFFF",
+              },
             ]}
           >
             ⚙️ Definições da Conta
           </Text>
-          <Text style={{ color: colors?.textSecondary || "#A1A1AA" }}>›</Text>
+
+          <Text
+            style={{
+              color: colors?.textSecondary || "#A1A1AA",
+            }}
+          >
+            ›
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.menuItem,
-            { borderBottomColor: colors?.border || "#333333" },
+            {
+              borderBottomColor: colors?.border || "#333333",
+            },
           ]}
           onPress={() => navigation.navigate("Notificacoes" as never)}
         >
           <Text
             style={[
               styles.menuText,
-              { color: colors?.textPrimary || "#FFFFFF" },
+              {
+                color: colors?.textPrimary || "#FFFFFF",
+              },
             ]}
           >
             🔔 Notificações
           </Text>
-          <Text style={{ color: colors?.textSecondary || "#A1A1AA" }}>›</Text>
+
+          <Text
+            style={{
+              color: colors?.textSecondary || "#A1A1AA",
+            }}
+          >
+            ›
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* BOTÃO COM FEEDBACK VISUAL DE CARREGAMENTO */}
       <TouchableOpacity
         style={[
           styles.btnLogout,
@@ -289,7 +372,12 @@ export default function Conta() {
       </TouchableOpacity>
 
       <Text
-        style={[styles.versionText, { color: colors?.border || "#333333" }]}
+        style={[
+          styles.versionText,
+          {
+            color: colors?.border || "#333333",
+          },
+        ]}
       >
         Litro de Ouro v1.0
       </Text>
@@ -298,11 +386,29 @@ export default function Conta() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  container: { flex: 1, paddingHorizontal: 20 },
-  header: { paddingTop: 60, paddingBottom: 24 },
-  title: { fontSize: 28, fontWeight: "bold" },
-  card: { borderRadius: 16, borderWidth: 1, padding: 20, marginBottom: 24 },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  header: {
+    paddingTop: 60,
+    paddingBottom: 24,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+  },
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 24,
+  },
   profileHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -316,14 +422,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 16,
   },
-  avatarText: { color: "#121212", fontSize: 24, fontWeight: "bold" },
-  profileInfo: { flex: 1 },
-  name: { fontSize: 20, fontWeight: "bold", marginBottom: 4 },
-  divider: { height: 1, backgroundColor: "#333", marginBottom: 20 },
-  statsRow: { flexDirection: "row", justifyContent: "space-between" },
-  statItem: { alignItems: "center", flex: 1 },
-  statValue: { fontSize: 20, fontWeight: "bold", marginBottom: 4 },
-  menuContainer: { marginBottom: 32 },
+  avatarText: {
+    color: "#121212",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  name: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#333",
+    marginBottom: 20,
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  statItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  menuContainer: {
+    marginBottom: 32,
+  },
   menuItem: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -331,7 +463,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
   },
-  menuText: { fontSize: 16, fontWeight: "500" },
+  menuText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
   btnLogout: {
     paddingVertical: 16,
     borderRadius: 12,
@@ -339,7 +474,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#FF3B3015",
   },
-  btnLogoutText: { color: "#FF3B30", fontSize: 16, fontWeight: "bold" },
+  btnLogoutText: {
+    color: "#FF3B30",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
   versionText: {
     textAlign: "center",
     marginTop: 24,

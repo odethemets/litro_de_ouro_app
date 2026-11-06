@@ -1,8 +1,7 @@
 // front_end/src/screens/Login/ValidarCodigo.tsx
-
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import axios from "axios";
-import { useContext, useEffect, useState } from "react";
+import { isAxiosError } from "axios";
+import { useContext, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -24,7 +23,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, "ValidarCodigo">;
 
 type Acao = "validar" | "reenviar" | null;
 
-export default function ValidarCodigo({ route, navigation }: Props) {
+function FormularioCodigo({ route, navigation }: Props) {
   const { colors } = useContext(ThemeContext);
   const { email, finalidade } = route.params;
 
@@ -34,12 +33,6 @@ export default function ValidarCodigo({ route, navigation }: Props) {
 
   const ocupado = acao !== null;
   const codigoValido = /^[0-9]{6}$/.test(codigo);
-
-  useEffect(() => {
-    // Limpa um código anterior quando a tela recebe outra solicitação.
-    setCodigo("");
-    setMensagem(route.params.message ?? "");
-  }, [route.params]);
 
   const handleValidar = async () => {
     if (ocupado) return;
@@ -52,8 +45,7 @@ export default function ValidarCodigo({ route, navigation }: Props) {
     }
 
     if (finalidade === "recuperacao") {
-      // Não informa que o código foi validado.
-      // O backend fará essa validação junto com a nova senha.
+      // O backend valida o código ao receber a nova senha.
       navigation.navigate("RedefinirSenha", {
         email,
         codigo,
@@ -69,7 +61,6 @@ export default function ValidarCodigo({ route, navigation }: Props) {
         codigo,
       });
 
-      // Remove a tela de código do histórico após a confirmação.
       navigation.reset({
         index: 0,
         routes: [
@@ -83,7 +74,9 @@ export default function ValidarCodigo({ route, navigation }: Props) {
         ],
       });
     } catch (erro: unknown) {
-      const mensagemApi = axios.isAxiosError<{ error?: string }>(erro)
+      const mensagemApi = isAxiosError<{
+        error?: string;
+      }>(erro)
         ? erro.response?.data?.error
         : undefined;
 
@@ -103,17 +96,17 @@ export default function ValidarCodigo({ route, navigation }: Props) {
     setMensagem("");
 
     try {
-      // Cada finalidade utiliza sua própria rota.
       const endpoint =
         finalidade === "recuperacao"
           ? "/auth/recuperar-senha"
           : "/auth/reenviar-codigo";
 
-      const response = await api.post<{ message?: string }>(endpoint, {
+      const response = await api.post<{
+        message?: string;
+      }>(endpoint, {
         email,
       });
 
-      // O código antigo deixa de ser válido após um novo envio.
       setCodigo("");
 
       setMensagem(
@@ -121,7 +114,9 @@ export default function ValidarCodigo({ route, navigation }: Props) {
           "Solicitação recebida. Confira o e-mail e o spam. Se não chegar, tente novamente em instantes.",
       );
     } catch (erro: unknown) {
-      const mensagemApi = axios.isAxiosError<{ error?: string }>(erro)
+      const mensagemApi = isAxiosError<{
+        error?: string;
+      }>(erro)
         ? erro.response?.data?.error
         : undefined;
 
@@ -135,18 +130,46 @@ export default function ValidarCodigo({ route, navigation }: Props) {
   };
 
   const conteudo = (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+        },
+      ]}
+    >
       <View style={styles.contentWrapper}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.primary }]}>
+          <Text
+            style={[
+              styles.title,
+              {
+                color: colors.primary,
+              },
+            ]}
+          >
             Verificação
           </Text>
 
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          <Text
+            style={[
+              styles.subtitle,
+              {
+                color: colors.textSecondary,
+              },
+            ]}
+          >
             Use o código de 6 dígitos recebido no e-mail:
           </Text>
 
-          <Text style={[styles.emailHighlight, { color: colors.textPrimary }]}>
+          <Text
+            style={[
+              styles.emailHighlight,
+              {
+                color: colors.textPrimary,
+              },
+            ]}
+          >
             {email}
           </Text>
         </View>
@@ -156,7 +179,12 @@ export default function ValidarCodigo({ route, navigation }: Props) {
             <Text
               accessibilityRole="alert"
               accessibilityLiveRegion="polite"
-              style={[styles.message, { color: colors.textPrimary }]}
+              style={[
+                styles.message,
+                {
+                  color: colors.textPrimary,
+                },
+              ]}
             >
               {mensagem}
             </Text>
@@ -185,7 +213,14 @@ export default function ValidarCodigo({ route, navigation }: Props) {
           />
 
           {finalidade === "recuperacao" ? (
-            <Text style={[styles.help, { color: colors.textSecondary }]}>
+            <Text
+              style={[
+                styles.help,
+                {
+                  color: colors.textSecondary,
+                },
+              ]}
+            >
               O código será verificado ao salvar a nova senha.
             </Text>
           ) : null}
@@ -220,7 +255,11 @@ export default function ValidarCodigo({ route, navigation }: Props) {
             {acao === "reenviar" ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Text style={{ color: colors.primary }}>
+              <Text
+                style={{
+                  color: colors.primary,
+                }}
+              >
                 Solicitar outro código
               </Text>
             )}
@@ -232,7 +271,12 @@ export default function ValidarCodigo({ route, navigation }: Props) {
             disabled={ocupado}
           >
             <Text
-              style={[styles.backButtonText, { color: colors.textSecondary }]}
+              style={[
+                styles.backButtonText,
+                {
+                  color: colors.textSecondary,
+                },
+              ]}
             >
               Voltar
             </Text>
@@ -242,7 +286,9 @@ export default function ValidarCodigo({ route, navigation }: Props) {
     </View>
   );
 
-  if (Platform.OS === "web") return conteudo;
+  if (Platform.OS === "web") {
+    return conteudo;
+  }
 
   return (
     <KeyboardAvoidingView
@@ -256,6 +302,20 @@ export default function ValidarCodigo({ route, navigation }: Props) {
   );
 }
 
+// A mudança da solicitação recria somente o formulário.
+export default function ValidarCodigo(props: Props) {
+  const { email, finalidade, message } = props.route.params;
+
+  const chave = JSON.stringify([
+    props.route.key,
+    email,
+    finalidade,
+    message ?? "",
+  ]);
+
+  return <FormularioCodigo key={chave} {...props} />;
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -267,17 +327,38 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     paddingHorizontal: 24,
   },
-  header: { marginBottom: 48, alignItems: "center" },
-  title: { fontSize: 32, fontWeight: "bold", marginBottom: 8 },
-  subtitle: { fontSize: 16, textAlign: "center", marginBottom: 4 },
+  header: {
+    marginBottom: 48,
+    alignItems: "center",
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 4,
+  },
   emailHighlight: {
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
   },
-  form: { width: "100%" },
-  message: { marginBottom: 16, fontSize: 14, lineHeight: 21 },
-  help: { marginBottom: 16, fontSize: 13, lineHeight: 19 },
+  form: {
+    width: "100%",
+  },
+  message: {
+    marginBottom: 16,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  help: {
+    marginBottom: 16,
+    fontSize: 13,
+    lineHeight: 19,
+  },
   input: {
     height: 54,
     borderWidth: 1,
@@ -298,6 +379,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  backButton: { marginTop: 24, alignItems: "center" },
-  backButtonText: { fontSize: 16 },
+  backButton: {
+    marginTop: 24,
+    alignItems: "center",
+  },
+  backButtonText: {
+    fontSize: 16,
+  },
 });

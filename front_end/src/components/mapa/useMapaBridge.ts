@@ -1,17 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type {
-    ComandoParaMapa,
-    EstadoMapa,
-    MensagemDoMapa,
-    PosicaoUsuario,
-    PostoNoMapa,
-    RegiaoMapa,
+  ComandoParaMapa,
+  EstadoMapa,
+  MensagemDoMapa,
+  PosicaoUsuario,
+  PostoNoMapa,
+  RegiaoMapa,
 } from "./tipos";
 
 interface Opcoes {
   postos: PostoNoMapa[];
   usuario?: PosicaoUsuario | null;
-  /** Transporte: entrega a string JSON ao mapa (WebView nativo ou iframe na web). */
   enviarBruto: (json: string) => void;
   onSelecionarPosto?: (id: number) => void;
   onRegiaoMudou?: (regiao: RegiaoMapa) => void;
@@ -19,16 +24,9 @@ interface Opcoes {
   timeoutCargaMs?: number;
 }
 
-const eNumero = (v: unknown): v is number =>
-  typeof v === "number" && Number.isFinite(v);
+const eNumero = (valor: unknown): valor is number =>
+  typeof valor === "number" && Number.isFinite(valor);
 
-/**
- * Máquina de estados e protocolo do mapa, compartilhada por nativo e web.
- *  - Só envia comandos depois do "pronto" do mapa.
- *  - Não reenvia o que não mudou (compara o JSON), mesmo que o pai recrie arrays a cada render.
- *  - Ao reiniciar (retry, processo do WebView morto), reenvia todo o estado atual.
- *  - Callbacks ficam em refs: mudar uma função do pai nunca provoca reenvio nem remontagem.
- */
 export function useMapaBridge(opcoes: Opcoes) {
   const { postos, usuario, timeoutCargaMs = 15000 } = opcoes;
 
@@ -38,110 +36,146 @@ export function useMapaBridge(opcoes: Opcoes) {
   const prontoRef = useRef(false);
   const enviadoRef = useRef<Record<string, string>>({});
   const pendenteRef = useRef<ComandoParaMapa | null>(null);
-
   const opcoesRef = useRef(opcoes);
-  opcoesRef.current = opcoes;
 
-  const despachar = useCallback((chave: string, cmd: ComandoParaMapa) => {
-    if (!prontoRef.current) return; // será reenviado quando o mapa avisar "pronto"
-    const json = JSON.stringify(cmd);
+  // Atualiza as opções depois da renderização confirmada.
+  // Os callbacks continuam estáveis sem modificar refs durante o render.
+  useLayoutEffect(() => {
+    opcoesRef.current = opcoes;
+  }, [opcoes]);
+
+  const despachar = useCallback((chave: string, comando: ComandoParaMapa) => {
+    if (!prontoRef.current) return;
+
+    const json = JSON.stringify(comando);
+
     if (enviadoRef.current[chave] === json) return;
+
     enviadoRef.current[chave] = json;
     opcoesRef.current.enviarBruto(json);
   }, []);
 
-  // `estado` nas dependências: ao virar "pronto", os dois efeitos reenviam o estado atual.
   useEffect(() => {
-    despachar("postos", { tipo: "postos", postos });
+    despachar("postos", {
+      tipo: "postos",
+      postos,
+    });
   }, [postos, estado, despachar]);
 
   useEffect(() => {
-    despachar("usuario", { tipo: "usuario", usuario: usuario ?? null });
+    despachar("usuario", {
+      tipo: "usuario",
+      usuario: usuario ?? null,
+    });
   }, [usuario, estado, despachar]);
 
-  // Se o mapa nunca avisar "pronto" (CDN fora, sem rede), mostra erro com retry.
   useEffect(() => {
     if (estado !== "carregando") return;
-    const t = setTimeout(
-      () => setEstado((e) => (e === "carregando" ? "erro" : e)),
-      timeoutCargaMs,
-    );
-    return () => clearTimeout(t);
+
+    const temporizador = setTimeout(() => {
+      setEstado((atual) => (atual === "carregando" ? "erro" : atual));
+    }, timeoutCargaMs);
+
+    return () => clearTimeout(temporizador);
   }, [estado, tentativa, timeoutCargaMs]);
 
   const reiniciar = useCallback(() => {
     prontoRef.current = false;
     enviadoRef.current = {};
     setEstado("carregando");
-    setTentativa((t) => t + 1); // o componente usa isto como `key` para remontar a vista
+    setTentativa((atual) => atual + 1);
   }, []);
 
   const aoFalhar = useCallback(() => {
-    // No Android, onHttpError também dispara para sub-recursos (ex.: um tile 404). Com o mapa
-    // já no ar isso não é falha de carga: ignora.
     if (prontoRef.current) return;
     setEstado("erro");
   }, []);
 
   const centralizar = useCallback((lat: number, lon: number, zoom?: number) => {
-    const cmd: ComandoParaMapa = { tipo: "centralizar", lat, lon, zoom };
-    if (prontoRef.current) opcoesRef.current.enviarBruto(JSON.stringify(cmd));
-    else pendenteRef.current = cmd;
+    const comando: ComandoParaMapa = {
+      tipo: "centralizar",
+      lat,
+      lon,
+      zoom,
+    };
+
+    if (prontoRef.current) {
+      opcoesRef.current.enviarBruto(JSON.stringify(comando));
+    } else {
+      pendenteRef.current = comando;
+    }
   }, []);
 
   const aoReceberMensagem = useCallback((bruto: unknown) => {
     if (typeof bruto !== "string") return;
-    let msg: MensagemDoMapa;
+
+    let mensagem: MensagemDoMapa;
+
     try {
-      msg = JSON.parse(bruto);
+      mensagem = JSON.parse(bruto);
     } catch {
       return;
     }
-    if (
-      !msg ||
-      typeof msg !== "object" ||
-      typeof (msg as { tipo?: unknown }).tipo !== "string"
-    )
-      return;
 
-    const o = opcoesRef.current;
-    switch (msg.tipo) {
+    if (
+      !mensagem ||
+      typeof mensagem !== "object" ||
+      typeof (mensagem as { tipo?: unknown }).tipo !== "string"
+    ) {
+      return;
+    }
+
+    const atuais = opcoesRef.current;
+
+    switch (mensagem.tipo) {
       case "pronto":
         prontoRef.current = true;
         enviadoRef.current = {};
         setEstado("pronto");
+
         if (pendenteRef.current) {
-          o.enviarBruto(JSON.stringify(pendenteRef.current));
+          atuais.enviarBruto(JSON.stringify(pendenteRef.current));
           pendenteRef.current = null;
         }
         break;
+
       case "erro":
-        // Erro de JS depois do mapa já estar no ar não derruba a tela.
-        if (!prontoRef.current) setEstado("erro");
-        else console.warn("[mapa] erro no WebView:", msg.motivo);
+        if (!prontoRef.current) {
+          setEstado("erro");
+        } else {
+          console.warn("[mapa] erro no WebView:", mensagem.motivo);
+        }
         break;
+
       case "posto_selecionado":
-        if (eNumero(msg.id)) o.onSelecionarPosto?.(msg.id);
+        if (eNumero(mensagem.id)) {
+          atuais.onSelecionarPosto?.(mensagem.id);
+        }
         break;
+
       case "regiao":
         if (
-          eNumero(msg.lat) &&
-          eNumero(msg.lon) &&
-          eNumero(msg.zoom) &&
-          Array.isArray(msg.bbox)
+          eNumero(mensagem.lat) &&
+          eNumero(mensagem.lon) &&
+          eNumero(mensagem.zoom) &&
+          Array.isArray(mensagem.bbox)
         ) {
-          o.onRegiaoMudou?.({
-            lat: msg.lat,
-            lon: msg.lon,
-            zoom: msg.zoom,
-            bbox: msg.bbox,
+          atuais.onRegiaoMudou?.({
+            lat: mensagem.lat,
+            lon: mensagem.lon,
+            zoom: mensagem.zoom,
+            bbox: mensagem.bbox,
           });
         }
         break;
+
       case "abrir_link":
-        // Só https: o conteúdo vem de uma página web e não é confiável.
-        if (typeof msg.url === "string" && /^https:\/\//i.test(msg.url))
-          o.onAbrirLink?.(msg.url);
+        if (
+          typeof mensagem.url === "string" &&
+          /^https:\/\//i.test(mensagem.url)
+        ) {
+          atuais.onAbrirLink?.(mensagem.url);
+        }
         break;
     }
   }, []);
