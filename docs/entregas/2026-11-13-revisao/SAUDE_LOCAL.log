@@ -1,0 +1,1 @@
+{"status": "ok", "tls_verificado": true, "banco": "litro_de_ouro_dev", "contagens_atuais": {"postos": 59, "usuarios": 1, "registos_preco": 11, "votos_registos": 0}, "api_raiz": true, "listagem_postos": true, "login_ficticio": true, "perfil_recebido": true}

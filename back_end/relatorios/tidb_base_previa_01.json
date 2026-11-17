@@ -1,0 +1,14 @@
+{
+  "status": "interrompido",
+  "modo": "dry-run",
+  "erro_tipo": "ErroPreparo",
+  "etapa": "ler_configuracao_separada",
+  "codigo_mysql": null,
+  "causa_tipo": null,
+  "codigo_sistema": null,
+  "falha_tls_detectada": false,
+  "codigo_verificacao_tls": null,
+  "erro": "Arquivo de configuração separado não encontrado.",
+  "ddl_pode_ter_sido_aplicado": false,
+  "tabelas_confirmadas_antes_da_falha": []
+}

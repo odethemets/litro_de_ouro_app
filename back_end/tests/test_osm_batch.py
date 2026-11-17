@@ -85,6 +85,9 @@ class Banco:
         pass
 
     def execute(self, sql, params=()):
+        # Aceita consultas equivalentes escritas em uma ou várias linhas.
+        sql = " ".join(sql.split())
+
         self.sql.append(sql)
         self.resultado = []
 
@@ -142,8 +145,9 @@ class Banco:
             )
 
         else:
+            # Comandos inesperados continuam sendo rejeitados.
             raise AssertionError(
-                "Escrita não autorizada pelo teste: "
+                "Comando SQL não autorizado pelo teste: "
                 + sql
             )
 
@@ -160,9 +164,7 @@ class Banco:
 
     def commit(self):
         if self.falhar == "commit":
-            raise RuntimeError(
-                "ack desconhecido"
-            )
+            raise RuntimeError("ack desconhecido")
 
         self.commitou = True
 

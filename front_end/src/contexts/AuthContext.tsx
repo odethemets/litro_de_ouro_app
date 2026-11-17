@@ -1,52 +1,92 @@
-// src/contexts/AuthContext.tsx
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 
-export const AuthContext = createContext({} as any);
+import { api } from "../services/API";
+import { validarPerfil } from "../services/contratoAuth";
+import {
+  criarControleSessao,
+  type DestinoAuth,
+  type EstadoSessao,
+} from "../services/controleSessao";
+import {
+  aoRejeitarToken,
+  armazenamentoSessao,
+  definirTokenAtivo,
+} from "../services/sessao";
 
-export function AuthProvider({ children }: any) {
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+interface AuthContextData extends EstadoSessao {
+  token: string | null;
+  isGuest: boolean;
+  isLoadingAuth: boolean;
+  signIn(token: string): Promise<void>;
+  signOut(): Promise<void>;
+  enterGuest(): void;
+  openAuth(destino?: DestinoAuth): void;
+  retryInitialization(): Promise<void>;
+}
+
+export const AuthContext = createContext<AuthContextData>(
+  {} as AuthContextData,
+);
+
+export const useAuth = () => useContext(AuthContext);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [controle] = useState(() =>
+    criarControleSessao({
+      armazenamento: armazenamentoSessao,
+      publicarToken: definirTokenAtivo,
+
+      validar: async (token) => {
+        const resposta = await api.get("/auth/perfil", {
+          headers: {
+            Authorization: "Bearer " + token,
+          },
+          timeout: 10000,
+        });
+
+        return validarPerfil(resposta.data);
+      },
+    }),
+  );
+
+  const estado = useSyncExternalStore(
+    controle.subscribe,
+    controle.getSnapshot,
+    controle.getSnapshot,
+  );
 
   useEffect(() => {
-    async function loadStorageData() {
-      try {
-        const storedToken = await AsyncStorage.getItem("@LitroDeOuro:token");
-        if (storedToken) {
-          setToken(storedToken);
-        }
-      } catch (error) {
-        console.error("Erro ao carregar token do AsyncStorage:", error);
-      } finally {
-        setIsLoadingAuth(false);
-      }
-    }
-    loadStorageData();
-  }, []);
+    const cancelar = aoRejeitarToken(controle.rejeitar);
+    void controle.inicializar();
 
-  const signIn = async (newToken: string) => {
-    try {
-      await AsyncStorage.setItem("@LitroDeOuro:token", newToken);
-      setToken(newToken);
-    } catch (error) {
-      console.error("Erro ao guardar token:", error);
-    }
-  };
+    return () => {
+      cancelar();
+      controle.cancelar();
+    };
+  }, [controle]);
 
-  const signOut = async () => {
-    try {
-      await AsyncStorage.removeItem("@LitroDeOuro:token");
-    } catch (error) {
-      console.error("Erro ao remover token:", error);
-    } finally {
-      // Garante que a aplicação comuta imediatamente para o Login
-      setToken(null);
-    }
-  };
-
-  return (
-    <AuthContext.Provider value={{ token, isLoadingAuth, signIn, signOut }}>
-      {children}
-    </AuthContext.Provider>
+  const valor = useMemo(
+    () => ({
+      ...estado,
+      token: estado.userToken,
+      isGuest: estado.status === "GUEST",
+      isLoadingAuth: estado.status === "INITIALIZING",
+      signIn: controle.entrar,
+      signOut: controle.sair,
+      enterGuest: controle.visitante,
+      openAuth: controle.abrirEntrada,
+      retryInitialization: controle.inicializar,
+    }),
+    [controle, estado],
   );
+
+  return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>;
 }

@@ -1,0 +1,87 @@
+{
+  "tipo": "Hooks, JSX, API e GPS simulados; sem React/React Native reais",
+  "cenarios": 20,
+  "aprovados": 20,
+  "resultados": [
+    {
+      "nome": "Oferta visitante abre login sem GPS",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Cancelar revisão não solicita GPS",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "GPS negado permite nova tentativa sem POST",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Confirmação válida mantém sucesso mesmo se recarga lançar erro",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Resposta inválida da oferta fica incerta",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Oferta HTTP 408 exige reconciliação",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Oferta HTTP 503 exige reconciliação",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Recusa 409 mantém revisão e explica a negativa",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Duplo clique de oferta envia um único POST",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Desmontagem durante GPS impede envio",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Chaves da oferta mudam por conta/status/posto/produto",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Voto não consulta ao montar e visitante abre login",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Autor consulta contagens mas não recebe ações de voto",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Voto selecionado fica bloqueado e troca é permitida",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Falha de voto elimina resumo e exige GET",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Resumo de outro ID é recusado",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Desmontagem aborta GET e ignora sua resposta",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Novo preço e nova sessão mudam chave do voto",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Detalhes ordenam referência sem alterar a lista original",
+      "resultado": "aprovado"
+    },
+    {
+      "nome": "Cartão não referência só monta controles ao expandir",
+      "resultado": "aprovado"
+    }
+  ]
+}

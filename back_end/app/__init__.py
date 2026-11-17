@@ -3,15 +3,17 @@
 import os
 
 from flask import Flask, jsonify
-from flask_cors import CORS
-
+from services.infra_web import configurar_web
 from .rotas.auth import auth_bp
 from .rotas.postos import postos_bp
 from .rotas.precos import precos_bp
 from .rotas.ia import ia_bp
 from .rotas.atividade import atividade_bp
-
-
+from .rotas.conta import conta_bp
+from .rotas.participacao import participacao_bp
+from .rotas.assistente import assistente_bp
+from .rotas.ofertas import ofertas_bp
+from .rotas.votos import votos_bp
 def create_app():
     app = Flask(__name__)
 
@@ -34,14 +36,7 @@ def create_app():
 
     # Mantém o comportamento atual para não bloquear os clientes existentes.
     # A restrição às origens reais da Vercel será uma configuração separada.
-    CORS(
-        app,
-        resources={
-            r"/*": {
-                "origins": "*"
-            }
-        },
-    )
+    configurar_web(app)
 
     @app.route("/")
     def index():
@@ -63,5 +58,9 @@ def create_app():
     app.register_blueprint(precos_bp, url_prefix="/precos")
     app.register_blueprint(ia_bp, url_prefix="/ia")
     app.register_blueprint(atividade_bp, url_prefix="/atividade")
-
+    app.register_blueprint(conta_bp, url_prefix="/conta")
+    app.register_blueprint(participacao_bp)
+    app.register_blueprint(assistente_bp)
+    app.register_blueprint(ofertas_bp)
+    app.register_blueprint(votos_bp)
     return app

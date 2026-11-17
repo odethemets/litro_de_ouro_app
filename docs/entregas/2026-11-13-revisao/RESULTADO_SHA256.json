@@ -1,0 +1,98 @@
+[
+  {
+    "arquivo": "back_end/requirements.txt",
+    "sha256": "2427f600b011b260f2128e5b9200ba8ca46d211d8b9d99d3f5ef05fc6bf2b1ec"
+  },
+  {
+    "arquivo": "back_end/tests/integracao_participacao.py",
+    "sha256": "9caa4d86221141fc924c39ec6d2c8a4cf91c32bb34cebd973c23e338228516ed"
+  },
+  {
+    "arquivo": "back_end/scripts/verificar_sdk_ia.py",
+    "sha256": "fdfbec4b13b329d33a3e218c699aafc13a0599b085e0f1fce73e9cd8eaedbf3a"
+  },
+  {
+    "arquivo": "RELATORIO_CONTINUIDADE.md",
+    "sha256": "6c56768a69b00953057d12dfd58c406c1edd7c9be45bbd463231413563e31f27"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/ALTERACOES_CODIGO.patch",
+    "sha256": "9c75f3532008c2295d6c7957e09ec884ad95a8c9b98d70202afd1bf6f70ea12a"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/APLICACAO_SDK.log",
+    "sha256": "530bdf4fd19929dc391ae898e9570401da74560b3e069f75e97515129e1c4e75"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/BASE_SHA256.json",
+    "sha256": "cee650dffac50f44d92f04fc4b90002ca4fa7c680e86a222dccb06dd7626a066"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/BUILD_SDK.log",
+    "sha256": "cecd09854a4ff134721b79a6f00fbdd604dc2f2b52da80997d3f0d583efdbc3e"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/COMANDOS_EXECUTADOS.md",
+    "sha256": "653e8da0c9daffb20d10498c6e19a1ff32a1d951331b61f2ee4736521e504cb8"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/ESPECIFICACAO_RECEBIDA.md",
+    "sha256": "081293574254a4abee524fd442269a50582060392f7dab264888d0bf82961386"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/IMAGEM_ANTERIOR.txt",
+    "sha256": "8c0c8a1b4379189864f84f3e4fa51045e6327ab800e50e26396d2476d453e35b"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/INTEGRACAO_MYSQL.log",
+    "sha256": "d7e6d696b2323eaa5e52fc7f5141b1ac2bebddee8983bae3e94fe94fea2883b4"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/LINT.log",
+    "sha256": "1532e91205eea581aad742daa1fde8d6011b4b02cbd487e60c5abc93e2e45770"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/OFERTAS_VOTOS_AVISOS.md",
+    "sha256": "4239cc179cac65ca40e5854b38fbd1487f7f97d0ad5c9c20996d0e9ebfd40ad7"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/PACOTES_IMAGEM.txt",
+    "sha256": "dedb5dab5c7c55e2e606b796074117650cb7525fbb32b301f7348ba680f0b28a"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/PATCH_CHECK.log",
+    "sha256": "93ad51119d69f4ef720d1fcc42ef48b8b66fc6b05d34a195fd9076e6b2b5ca26"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/PIP_CHECK.log",
+    "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/RELATORIO_BLOCO.md",
+    "sha256": "db402b88819a8a2b545e92ebedc15b63d166311e7048a01d6f79255a9f34cd73"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/SAUDE_LOCAL.log",
+    "sha256": "ab0a70fab4df924d74b2d644d13b0afa0e85b6d8b7e13a5ff2b0100e505dc108"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/SDK_IMAGEM_LIMPA.log",
+    "sha256": "f24728b30b459ea17209abde364a2b509fef8776fafdc24f5fdb34786e8c34a0"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/SDK_RUNTIME.log",
+    "sha256": "d62733b40d217b89f373dffde8588461b7a3cbe1994d485fe441cf91b34b074a"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/TESTES_BACKEND.log",
+    "sha256": "9fe65ea29a71f5e0c8b81ee0978c2f44e2c6bec2f8f789299c6a863edc3a29a2"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/TESTES_FRONTEND.log",
+    "sha256": "369a58308a9e103198067991736f7489835c7dbc55dd5ca13127f5ea838251e9"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-revisao/TYPESCRIPT.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

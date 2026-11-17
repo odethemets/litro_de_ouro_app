@@ -1,13 +1,15 @@
-/** Contrato de mensagens entre o app (React Native / Web) e a página Leaflet. */
+/** Contrato compartilhado pelo mapa nativo, web, bridge e telas. */
 
 export interface PostoNoMapa {
   id: number;
   lat: number;
   lon: number;
-  /** Cor do pino em hex "#RRGGBB" (ex.: a que calcularCorDoPosto devolve). O mapa só desenha. */
   cor: string;
-  /** Texto curto dentro do pino, ex.: "6,29" (máx. 8 caracteres). Sem rótulo, o pino é uma bolinha. */
   rotulo?: string;
+  segmentos?: readonly string[];
+  eletrico?: boolean;
+  selecionado?: boolean;
+  nome?: string;
 }
 
 export interface PosicaoUsuario {
@@ -27,7 +29,12 @@ export interface RegiaoMapa {
 export type ComandoParaMapa =
   | { tipo: "postos"; postos: PostoNoMapa[] }
   | { tipo: "usuario"; usuario: PosicaoUsuario | null }
-  | { tipo: "centralizar"; lat: number; lon: number; zoom?: number };
+  | {
+      tipo: "centralizar";
+      lat: number;
+      lon: number;
+      zoom?: number;
+    };
 
 export type MensagemDoMapa =
   | { tipo: "pronto" }
@@ -46,6 +53,5 @@ export interface MapaLeafletProps {
   postos: PostoNoMapa[];
   usuario?: PosicaoUsuario | null;
   onSelecionarPosto?: (id: number) => void;
-  /** Disparada (com debounce) quando o utilizador termina de mover/zoomar OU quando o app chama centralizar(). */
   onRegiaoMudou?: (regiao: RegiaoMapa) => void;
 }

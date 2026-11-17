@@ -8,7 +8,7 @@ __pycache__/
 
 # Variáveis de ambiente (Senhas e Chaves JWT)
 .env
-
+.env.tidb
 # Configurações de IDEs
 .vscode/
 .idea/

@@ -1,0 +1,16 @@
+✔ OCR não arredonda centavos nem mistura produtos de outras unidades (111.4128ms)
+✔ comprovante depende de consentimento e de URL Dropbox válida (31.8507ms)
+✔ foto inválida ou grande é recusada antes do envio (26.9143ms)
+✔ corpo contém foto e GPS, sem confirmar oferta nem cadastrar preço (26.9375ms)
+✔ GPS antigo, fictício ou impreciso não gera formulário (20.6524ms)
+✔ web verifica tamanho real do arquivo antes de usar o GPS (20.5977ms)
+✔ envio é somente leitura e preserva sessão capturada e cancelamento (21.9783ms)
+✔ Axios não transforma o multipart em JSON por herdar Content-Type global (252.3319ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 538.1863

@@ -1,0 +1,11 @@
+{
+  "iniciado_em_utc": "2026-11-17T02:51:52.589518+00:00",
+  "modo": "dry-run",
+  "atribuicao": "© OpenStreetMap contributors — ODbL",
+  "licenca_url": "https://www.openstreetmap.org/copyright",
+  "status": "interrompido",
+  "etapa": "validar_fonte",
+  "erro_tipo": "FileNotFoundError",
+  "erro_codigo": null,
+  "finalizado_em_utc": "2026-11-17T02:51:52.590350+00:00"
+}

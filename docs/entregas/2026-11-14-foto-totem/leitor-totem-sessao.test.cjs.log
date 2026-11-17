@@ -1,0 +1,17 @@
+✔ leitor isola foto por conta/posto e não aparece para visitante (159.3504ms)
+✔ seleção não envia; arquivo é preparado antes do GPS e comprovante começa desativado (66.701ms)
+✔ última seleção web vence sem bloquear se um cancelamento não resolveu (60.765ms)
+✔ nova seleção invalida leitura anterior ainda em andamento (40.8513ms)
+✔ sair durante GPS impede POST e atualizações após desmontagem (41.809ms)
+✔ cancelar leitura ignora retorno tardio sem preencher cadastro (36.1136ms)
+✔ cadastro em andamento aborta leitura e impede reaproveitar resposta (40.1839ms)
+✔ produto não permitido não é levado ao formulário (34.4764ms)
+✔ comprovante só é anexado com opção ativa e confirmação Dropbox (40.4412ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 525.7989

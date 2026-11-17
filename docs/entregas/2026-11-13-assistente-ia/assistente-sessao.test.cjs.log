@@ -1,0 +1,18 @@
+✔ assistente separa rascunho e resultado por sessão (185.3198ms)
+✔ busca não aplica filtros ou navega antes da confirmação (65.5956ms)
+✔ cancelar ignora retorno tardio e permite outra busca (61.6635ms)
+✔ duplo clique inicia uma única busca (61.2236ms)
+✔ desfocar aborta pedido e não deixa a tela ocupada ao voltar (49.3316ms)
+✔ mudança dos filtros ou GPS impede aplicar uma prévia anterior (83.5693ms)
+✔ fala preenche texto sem consultar nem aplicar automaticamente (36.147ms)
+✔ sair durante escuta ignora transcrição tardia (46.5123ms)
+✔ serviço recusa mensagem inválida, GPS fictício e sessão vazia antes do POST (27.8658ms)
+✔ busca já cancelada não envia e filtros são copiados (31.7454ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 656.7085

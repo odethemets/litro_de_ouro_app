@@ -1,0 +1,30 @@
+[
+  {
+    "arquivo": "back_end/app/__init__.py",
+    "igual": true
+  },
+  {
+    "arquivo": "back_end/services/infra_web.py",
+    "igual": true
+  },
+  {
+    "arquivo": "back_end/services/atividade_alertas.py",
+    "igual": true
+  },
+  {
+    "arquivo": "back_end/services/executor_alertas.py",
+    "igual": true
+  },
+  {
+    "arquivo": "back_end/scripts/executar_alertas.py",
+    "igual": true
+  },
+  {
+    "arquivo": "back_end/app/rotas/ia.py",
+    "igual": true
+  },
+  {
+    "arquivo": "back_end/requirements.txt",
+    "igual": true
+  }
+]

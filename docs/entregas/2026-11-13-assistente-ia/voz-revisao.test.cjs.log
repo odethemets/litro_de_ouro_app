@@ -1,0 +1,11 @@
+✔ fim da escuta sem resultado produz orientação e limpa recursos (73.2322ms)
+✔ fala longa não é truncada nem enviada como outra busca (13.6938ms)
+✔ exceção no consumidor não deixa escuta e temporizador ativos (13.77ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 107.8323

@@ -1,105 +1,59 @@
-// front_end/src/services/API.ts
+import { AxiosHeaders, create, isAxiosError } from "axios";
+import { API_URL } from "./configuracao";
+import { sessaoRejeitada } from "./contratoAuth";
+import { lerTokenAtivo, rejeitarToken } from "./sessao";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios, { AxiosHeaders } from "axios";
-
-// O Expo incorpora esta variável ao iniciar ou gerar o aplicativo.
-// Ela deve conter apenas a URL do backend.
-const backendUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
-
-if (!backendUrl) {
-  throw new Error(
-    "Configure EXPO_PUBLIC_API_URL no arquivo front_end/.env.local.",
-  );
-}
-
-// Confere o endereço antes de criar o cliente HTTP.
-const endereco = new URL(backendUrl);
-
-const protocoloPermitido =
-  endereco.protocol === "https:" || (__DEV__ && endereco.protocol === "http:");
-
-if (
-  !protocoloPermitido ||
-  endereco.username ||
-  endereco.password ||
-  endereco.search ||
-  endereco.hash
-) {
-  throw new Error(
-    "EXPO_PUBLIC_API_URL deve usar HTTPS, sem credenciais, parâmetros ou fragmentos. HTTP é permitido somente em desenvolvimento.",
-  );
-}
-
-export const api = axios.create({
-  // Agora utiliza efetivamente o endereço definido no ambiente.
-  baseURL: backendUrl.replace(/\/+$/, ""),
-
+export const api = create({
+  baseURL: API_URL,
   timeout: 15000,
-
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
   },
 });
 
-// =========================================================
-// INCLUI O TOKEN NAS REQUISIÇÕES
-// =========================================================
+api.interceptors.request.use((config) => {
+  const token = lerTokenAtivo();
+  const headers = AxiosHeaders.from(config.headers);
 
-api.interceptors.request.use(
-  async (config) => {
-    try {
-      // Mantém a chave utilizada pelo AuthContext existente.
-      const token = await AsyncStorage.getItem("@LitroDeOuro:token");
+  const caminho = (config.url ?? "").split("?")[0].replace(/\/+$/, "");
 
-      const headers = AxiosHeaders.from(config.headers);
+  if (
+    token &&
+    !headers.has("Authorization") &&
+    (!caminho.startsWith("/auth/") || caminho === "/auth/perfil")
+  ) {
+    headers.set("Authorization", "Bearer " + token);
+  }
 
-      // Preserva um cabeçalho informado explicitamente pela chamada.
-      if (token && !headers.has("Authorization")) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
-
-      config.headers = headers;
-
-      return config;
-    } catch (erro: unknown) {
-      // Evita imprimir objetos que possam conter dados sensíveis.
-      console.warn("[API] Não foi possível recuperar a sessão salva.");
-
-      return Promise.reject(erro);
-    }
-  },
-  (erro: unknown) => Promise.reject(erro),
-);
-
-// =========================================================
-// TRATAMENTO DAS RESPOSTAS
-// =========================================================
+  config.headers = headers;
+  return config;
+});
 
 api.interceptors.response.use(
-  (response) => response,
-
+  (resposta) => resposta,
   (erro: unknown) => {
-    if (axios.isAxiosError(erro)) {
+    if (isAxiosError(erro)) {
       const caminho = (erro.config?.url ?? "")
         .split("?")[0]
         .replace(/\/+$/, "");
 
-      const requisicaoDeLogin = caminho.endsWith("/auth/login");
+      const auth = AxiosHeaders.from(erro.config?.headers).get("Authorization");
 
-      if (erro.response?.status === 401 && !requisicaoDeLogin) {
-        console.warn("[API] Sessão expirada ou token rejeitado.");
-      }
+      const rejeitado =
+        erro.response?.status === 401 ||
+        (caminho === "/auth/perfil" && sessaoRejeitada(erro));
 
-      if (erro.code === "ECONNABORTED" || erro.code === "ETIMEDOUT") {
-        console.warn("[API] O backend não respondeu dentro do tempo limite.");
-      } else if (!erro.response) {
-        console.warn("[API] Não foi possível obter uma resposta do backend.");
+      if (
+        rejeitado &&
+        caminho !== "/auth/login" &&
+        typeof auth === "string" &&
+        auth.startsWith("Bearer ")
+      ) {
+        rejeitarToken(auth.slice(7));
       }
     }
 
-    // A tela continua recebendo o erro para mostrar sua mensagem.
     return Promise.reject(erro);
   },
 );

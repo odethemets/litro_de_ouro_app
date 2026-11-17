@@ -37,14 +37,13 @@ export const MAPA_HTML = String.raw`<!DOCTYPE html>
   html, body, #mapa { height: 100%; margin: 0; padding: 0; background: #e9edf1; }
   body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .pino-wrap { background: transparent; border: 0; }
-  .pino { box-sizing: border-box; border: 2px solid #fff; box-shadow: 0 0 4px rgba(0,0,0,.4); }
-  .pino-ponto { width: 20px; height: 20px; border-radius: 50%; }
-  .pino-rotulo {
-    min-width: 36px; height: 26px; padding: 0 8px; border-radius: 13px;
-    font: 700 12px/22px -apple-system, "Segoe UI", Roboto, sans-serif;
-    text-align: center; white-space: nowrap;
-  }
+  .pino { box-sizing:border-box; border-radius:24px; padding:3px; box-shadow:0 2px 8px #0003; display:flex; align-items:center; justify-content:center; }
+  .pino-interior { box-sizing:border-box; width:100%; height:100%; border-radius:22px; background:#fff; color:#171923; display:flex; align-items:center; justify-content:center; gap:4px; font:700 13px -apple-system,"Segoe UI",sans-serif; white-space:nowrap; }
+  .pino-selecionado { box-shadow:0 0 0 3px #FFC400,0 3px 10px #0004; }
+  .grupo { box-sizing:border-box; width:52px; height:52px; border:3px solid #fff; border-radius:50%; background:#252B35; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 2px 8px #0004; font:700 16px -apple-system,"Segoe UI",sans-serif; }
+  .grupo small { font-size:9px; font-weight:400; }
   .leaflet-control-attribution { font-size: 10px; }
+  .leaflet-control-zoom a { width:48px; height:48px; line-height:48px; }
 </style>
 </head>
 <body>
@@ -85,48 +84,75 @@ export const MAPA_HTML = String.raw`<!DOCTYPE html>
   /* ---------- postos: diff por id, só toca no que mudou ---------- */
   var marcadores = {};
 
-  function criarIcone(cor, rotulo) {
+  var postosRecebidos = [];
+  function criarIcone(p, mostrarRotulo) {
     var el = document.createElement('div');
-    el.style.background = cor;
-    if (rotulo) {
-      el.className = 'pino pino-rotulo';
-      el.style.color = corDoTexto(cor);
-      el.textContent = rotulo;             // textContent: nunca interpreta HTML
-      return L.divIcon({ className: 'pino-wrap', html: el, iconSize: [46, 26], iconAnchor: [23, 13] });
+    var cores = Array.isArray(p.segmentos) ? p.segmentos.filter(function(c) { return RE_COR.test(c); }) : [];
+    el.className = 'pino' + (p.selecionado ? ' pino-selecionado' : '');
+    var tamanho = mostrarRotulo ? [118,48] : [48,48];
+    el.style.width = tamanho[0]+'px'; el.style.height=tamanho[1]+'px';
+    el.style.background = cores.length ? 'conic-gradient(' + cores.map(function(c,i) {
+      return c+' '+(i*360/cores.length)+'deg '+((i+1)*360/cores.length)+'deg';
+    }).join(',') + ')' : '#929AA5';
+    var dentro = document.createElement('div'); dentro.className='pino-interior'; dentro.style.color=corValida(p.cor);
+    dentro.textContent = mostrarRotulo ? (p.eletrico ? '⚡ ' : '') + p.rotulo : (p.eletrico ? '⚡' : '•');
+    el.appendChild(dentro);
+    return L.divIcon({className:'pino-wrap',html:el,iconSize:tamanho,iconAnchor:[tamanho[0]/2,tamanho[1]/2]});
+  }
+  function iconeGrupo(n) {
+    var el=document.createElement('div'); el.className='grupo'; el.textContent=String(n);
+    var pequeno=document.createElement('small'); pequeno.textContent='postos'; el.appendChild(pequeno);
+    return L.divIcon({className:'pino-wrap',html:el,iconSize:[52,52],iconAnchor:[26,26]});
+  }
+  function renderizarPostos() {
+    var zoom=mapa.getZoom(), grupos={}, individuais=[], exibidos={}, etiquetas=[];
+    postosRecebidos.forEach(function(p) {
+      if(p.selecionado || zoom>=17) { individuais.push(p); return; }
+      var ponto=mapa.project([p.lat,p.lon],zoom), chave=Math.floor(ponto.x/100)+'.'+Math.floor(ponto.y/72);
+      (grupos[chave] || (grupos[chave]=[])).push(p);
+    });
+    function atualizar(chave, lat, lon, assinatura, icone, titulo, aoClicar, selecionado) {
+      exibidos[chave]=true;
+      var atual=marcadores[chave];
+      if(atual && atual.sig===assinatura) return;
+      if(atual) { mapa.removeLayer(atual.marker); }
+      var m=L.marker([lat,lon],{icon:icone,keyboard:true,title:titulo,alt:titulo,zIndexOffset:selecionado ? 1000 : 0});
+      m.on('click',aoClicar).addTo(mapa);
+      marcadores[chave]={marker:m,sig:assinatura};
     }
-    el.className = 'pino pino-ponto';
-    return L.divIcon({ className: 'pino-wrap', html: el, iconSize: [24, 24], iconAnchor: [12, 12] });
+    Object.keys(grupos).forEach(function(chave) {
+      var itens=grupos[chave];
+      if(itens.length===1) { individuais.push(itens[0]); return; }
+      var lat=0,lon=0; itens.forEach(function(p) {lat+=p.lat;lon+=p.lon;}); lat/=itens.length;lon/=itens.length;
+      var id='grupo.'+chave;
+      atualizar(id,lat,lon,JSON.stringify(itens),iconeGrupo(itens.length),itens.length+' postos; aproximar mapa',function() {
+        mapa.fitBounds(itens.map(function(p) {return [p.lat,p.lon];}),{padding:[40,40],maxZoom:Math.min(17,zoom+2)});
+      });
+    });
+    individuais.sort(function(a,b) {return Number(!!b.selecionado)-Number(!!a.selecionado)||a.id-b.id;});
+    individuais.forEach(function(p) {
+      var ponto=mapa.project([p.lat,p.lon],zoom);
+      var mostrar=!!p.rotulo && (!!p.selecionado || !etiquetas.some(function(q) {
+        return Math.abs(ponto.x-q.x)<126 && Math.abs(ponto.y-q.y)<56;
+      }));
+      if(mostrar) etiquetas.push(ponto);
+      atualizar('posto.'+p.id,p.lat,p.lon,JSON.stringify(p)+'|'+mostrar,criarIcone(p,mostrar),
+        (p.nome || 'Posto')+(p.rotulo ? ': '+p.rotulo : ''),function() {enviar({tipo:'posto_selecionado',id:p.id});},p.selecionado);
+    });
+    Object.keys(marcadores).forEach(function(id) {if(!exibidos[id]) {mapa.removeLayer(marcadores[id].marker);delete marcadores[id];}});
   }
-
   function definirPostos(lista) {
-    if (!Array.isArray(lista)) return;
-    var vistos = {};
-    lista.forEach(function (p) {
-      if (!p || typeof p.id !== 'number') return;
-      var lat = num(p.lat), lon = num(p.lon);
-      if (!isFinite(lat) || !isFinite(lon)) return;
-      var cor = corValida(p.cor);
-      var rotulo = typeof p.rotulo === 'string' ? p.rotulo.slice(0, 8) : '';
-      var sig = lat + '|' + lon + '|' + cor + '|' + rotulo;
-      vistos[p.id] = true;
-
-      var atual = marcadores[p.id];
-      if (atual) {
-        if (atual.sig === sig) return;
-        atual.marker.setLatLng([lat, lon]);
-        atual.marker.setIcon(criarIcone(cor, rotulo));
-        atual.sig = sig;
-        return;
-      }
-      var m = L.marker([lat, lon], { icon: criarIcone(cor, rotulo), keyboard: false });
-      m.on('click', function () { enviar({ tipo: 'posto_selecionado', id: p.id }); });
-      m.addTo(mapa);
-      marcadores[p.id] = { marker: m, sig: sig };
-    });
-    Object.keys(marcadores).forEach(function (id) {
-      if (!vistos[id]) { mapa.removeLayer(marcadores[id].marker); delete marcadores[id]; }
-    });
+    if(!Array.isArray(lista)) return;
+    postosRecebidos=lista.filter(function(p) {
+      return p && Number.isSafeInteger(p.id) && p.id>0 && isFinite(num(p.lat)) && Math.abs(p.lat)<=90 && isFinite(num(p.lon)) && Math.abs(p.lon)<=180;
+    }).map(function(p) {return {
+      id:p.id,lat:p.lat,lon:p.lon,cor:corValida(p.cor),rotulo:typeof p.rotulo==='string' ? p.rotulo.slice(0,24) : '',
+      segmentos:Array.isArray(p.segmentos) ? p.segmentos.filter(function(c) {return typeof c==='string' && RE_COR.test(c);}) : [],
+      eletrico:p.eletrico===true,selecionado:p.selecionado===true,nome:typeof p.nome==='string' ? p.nome.slice(0,180) : ''
+    };});
+    renderizarPostos();
   }
+  mapa.on('zoomend',renderizarPostos);
 
   /* ---------- posição do utilizador ---------- */
   var ptUsuario = null, circUsuario = null;

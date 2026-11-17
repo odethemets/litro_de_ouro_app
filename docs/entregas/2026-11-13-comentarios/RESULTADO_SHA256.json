@@ -1,0 +1,94 @@
+[
+  {
+    "arquivo": "back_end/app/rotas/ofertas.py",
+    "sha256": "462d7be15e14a0540363430fe077d205bec61a3a93c0fbb43bd268b221600cdc"
+  },
+  {
+    "arquivo": "back_end/app/rotas/votos.py",
+    "sha256": "d22346fcb6a3c84390df5a0f8e1c01c304127649f5eb7f2c44ee383c0715004d"
+  },
+  {
+    "arquivo": "back_end/app/rotas/precos.py",
+    "sha256": "d065b2010b102c0884ba94d115cdb132e5d6eedd3be422da7878e7bdcaad6086"
+  },
+  {
+    "arquivo": "back_end/services/atividade_alertas.py",
+    "sha256": "fcc7284775154febf1cca9d6cb2dbc0dad63f9211b3bea1061bfb95aa65eeb63"
+  },
+  {
+    "arquivo": "back_end/services/catalogo_postos.py",
+    "sha256": "315f4d2e846f1344f1ae2d332390b99ff9862ab1c5c09d09eb582d9d3f2795b0"
+  },
+  {
+    "arquivo": "back_end/scripts/processar_alertas.py",
+    "sha256": "2d89731a5ee07bdde364ba479b1b87c5602f91a76456f7188e4ad5f73fb1ef4f"
+  },
+  {
+    "arquivo": "back_end/scripts/verificar_sdk_ia.py",
+    "sha256": "99f6cfee345de32dd67c3dcf279397960ccee8c72c9f495d7efea2ea039bbede"
+  },
+  {
+    "arquivo": "front_end/src/services/ofertas.ts",
+    "sha256": "d0dea87aa9ede89f535eac5958b250e72ad22d6a1a1b7d8f21a0ab0ab6a5e2c9"
+  },
+  {
+    "arquivo": "front_end/src/services/votos.ts",
+    "sha256": "b3141769450f01fd5f7b438a17a9fb0ea14abba47d09454be6a00ab4a4e52428"
+  },
+  {
+    "arquivo": "front_end/src/services/catalogoPostos.ts",
+    "sha256": "99285365d989d0b3cd81b52d4355dc723b03b31ad69f4dcd9e7c68196463e1d7"
+  },
+  {
+    "arquivo": "front_end/src/components/confirmar-oferta.tsx",
+    "sha256": "53b19c9b7078a02d44194a627d9f2d67ed8fd3250fd19d62240964479787cad2"
+  },
+  {
+    "arquivo": "front_end/src/components/votar-preco.tsx",
+    "sha256": "26b97c146ad46b70d576b1f37b84d80ff5b8a1e76b33982f26169e7e96ebce7d"
+  },
+  {
+    "arquivo": "front_end/src/screens/ConsultaPostos/detalhes.tsx",
+    "sha256": "65e9fe5ad7061071766ba0855c9ea05b58dbc718148400301ab2859884ac7d16"
+  },
+  {
+    "arquivo": "front_end/src/screens/ConsultaPostos/index.tsx",
+    "sha256": "d5fb356c7c80e95596c2c3d51a3081e4575588d96c7934e4d5189a36ffa4a2fa"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-comentarios/ALTERACOES.patch",
+    "sha256": "b5ac290511ed0f39d993078dd00bfaeb6dd9035dc5d19ffe403226250489aefa"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-comentarios/BASE_SHA256.json",
+    "sha256": "62fc928b1fa6cf75c68cfc3dc791eda409e413a04e89a14d85fe276dfe9140ad"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-comentarios/LINT.log",
+    "sha256": "1532e91205eea581aad742daa1fde8d6011b4b02cbd487e60c5abc93e2e45770"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-comentarios/PATCH_CHECK.log",
+    "sha256": "70f704c896ed9c9ee5cb2da3213724305f47f258a92b3d329900751b5a9a6f96"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-comentarios/RELATORIO_BLOCO.md",
+    "sha256": "207743efefe4ef430eae85063b6b95f416a47c16353c5294d1f934a8c7acead9"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-comentarios/TESTES_BACKEND.log",
+    "sha256": "598468919d38a7ebbad4b0c509eba008acedb728572f322a18c1b26815797753"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-comentarios/TESTES_FRONTEND.log",
+    "sha256": "dd57ab6628465dd9a49926fc0d3df0dac365d3e5b8675b557dbbe2bda04a9982"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-comentarios/TYPESCRIPT.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-comentarios/VERIFICACAO_ESTRUTURAL.json",
+    "sha256": "93cacdb71a72efecacc47bc243db5fc6a1228092efb4bf76672af6f846985fb0"
+  }
+]

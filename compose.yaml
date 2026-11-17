@@ -1,0 +1,121 @@
+name: litro-de-ouro-local
+
+x-imagem: &imagem
+  image: litro-de-ouro-backend-local:dev
+  build:
+    context: ./back_end
+
+x-banco-local: &banco-local
+  LDO_DOCKER_LOCAL: "1"
+  DATABASE_URL: ""
+  DB_HOST: db
+  DB_PORT: "3306"
+  DB_NAME: litro_de_ouro_dev
+  DB_USER: litro_local
+  DB_PASSWORD: ${LDO_DB_PASSWORD:?Execute python docker/preparar_local.py}
+  DB_SSL_CA: /run/ldo-ca/ca.pem
+  SECRET_KEY: ${LDO_SECRET_KEY:?Execute python docker/preparar_local.py}
+  OSM_SYNC_ENABLED: "0"
+  GOOGLE_SCRIPT_URL: ""
+  GOOGLE_SCRIPT_SECRET: ""
+  GEMINI_API_KEY: ""
+  DROPBOX_TOKEN: ""
+
+services:
+  certificados:
+    <<: *imagem
+    user: "0:0"
+    entrypoint: ["python", "docker/gerar_certificados.py"]
+    volumes:
+      - tls_servidor:/tls-servidor
+      - tls_cliente:/tls-cliente
+      - ./docker/local/certs:/exportar-ca
+    networks: [local]
+
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: litro_de_ouro_dev
+      MYSQL_USER: litro_local
+      MYSQL_PASSWORD: ${LDO_DB_PASSWORD:?Execute python docker/preparar_local.py}
+      MYSQL_ROOT_PASSWORD: ${LDO_MYSQL_ROOT_PASSWORD:?Execute python docker/preparar_local.py}
+    command:
+      - --require_secure_transport=ON
+      - --ssl-ca=/run/mysql-tls/ca.pem
+      - --ssl-cert=/run/mysql-tls/server.pem
+      - --ssl-key=/run/mysql-tls/server-key.pem
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    depends_on:
+      certificados:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:3307:3306"
+      
+    volumes:
+      - dados_mysql:/var/lib/mysql
+      - tls_servidor:/run/mysql-tls:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          MYSQL_PWD="$${MYSQL_ROOT_PASSWORD}" mysql --protocol=TCP
+          --host=localhost --user=root --ssl-mode=VERIFY_IDENTITY
+          --ssl-ca=/run/mysql-tls/ca.pem --execute='SELECT 1' >/dev/null
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks: [local]
+
+  inicializar:
+    <<: *imagem
+    environment: *banco-local
+    entrypoint: ["python", "docker/inicializar_banco.py"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - tls_cliente:/run/ldo-ca:ro
+    networks: [local]
+
+  backend:
+    <<: *imagem
+    init: true
+    environment: *banco-local
+    command:
+      - gunicorn
+      - --bind=0.0.0.0:5000
+      - --workers=1
+      - --reload
+      - --access-logfile=-
+      - --error-logfile=-
+      - app:create_app()
+    depends_on:
+      inicializar:
+        condition: service_completed_successfully
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./back_end/app:/app/app:ro
+      - ./back_end/services:/app/services:ro
+      - ./back_end/scripts:/app/scripts:ro
+      - ./back_end/tests:/app/tests:ro
+      - ./back_end/migrations:/app/migrations:ro
+      - tls_cliente:/run/ldo-ca:ro
+    healthcheck:
+      test: ["CMD", "python", "docker/verificar_local.py", "--saude"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    networks: [local]
+
+networks:
+  local:
+    driver: bridge
+
+volumes:
+  dados_mysql:
+  tls_servidor:
+  tls_cliente:

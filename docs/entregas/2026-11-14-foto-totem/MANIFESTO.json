@@ -1,0 +1,98 @@
+[
+  {
+    "arquivo": "front_end/src/components/leitor-totem.tsx",
+    "anterior": null,
+    "recebido": "324880dfa1e6fa37c94e767af8f305cd948a1f6afbd291e0210f6106b967651a",
+    "final": "324880dfa1e6fa37c94e767af8f305cd948a1f6afbd291e0210f6106b967651a",
+    "linhas": 209,
+    "git_blob": "57b56446f02a1fd32b5cb5c48b6362470008cfe6"
+  },
+  {
+    "arquivo": "front_end/src/services/leituraTotem.ts",
+    "anterior": null,
+    "recebido": "1ae477995339b8a76215f519f55be7864d5de326c48ccac926439f80a1e32c07",
+    "final": "1ae477995339b8a76215f519f55be7864d5de326c48ccac926439f80a1e32c07",
+    "linhas": 107,
+    "git_blob": "8f5462d8c99e8cacebcc32317dd9cdac3367c727"
+  },
+  {
+    "arquivo": "back_end/services/leitura_totem.py",
+    "anterior": null,
+    "recebido": "a9cb72ffa72e30f9759305093d46d3ac40b5c8a42cf837d95522180cdec791c1",
+    "final": "a9cb72ffa72e30f9759305093d46d3ac40b5c8a42cf837d95522180cdec791c1",
+    "linhas": 82,
+    "git_blob": "a89aa1727c4906d142946cbc82ed4fa146cc6d8d"
+  },
+  {
+    "arquivo": "back_end/tests/test_leitura_totem.py",
+    "anterior": null,
+    "recebido": "fdd95d0320ad593090f19f1064e9adf0a5f13086d23a5f486ce770103e04f142",
+    "final": "fdd95d0320ad593090f19f1064e9adf0a5f13086d23a5f486ce770103e04f142",
+    "linhas": 81,
+    "git_blob": "9078ac8b64fa2a3aca0b6da29848b4d8b771e65a"
+  },
+  {
+    "arquivo": "front_end/tests/apoio-leitor-totem.cjs",
+    "anterior": null,
+    "recebido": "1d2544963ab83542151bfdcfae3e20056a1faaca0876f1684422dc4288575f6c",
+    "final": "1d2544963ab83542151bfdcfae3e20056a1faaca0876f1684422dc4288575f6c",
+    "linhas": 112,
+    "git_blob": "f199ab62abeba918fd420df0dbd02f8177633c47"
+  },
+  {
+    "arquivo": "front_end/tests/leitor-totem-sessao.test.cjs",
+    "anterior": null,
+    "recebido": "60d50ca1a1b85b4d2e9e65da9dee4e579ad5d2803b7c0407cd16c4a8dff06411",
+    "final": "60d50ca1a1b85b4d2e9e65da9dee4e579ad5d2803b7c0407cd16c4a8dff06411",
+    "linhas": 95,
+    "git_blob": "029e8955c203707828eca49a9b713748edc9f505"
+  },
+  {
+    "arquivo": "front_end/tests/leitura-totem.test.cjs",
+    "anterior": null,
+    "recebido": "ce01f0ad625e63f79e78d3267555d32d7e8b6aef1aa4ec68f2392e11f66f570e",
+    "final": "ce01f0ad625e63f79e78d3267555d32d7e8b6aef1aa4ec68f2392e11f66f570e",
+    "linhas": 98,
+    "git_blob": "3410a7734016aa25732d1be8d56630bf61890429"
+  },
+  {
+    "arquivo": "back_end/app/rotas/ia.py",
+    "anterior": "74c23e46c5f916078d924061d0acf861e6b8c3af9a73d090876f4f763b377b05",
+    "recebido": null,
+    "final": "2e9a32c0a5bb4d0d4b2565d7442db937ecfc8357a0b26ec275d4440af68214e7",
+    "linhas": 247,
+    "git_blob": "a985934a234bce998fadbfbe08b658217ae13345"
+  },
+  {
+    "arquivo": "back_end/tests/test_ia.py",
+    "anterior": "c8d49a1c1389ca2d03008d6274ccd57e04c9ed7652c30fddd0fc93daca640023",
+    "recebido": null,
+    "final": "49463098f5af9cb8d34824d526ace8263705c5081b4e097be55600524ce5cce1",
+    "linhas": 167,
+    "git_blob": "c8a1f9db8ea08e1eab834e1a50033950e2666829"
+  },
+  {
+    "arquivo": "front_end/src/screens/AdicionarPreco/index.tsx",
+    "anterior": "fb045c644388a788f98029b458b5f19798e3411934ad7ea852f4d3d806abcba0",
+    "recebido": null,
+    "final": "3fb01bbb8670316beb64f7ab065dbaf37bb31f30b1515e19bd8c68e62217c7d9",
+    "linhas": 902,
+    "git_blob": "24c3ab8c0f38fc2cefc5c72540b0e0cbd9d5ab5e"
+  },
+  {
+    "arquivo": "front_end/src/services/cadastroPreco.ts",
+    "anterior": "d5cd4a76c7f46fd6665dd80519efb2205d9534f1fa8aecb27f42623434eca4f3",
+    "recebido": null,
+    "final": "5ddcd59d4784e8b72fba16915ef59ad7d1de6962945dc07ab236d10313994f04",
+    "linhas": 275,
+    "git_blob": "f84633ee3eb4737a90942ba983de6703c9430dec"
+  },
+  {
+    "arquivo": "front_end/tests/cadastro-preco.test.cjs",
+    "anterior": "a3a85ead32c1e7cc29074ddf6289d91b51171d467effd2e4d8c11c09e6af75fe",
+    "recebido": null,
+    "final": "4378429e28a572f05fc0ee5f7e3f0a4958c016cadd472cb40ce8a3e3f7a2739a",
+    "linhas": 502,
+    "git_blob": "4675244cdab2f8e3ea8392492e4544ce882bfabd"
+  }
+]

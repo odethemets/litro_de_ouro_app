@@ -1,0 +1,1055 @@
+{
+  "iniciado_em_utc": "2026-11-17T03:20:53.036081+00:00",
+  "modo": "aplicar",
+  "atribuicao": "© OpenStreetMap contributors — ODbL",
+  "licenca_url": "https://www.openstreetmap.org/copyright",
+  "sha256_fonte": "2a8b7606f7cc47f5d76c422850dfee902dee9d2e8f88bae0407a307825e74e11",
+  "municipio": {
+    "nome": "João Pessoa",
+    "codigo_ibge": "2507507",
+    "osm_area_id": 3600301405
+  },
+  "data_base_utc": "2026-11-11T03:05:04",
+  "descartados_na_leitura": 1,
+  "status": "ok",
+  "banco": "litro_de_ouro",
+  "catalogo": {
+    "modo": "aplicar",
+    "novos": 55,
+    "existentes": 0,
+    "ambiguos": 9,
+    "ignorados": 24,
+    "inseridos": 55,
+    "vinculados": 0,
+    "duplicados_na_entrada": 0,
+    "itens": [
+      {
+        "id_externo": "osm:node:631799017",
+        "nome": "Posto sem nome",
+        "categoria": "ambiguos",
+        "acao": "ignorar",
+        "motivo": "Candidatos próximos, conflitantes ou já vinculados a outro identificador.",
+        "posto_id": null,
+        "candidatos": [
+          {
+            "id": "entrada:osm:node:2984979186",
+            "distancia_m": 72.1
+          }
+        ]
+      },
+      {
+        "id_externo": "osm:node:973662367",
+        "nome": "Master Gás",
+        "categoria": "ambiguos",
+        "acao": "ignorar",
+        "motivo": "Candidatos próximos, conflitantes ou já vinculados a outro identificador.",
+        "posto_id": null,
+        "candidatos": [
+          {
+            "id": "entrada:osm:way:262608966",
+            "distancia_m": 48.4
+          }
+        ]
+      },
+      {
+        "id_externo": "osm:node:973662370",
+        "nome": "Posto sem nome",
+        "categoria": "ambiguos",
+        "acao": "ignorar",
+        "motivo": "Candidatos próximos, conflitantes ou já vinculados a outro identificador.",
+        "posto_id": null,
+        "candidatos": [
+          {
+            "id": "entrada:osm:way:216815061",
+            "distancia_m": 18.7
+          }
+        ]
+      },
+      {
+        "id_externo": "osm:node:2666350684",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:2789543097",
+        "nome": "Posto Santa Júlia",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 1,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:2793876544",
+        "nome": "BR",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 2,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:2793877773",
+        "nome": "Posto BR",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 3,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:2793879356",
+        "nome": "Posto Shell",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 4,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:2793885200",
+        "nome": "Posto ello",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 5,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:2797085773",
+        "nome": "Posto Expressão - Torre",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 6,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:2885375678",
+        "nome": "BR",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 7,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:2885800138",
+        "nome": "Posto sem nome",
+        "categoria": "ambiguos",
+        "acao": "ignorar",
+        "motivo": "Candidatos próximos, conflitantes ou já vinculados a outro identificador.",
+        "posto_id": null,
+        "candidatos": [
+          {
+            "id": "entrada:osm:way:1278659960",
+            "distancia_m": 48.5
+          }
+        ]
+      },
+      {
+        "id_externo": "osm:node:2885800139",
+        "nome": "Posto sem nome",
+        "categoria": "ambiguos",
+        "acao": "ignorar",
+        "motivo": "Candidatos próximos, conflitantes ou já vinculados a outro identificador.",
+        "posto_id": null,
+        "candidatos": [
+          {
+            "id": "entrada:osm:way:1278659960",
+            "distancia_m": 9.0
+          }
+        ]
+      },
+      {
+        "id_externo": "osm:node:2984979186",
+        "nome": "Shell",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 8,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:3167015861",
+        "nome": "Texaco",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 9,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:3297525208",
+        "nome": "Litoral Sul",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 10,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:4474393295",
+        "nome": "BR",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 11,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:4525208690",
+        "nome": "Posto A Gauchinha",
+        "categoria": "ambiguos",
+        "acao": "ignorar",
+        "motivo": "Candidatos próximos, conflitantes ou já vinculados a outro identificador.",
+        "posto_id": null,
+        "candidatos": [
+          {
+            "id": "entrada:osm:way:505487452",
+            "distancia_m": 77.5
+          }
+        ]
+      },
+      {
+        "id_externo": "osm:node:4738303559",
+        "nome": "Posto Cruzeiro do Sul",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 12,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:4738303560",
+        "nome": "Posto Opção",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 13,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:4738304370",
+        "nome": "Posto Extra Petróleo",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 14,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:4738304371",
+        "nome": "Posto BSB Mangabeira",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 15,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:4738306420",
+        "nome": "Auto Posto Mangabeira",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 16,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:4738306421",
+        "nome": "Posto Cowboy",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 17,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:5812661112",
+        "nome": "Maxi Posto",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 18,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:5940709085",
+        "nome": "Posto Três Lagoas",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 19,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:6213466885",
+        "nome": "Posto 99",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 20,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:6257072263",
+        "nome": "Ale",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 21,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:7275728776",
+        "nome": "Auto Posto Geisel",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 22,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:7277909522",
+        "nome": "Posto Estrela - Dislub",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 23,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:7332586512",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:7332586513",
+        "nome": "Auto Posto Ipiranga",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 24,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:7332586514",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:7332586515",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:7332710174",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:9964842855",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:9964842856",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:9964842857",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:9964842858",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:9964842859",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:node:9964842861",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:216815061",
+        "nome": "Posto Pichilau",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 25,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:239198923",
+        "nome": "Posto Opção Santinha",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 26,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:257826399",
+        "nome": "Posto Opção",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 27,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:257934594",
+        "nome": "Posto Expressão",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 28,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:258128915",
+        "nome": "Posto Kennedy",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 29,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:260524927",
+        "nome": "Posto Opção - Torre",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 30,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:262122418",
+        "nome": "Ipiranga",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:262150714",
+        "nome": "BR",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 31,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:262259928",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:262296597",
+        "nome": "Shell",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 32,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:262487713",
+        "nome": "Posto Quadramares",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 33,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:262608966",
+        "nome": "BR",
+        "categoria": "ambiguos",
+        "acao": "ignorar",
+        "motivo": "Candidatos próximos, conflitantes ou já vinculados a outro identificador.",
+        "posto_id": null,
+        "candidatos": [
+          {
+            "id": "entrada:osm:node:973662367",
+            "distancia_m": 48.4
+          }
+        ]
+      },
+      {
+        "id_externo": "osm:way:265700174",
+        "nome": "Posto Luiz XI",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 34,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:297540499",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:331465990",
+        "nome": "Posto Opção",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 35,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:341080883",
+        "nome": "Posto Expressão - Tambaú",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 36,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:343276515",
+        "nome": "Posto Extra",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 37,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:475868772",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:484624869",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:484624870",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:488276864",
+        "nome": "Shell",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 38,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:488276866",
+        "nome": "Shell",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 39,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:505487452",
+        "nome": "Posto Fanmah",
+        "categoria": "ambiguos",
+        "acao": "ignorar",
+        "motivo": "Candidatos próximos, conflitantes ou já vinculados a outro identificador.",
+        "posto_id": null,
+        "candidatos": [
+          {
+            "id": "entrada:osm:node:4525208690",
+            "distancia_m": 77.5
+          }
+        ]
+      },
+      {
+        "id_externo": "osm:way:505771561",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:539259093",
+        "nome": "Posto sem nome",
+        "categoria": "ambiguos",
+        "acao": "ignorar",
+        "motivo": "Candidatos próximos, conflitantes ou já vinculados a outro identificador.",
+        "posto_id": null,
+        "candidatos": [
+          {
+            "id": "entrada:osm:node:973662367",
+            "distancia_m": 15.2
+          },
+          {
+            "id": "entrada:osm:way:262608966",
+            "distancia_m": 50.8
+          }
+        ]
+      },
+      {
+        "id_externo": "osm:way:572692816",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:719116280",
+        "nome": "Posto JR",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 40,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:749962464",
+        "nome": "Posto Santa Ana",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 41,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:749962467",
+        "nome": "Posto Tanque Cheio",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 42,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:749962470",
+        "nome": "Posto Petrogás",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 43,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:749962472",
+        "nome": "Posto Opção Cristo",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 44,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:749962484",
+        "nome": "Auto Posto Cristo de Combustíveis",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 45,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:749962485",
+        "nome": "Posto Cristo Redentor",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 46,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:749962486",
+        "nome": "Posto São Luiz",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 47,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:784868091",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:784868092",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:784868093",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:922769357",
+        "nome": "Psoto Colinas do Sul",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 48,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:1104034457",
+        "nome": "Posto sem nome",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:1278659952",
+        "nome": "Posto Santa Catarina",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 49,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:1278659959",
+        "nome": "Auto Posto Independência",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 50,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:1278659960",
+        "nome": "Posto Shell",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 51,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:1278967014",
+        "nome": "Posto Petrobras",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 52,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:1315416698",
+        "nome": "BR",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 53,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:1339078293",
+        "nome": "Posto Opção Altiplano",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 54,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:way:1421070338",
+        "nome": "Posto São Luiz VI",
+        "categoria": "novos",
+        "acao": "inserir",
+        "motivo": "Nenhum candidato local próximo.",
+        "posto_id": 55,
+        "candidatos": []
+      },
+      {
+        "id_externo": "osm:relation:8122820",
+        "nome": "Petrobras",
+        "categoria": "ignorados",
+        "acao": "ignorar_sem_nome",
+        "motivo": "Sem name válido na OSM; não será importado.",
+        "posto_id": null,
+        "candidatos": []
+      }
+    ]
+  },
+  "plano_metadados": [
+    {
+      "tipo": "marca",
+      "posto_id": 2,
+      "id_externo": "osm:node:2793876544",
+      "valor": "Petrobras"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 7,
+      "id_externo": "osm:node:2885375678",
+      "valor": "Petrobras"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 8,
+      "id_externo": "osm:node:2984979186",
+      "valor": "Shell"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 9,
+      "id_externo": "osm:node:3167015861",
+      "valor": "Texaco"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 11,
+      "id_externo": "osm:node:4474393295",
+      "valor": "Petrobras"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 16,
+      "id_externo": "osm:node:4738306420",
+      "valor": "Petrobras"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 21,
+      "id_externo": "osm:node:6257072263",
+      "valor": "Ale"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 29,
+      "id_externo": "osm:way:258128915",
+      "valor": "Esso"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 31,
+      "id_externo": "osm:way:262150714",
+      "valor": "Petrobras"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 32,
+      "id_externo": "osm:way:262296597",
+      "valor": "Shell"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 35,
+      "id_externo": "osm:way:331465990",
+      "valor": "Ipiranga"
+    },
+    {
+      "tipo": "oferta",
+      "posto_id": 35,
+      "codigo": "etanol",
+      "valor": 1,
+      "existe": false
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 38,
+      "id_externo": "osm:way:488276864",
+      "valor": "Shell"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 39,
+      "id_externo": "osm:way:488276866",
+      "valor": "Shell"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 41,
+      "id_externo": "osm:way:749962464",
+      "valor": "Shell"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 42,
+      "id_externo": "osm:way:749962467",
+      "valor": "Petrobras"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 44,
+      "id_externo": "osm:way:749962472",
+      "valor": "Ipiranga"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 45,
+      "id_externo": "osm:way:749962484",
+      "valor": "Ipiranga"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 46,
+      "id_externo": "osm:way:749962485",
+      "valor": "Petrobras"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 47,
+      "id_externo": "osm:way:749962486",
+      "valor": "Ipiranga"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 48,
+      "id_externo": "osm:way:922769357",
+      "valor": "Petrobras"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 51,
+      "id_externo": "osm:way:1278659960",
+      "valor": "Shell"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 52,
+      "id_externo": "osm:way:1278967014",
+      "valor": "Petrobras"
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 53,
+      "id_externo": "osm:way:1315416698",
+      "valor": "Petrobras"
+    },
+    {
+      "tipo": "oferta",
+      "posto_id": 53,
+      "codigo": "etanol",
+      "valor": 1,
+      "existe": false
+    },
+    {
+      "tipo": "oferta",
+      "posto_id": 53,
+      "codigo": "diesel",
+      "valor": 1,
+      "existe": false
+    },
+    {
+      "tipo": "marca",
+      "posto_id": 54,
+      "id_externo": "osm:way:1339078293",
+      "valor": "Ipiranga"
+    },
+    {
+      "tipo": "oferta",
+      "posto_id": 54,
+      "codigo": "etanol",
+      "valor": 1,
+      "existe": false
+    },
+    {
+      "tipo": "oferta",
+      "posto_id": 54,
+      "codigo": "diesel",
+      "valor": 1,
+      "existe": false
+    }
+  ],
+  "metadados_planejados": 29,
+  "metadados_aplicados": 29,
+  "precos_modificados": 0,
+  "usuarios_criados": 0,
+  "finalizado_em_utc": "2026-11-17T03:21:45.945681+00:00"
+}

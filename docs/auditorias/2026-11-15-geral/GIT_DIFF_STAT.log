@@ -1,0 +1,42 @@
+exit=0
+ back_end/.github/workflows/osm_diagnostico.yml |  112 --
+ back_end/.github/workflows/osm_sync.yml        |  112 --
+ back_end/app/__init__.py                       |   27 +-
+ back_end/app/db.py                             |   31 +-
+ back_end/app/rotas/auth.py                     |  294 +++--
+ back_end/app/rotas/ia.py                       |   52 +-
+ back_end/app/rotas/postos.py                   |  128 +-
+ back_end/app/rotas/precos.py                   |  170 +--
+ back_end/app/utils/decorator.py                |   43 +-
+ back_end/requirements.txt                      |  Bin 378 -> 172 bytes
+ back_end/scripts/importar_postos_osm.py        |  260 ++--
+ back_end/tests/test_ia.py                      |   11 +-
+ back_end/tests/test_osm_batch.py               |   10 +-
+ front_end/App.tsx                              |   33 +-
+ front_end/package-lock.json                    |  738 +++++------
+ front_end/package.json                         |   20 +-
+ front_end/src/components/mapa/mapaHtml.ts      |  114 +-
+ front_end/src/components/mapa/tipos.ts         |   16 +-
+ front_end/src/contexts/AuthContext.tsx         |  132 +-
+ front_end/src/contexts/ThemeContext.tsx        |  115 +-
+ front_end/src/routes/app.routes.tsx            |  297 +++--
+ front_end/src/routes/auth.routes.tsx           |   15 +-
+ front_end/src/routes/index.tsx                 |  114 +-
+ front_end/src/screens/Atividade/index.tsx      |  528 ++++----
+ front_end/src/screens/Conta/index.tsx          |  747 +++++-------
+ front_end/src/screens/Inicio/index.tsx         |  517 +++++---
+ front_end/src/screens/Login/index.tsx          | 1553 +++---------------------
+ front_end/src/screens/Mapa/index.tsx           |  139 +--
+ front_end/src/screens/RedefinirSenha/index.tsx |  262 ++--
+ front_end/src/screens/Registro/index.tsx       |   58 +-
+ front_end/src/services/API.ts                  |  112 +-
+ front_end/src/services/historicoVistos.ts      |   98 +-
+ front_end/src/theme/colors.tsx                 |   48 +-
+ front_end/src/utils/localizacao.ts             |  210 ++--
+ front_end/src/utils/token.ts                   |   32 +-
+ 35 files changed, 2853 insertions(+), 4295 deletions(-)
+warning: in the working copy of 'back_end/app/rotas/ia.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'back_end/app/rotas/precos.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'back_end/tests/test_ia.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'front_end/package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'front_end/package.json', LF will be replaced by CRLF the next time Git touches it

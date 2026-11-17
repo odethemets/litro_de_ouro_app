@@ -1,0 +1,7 @@
+{
+  "variavel_presente": true,
+  "esquema": "http:",
+  "import_producao": "recusado",
+  "tipo": "Error",
+  "mensagem": "A URL da API deve usar HTTPS, sem credenciais ou parâmetros. HTTP somente em desenvolvimento."
+}

@@ -1,0 +1,1326 @@
+diff --git a/front_end/src/screens/Assistente/index.tsx b/front_end/src/screens/Assistente/index.tsx
+index 6009ef8..9953cbe 100644
+--- a/front_end/src/screens/Assistente/index.tsx
++++ b/front_end/src/screens/Assistente/index.tsx
+@@ -1,273 +1,201 @@
+-import {
+-    useFocusEffect,
+-    useNavigation,
+-    type NavigationProp,
+-} from "@react-navigation/native";
+ import { useCallback, useRef, useState } from "react";
+-
++import { useFocusEffect, useNavigation, type NavigationProp } from "@react-navigation/native";
++import { View } from "react-native";
++import { AppButton, AppField, Notice, Page, Surface } from "../../components/design";
+ import { CartaoPosto } from "../../components/cartao-posto";
+-import {
+-    AppButton,
+-    AppField,
+-    Notice,
+-    Page,
+-    Surface,
+-} from "../../components/design";
+-import { useAcao } from "../../components/form-auth";
++import { useAuth } from "../../contexts/AuthContext";
+ import { useFiltrosPostos } from "../../contexts/FiltrosPostosContext";
+ import type { Abas } from "../../routes/app.routes";
+-import {
+-    consultarAssistente,
+-    mensagemErroBusca,
+-    type BuscaAssistida,
+-} from "../../services/assistente";
++import { consultarAssistente, mensagemErroBusca, type BuscaAssistida } from "../../services/assistente";
+ import { produto } from "../../services/catalogoPostos";
+ import { iniciarVoz, vozDisponivel } from "../../services/voz";
+ 
++// Resultados e rascunhos pertencem à sessão que iniciou a busca.
+ export default function Assistente() {
+-  const navigation = useNavigation<NavigationProp<Abas>>();
++  const { token, status, openAuth } = useAuth();
++  if (!token || status !== "AUTHENTICATED") {
++    return (
++      <Page title="Assistente Ouro" subtitle="Encontre o combustível que você procura.">
++        <Surface>
++          <Notice>Entre na sua conta para buscar por texto ou voz.</Notice>
++          <AppButton label="Entrar para usar o assistente" onPress={() => openAuth("Login")} />
++        </Surface>
++      </Page>
++    );
++  }
++  return <ConteudoAssistente key={JSON.stringify([token, status])} token={token} />;
++}
+ 
++// A busca produz uma prévia; somente a confirmação aplica os filtros no mapa/feed.
++function ConteudoAssistente({ token }: { token: string }) {
++  const navigation = useNavigation<NavigationProp<Abas>>();
+   const { filtros, usuario, aplicar } = useFiltrosPostos();
+-
++  const contexto = JSON.stringify([filtros, usuario]);
+   const [mensagem, setMensagem] = useState("");
+-  const [resultado, setResultado] = useState<BuscaAssistida | null>(null);
++  const [resultado, setResultado] = useState<{ dados: BuscaAssistida; contexto: string } | null>(null);
++  const [busy, setBusy] = useState(false);
++  const [erro, setErro] = useState("");
++  const [aviso, setAviso] = useState("");
+   const [ouvindo, setOuvindo] = useState(false);
+-
+   const voz = useRef<{ parar(): void } | null>(null);
+   const consulta = useRef<AbortController | null>(null);
++  const ativo = useRef(false);
+ 
+-  const { busy, erro, setErro, run } = useAcao(
+-    "Não foi possível consultar os postos. Tente novamente.",
+-  );
+-
+-  const pararVoz = useCallback(() => {
+-    const atual = voz.current;
+-    voz.current = null;
+-    atual?.parar();
++  // Sair interrompe a escuta e descarta respostas, sem alegar cancelamento no servidor.
++  useFocusEffect(useCallback(() => {
++    ativo.current = true;
++    setBusy(false);
+     setOuvindo(false);
+-  }, []);
+-
+-  useFocusEffect(
+-    useCallback(() => {
+-      return () => {
+-        pararVoz();
+-        consulta.current?.abort();
+-      };
+-    }, [pararVoz]),
+-  );
++    return () => {
++      ativo.current = false;
++      const escuta = voz.current;
++      voz.current = null;
++      escuta?.parar();
++      consulta.current?.abort();
++      consulta.current = null;
++    };
++  }, []));
++
++  // Desvincula o pedido antes do abort, protegendo também uma nova busca imediata.
++  function cancelarBusca() {
++    const atual = consulta.current;
++    consulta.current = null;
++    atual?.abort();
++    setBusy(false);
++  }
+ 
++  // Texto revisado invalida a prévia anterior e qualquer resposta ainda pendente.
+   function editar(texto: string) {
++    cancelarBusca();
+     setMensagem(texto);
+     setResultado(null);
+     setErro("");
++    setAviso("");
+   }
+ 
+-  function falar() {
+-    if (busy) return;
+-
+-    if (voz.current) {
+-      pararVoz();
+-      return;
+-    }
++  // Encerra a escuta local; callbacks tardios perdem sua identidade antes do abort.
++  function pararVoz() {
++    const atual = voz.current;
++    voz.current = null;
++    atual?.parar();
++    setOuvindo(false);
++  }
+ 
++  // A fala só preenche o campo: o usuário revisa antes de consultar e aplicar.
++  function falar() {
++    if (busy || !ativo.current) return;
++    if (voz.current) { pararVoz(); return; }
+     setErro("");
+-
++    setAviso("");
+     const atual = { parar: () => {} };
+     voz.current = atual;
+     setOuvindo(true);
+-
+     try {
+       const cancelar = iniciarVoz(
+         (texto) => {
+-          if (voz.current === atual) editar(texto);
++          if (ativo.current && voz.current === atual) editar(texto);
+         },
+         () => {
+-          if (voz.current === atual) {
++          if (ativo.current && voz.current === atual) {
+             voz.current = null;
+             setOuvindo(false);
+           }
+         },
+         (texto) => {
+-          if (voz.current === atual) setErro(texto);
++          if (ativo.current && voz.current === atual) setErro(texto);
+         },
+       );
+-
+-      if (voz.current === atual) {
+-        atual.parar = cancelar;
+-      } else {
+-        cancelar();
+-      }
++      if (voz.current === atual) atual.parar = cancelar;
++      else cancelar();
+     } catch (falha) {
+       pararVoz();
+-
+-      setErro(falha instanceof Error ? falha.message : "Voz indisponível.");
++      setErro(falha instanceof Error ? falha.message : "Não foi possível iniciar a escuta.");
+     }
+   }
+ 
+-  function buscar() {
+-    if (!mensagem.trim()) {
+-      setErro("Informe o combustível ou a bandeira " + "que deseja procurar.");
++  // Captura sessão e contexto; resultado de pedido cancelado não pode publicar estado.
++  async function buscar() {
++    if (consulta.current || voz.current || !ativo.current) return;
++    if (!mensagem.trim() || mensagem.trim().length > 500) {
++      setErro("Informe uma busca de até 500 caracteres, com combustível ou bandeira.");
+       return;
+     }
+-
++    const atual = new AbortController();
++    consulta.current = atual;
++    setBusy(true);
++    setErro("");
++    setAviso("");
+     setResultado(null);
+-
+-    void run(async (signal) => {
+-      const atual = new AbortController();
+-      consulta.current = atual;
+-
+-      const cancelar = () => atual.abort();
+-
+-      signal.addEventListener("abort", cancelar, { once: true });
+-
+-      try {
+-        const dados = await consultarAssistente(
+-          mensagem,
+-          filtros,
+-          usuario,
+-          atual.signal,
+-        );
+-
+-        if (!atual.signal.aborted && !signal.aborted) {
+-          setResultado(dados);
+-        }
+-      } catch (falha) {
+-        if (!atual.signal.aborted && !signal.aborted) {
+-          setErro(mensagemErroBusca(falha));
+-        }
+-      } finally {
+-        signal.removeEventListener("abort", cancelar);
+-
+-        if (consulta.current === atual) {
+-          consulta.current = null;
+-        }
++    try {
++      const dados = await consultarAssistente(mensagem, filtros, usuario, atual.signal, token);
++      if (ativo.current && consulta.current === atual && !atual.signal.aborted) {
++        setResultado({ dados, contexto });
++      }
++    } catch (falha) {
++      if (ativo.current && consulta.current === atual && !atual.signal.aborted) {
++        setErro(mensagemErroBusca(falha));
+       }
+-    });
++    } finally {
++      if (ativo.current && consulta.current === atual) {
++        consulta.current = null;
++        setBusy(false);
++      }
++    }
+   }
+ 
+-  function abrirMapa() {
+-    if (!resultado) return;
++  const dados = resultado?.dados;
++  const contextoMudou = !!resultado && resultado.contexto !== contexto;
+ 
+-    aplicar(resultado.filtros);
++  // Impede sobrescrever mudanças de filtro/GPS com uma interpretação anterior.
++  function abrirMapa() {
++    if (!resultado || contextoMudou || busy || !ativo.current) return;
++    aplicar({ ...resultado.dados.filtros, combustiveis: [...resultado.dados.filtros.combustiveis] });
+     navigation.navigate("Mapa");
+   }
+ 
+   return (
+-    <Page
+-      title="Assistente Ouro"
+-      subtitle={
+-        "Procure combustível e bandeira " + "no catálogo de João Pessoa."
+-      }
+-    >
++    <Page title="Assistente Ouro" subtitle="Diga ou escreva o combustível e a bandeira que procura.">
+       <Surface>
+-        <AppField
+-          label="O que você procura?"
+-          value={mensagem}
+-          onChangeText={editar}
+-          placeholder="Ex.: diesel e etanol Shell mais barato"
+-          maxLength={500}
+-          multiline
+-          numberOfLines={3}
+-          style={{
+-            minHeight: 100,
+-            textAlignVertical: "top",
+-          }}
+-          editable={!busy && !ouvindo}
+-        />
+-
++        <AppField label="O que você procura?" value={mensagem} onChangeText={editar}
++          placeholder="Ex.: diesel e etanol Shell mais barato" maxLength={500}
++          multiline numberOfLines={3} style={{ minHeight: 100, textAlignVertical: "top" }}
++          editable={!busy && !ouvindo} />
+         {vozDisponivel() ? (
+           <>
+-            <AppButton
+-              label={ouvindo ? "Parar escuta" : "Falar busca"}
+-              secondary
+-              disabled={busy}
+-              onPress={falar}
+-            />
+-
+-            <Notice>
+-              O navegador reconhece a fala. Revise o texto antes de buscar.
+-            </Notice>
++            <AppButton label={ouvindo ? "Parar escuta" : "Falar busca"} secondary disabled={busy} onPress={falar} />
++            <Notice>{ouvindo ? "Ouvindo... Diga o que deseja procurar." : "Revise a transcrição antes de buscar."}</Notice>
++            <Notice>O reconhecimento da fala é realizado pelo serviço do navegador.</Notice>
+           </>
+-        ) : (
+-          <Notice>
+-            Use o ditado do teclado para falar sua busca ou digite. O botão de
+-            voz depende do navegador e do dispositivo.
+-          </Notice>
+-        )}
+-
++        ) : <Notice>Para falar, use o microfone do teclado. Você também pode digitar sua busca.</Notice>}
+         {erro ? <Notice error>{erro}</Notice> : null}
+-
+-        <AppButton
+-          label="Buscar postos"
+-          busy={busy}
+-          disabled={ouvindo}
+-          onPress={buscar}
+-        />
+-
+-        <Notice>
+-          Frases que precisam de interpretação podem ser enviadas ao serviço de
+-          IA. A localização é usada no catálogo para consultas por proximidade.
+-        </Notice>
++        {aviso ? <View accessibilityLiveRegion="polite"><Notice>{aviso}</Notice></View> : null}
++        <AppButton label="Buscar postos" busy={busy} disabled={ouvindo || !mensagem.trim()} onPress={() => void buscar()} />
++        {busy ? <AppButton label="Cancelar busca" secondary onPress={() => {
++          cancelarBusca();
++          setAviso("Busca cancelada nesta tela. Você pode editar o texto e buscar novamente.");
++        }} /> : null}
++        <Notice>Frases que precisem de interpretação podem ser enviadas à IA. Os preços vêm do catálogo de postos.</Notice>
+       </Surface>
+ 
+-      {resultado ? (
++      {dados ? (
+         <>
+           <Surface>
+-            <Notice>{resultado.mensagem}</Notice>
+-
+-            <Notice>
+-              Combustíveis:{" "}
+-              {resultado.filtros.combustiveis.length
+-                ? resultado.filtros.combustiveis
+-                    .map((c) => produto(c).nome)
+-                    .join(", ")
+-                : "Todos"}
+-            </Notice>
+-
+-            <Notice>
+-              Preço de referência: {produto(resultado.filtros.referencia).nome}
+-            </Notice>
+-
+-            <Notice>
+-              Bandeira:{" "}
+-              {resultado.filtros.marca === "nao_informada"
+-                ? "Não informada"
+-                : resultado.filtros.marca || "Qualquer"}
+-            </Notice>
+-
+-            <Notice>
+-              Ordenação:{" "}
+-              {resultado.filtros.ordenar === "preco"
+-                ? "Menor preço"
+-                : resultado.localizacao_usada
+-                  ? "Mais próximos"
+-                  : "Distância indisponível"}
+-            </Notice>
+-
+-            <Notice>
+-              {resultado.interpretacao === "comando"
+-                ? "Busca por combustível e bandeira."
+-                : "Busca interpretada por IA " + "e conferida no catálogo."}
+-            </Notice>
+-
+-            <AppButton label="Aplicar esta busca no mapa" onPress={abrirMapa} />
++            <View accessibilityLiveRegion="polite"><Notice>{dados.mensagem}</Notice></View>
++            <Notice>Combustíveis: {dados.filtros.combustiveis.length
++              ? dados.filtros.combustiveis.map((c) => produto(c).nome).join(", ") : "Todos"}</Notice>
++            <Notice>Preço de referência: {produto(dados.filtros.referencia).nome}</Notice>
++            <Notice>Bandeira: {dados.filtros.marca === "nao_informada" ? "Não informada" : dados.filtros.marca || "Qualquer"}</Notice>
++            <Notice>Ordenação: {dados.filtros.ordenar === "preco" ? "Menor preço"
++              : dados.localizacao_usada ? "Mais próximos" : "Distância pessoal indisponível"}</Notice>
++            {!dados.total ? <Notice>Nenhum posto corresponde a esta busca. Tente outra bandeira ou combustível.</Notice> : null}
++            {contextoMudou ? <Notice error>Seus filtros ou sua posição mudaram. Busque novamente antes de aplicar.</Notice> : null}
++            <AppButton label="Aplicar esta busca no mapa" disabled={contextoMudou || busy} onPress={abrirMapa} />
+           </Surface>
+-
+-          <Notice>
+-            Prévia de até 20 postos. Aplique os filtros para consultar no Mapa e
+-            no Feed.
+-          </Notice>
+-
+-          {resultado.postos.map((posto) => (
+-            <CartaoPosto
+-              key={posto.id}
+-              posto={posto}
+-              selecionados={resultado.filtros.combustiveis}
+-              comparacao={resultado.postos}
+-              rotuloAcao={"Ver esta busca no mapa: " + posto.nome}
+-              onPress={abrirMapa}
+-            />
+-          ))}
++          <Notice>Prévia de até 20 postos. Os filtros escolhidos serão compartilhados pelo Mapa e pelo Feed.</Notice>
++          {!contextoMudou ? dados.postos.map((posto) => (
++            <CartaoPosto key={posto.id} posto={posto} selecionados={dados.filtros.combustiveis}
++              comparacao={dados.postos} rotuloAcao={"Aplicar busca no mapa: " + posto.nome} onPress={abrirMapa} />
++          )) : null}
+         </>
+       ) : null}
+     </Page>
+diff --git a/front_end/src/services/assistente.ts b/front_end/src/services/assistente.ts
+index 9373cc0..7721f24 100644
+--- a/front_end/src/services/assistente.ts
++++ b/front_end/src/services/assistente.ts
+@@ -2,11 +2,8 @@ import { isAxiosError } from "axios";
+ import type { PosicaoUsuario } from "../components/mapa/tipos";
+ import { api } from "./API";
+ import {
+-    COMBUSTIVEIS,
+-    lerCatalogo,
+-    type Combustivel,
+-    type FiltrosPostos,
+-    type PostoCatalogo,
++  COMBUSTIVEIS, lerCatalogo, type Combustivel,
++  type FiltrosPostos, type PostoCatalogo,
+ } from "./catalogoPostos";
+ 
+ export interface BuscaAssistida {
+@@ -19,130 +16,87 @@ export interface BuscaAssistida {
+ }
+ 
+ const codigos = new Set<string>(COMBUSTIVEIS.map((c) => c.codigo));
+-
++// Respostas do provedor precisam passar pelo contrato antes de chegar ao estado global.
+ function objeto(valor: unknown): valor is Record<string, unknown> {
+   return typeof valor === "object" && valor !== null && !Array.isArray(valor);
+ }
+-
++// Aceita somente os seis produtos do catálogo fixo.
+ function combustivel(valor: unknown): valor is Combustivel {
+   return typeof valor === "string" && codigos.has(valor);
+ }
+ 
++// Clona a seleção e mantém uma referência única, sem substituir por outro produto.
+ export function validarFiltrosBusca(valor: unknown): FiltrosPostos {
+-  if (
+-    !objeto(valor) ||
+-    !Array.isArray(valor.combustiveis) ||
+-    valor.combustiveis.length > 6 ||
+-    !valor.combustiveis.every(combustivel) ||
+-    new Set(valor.combustiveis).size !== valor.combustiveis.length ||
+-    !combustivel(valor.referencia) ||
+-    (valor.combustiveis.length > 0 &&
+-      !valor.combustiveis.includes(valor.referencia)) ||
+-    typeof valor.marca !== "string" ||
+-    valor.marca.length > 120 ||
+-    /[\u0000-\u001f\u007f]/.test(valor.marca) ||
+-    (valor.ordenar !== "preco" && valor.ordenar !== "distancia")
+-  ) {
++  if (!objeto(valor) || !Array.isArray(valor.combustiveis)
++    || valor.combustiveis.length > 6 || !valor.combustiveis.every(combustivel)
++    || new Set(valor.combustiveis).size !== valor.combustiveis.length
++    || !combustivel(valor.referencia)
++    || (valor.combustiveis.length > 0 && !valor.combustiveis.includes(valor.referencia))
++    || typeof valor.marca !== "string" || valor.marca.length > 120
++    || /[\u0000-\u001f\u007f]/.test(valor.marca)
++    || (valor.ordenar !== "preco" && valor.ordenar !== "distancia")) {
+     throw new Error("A API retornou filtros de busca inválidos.");
+   }
+-
+-  return {
+-    combustiveis: valor.combustiveis,
+-    referencia: valor.referencia,
+-    marca: valor.marca,
+-    ordenar: valor.ordenar,
+-  };
++  return { combustiveis: [...valor.combustiveis], referencia: valor.referencia,
++    marca: valor.marca, ordenar: valor.ordenar };
+ }
+ 
++// Confere prévia, referência e distâncias; preços continuam vindo do catálogo.
+ export function validarBusca(valor: unknown): BuscaAssistida {
+-  if (
+-    !objeto(valor) ||
+-    !Array.isArray(valor.postos) ||
+-    valor.postos.length > 20 ||
+-    typeof valor.total !== "number" ||
+-    !Number.isSafeInteger(valor.total) ||
+-    valor.total < valor.postos.length ||
+-    valor.total > 500 ||
+-    valor.postos.length !== Math.min(valor.total, 20) ||
+-    typeof valor.localizacao_usada !== "boolean" ||
+-    (valor.interpretacao !== "comando" && valor.interpretacao !== "gemini") ||
+-    typeof valor.mensagem !== "string" ||
+-    !valor.mensagem.trim()
+-  ) {
++  if (!objeto(valor) || !Array.isArray(valor.postos) || valor.postos.length > 20
++    || typeof valor.total !== "number" || !Number.isSafeInteger(valor.total)
++    || valor.total < valor.postos.length || valor.total > 500
++    || valor.postos.length !== Math.min(valor.total, 20)
++    || typeof valor.localizacao_usada !== "boolean"
++    || (valor.interpretacao !== "comando" && valor.interpretacao !== "gemini")
++    || typeof valor.mensagem !== "string" || !valor.mensagem.trim()) {
+     throw new Error("A API não retornou uma busca válida.");
+   }
+-
+   const filtros = validarFiltrosBusca(valor.filtros);
+-
+-  const postos = lerCatalogo(
+-    valor.postos,
+-    filtros.referencia,
+-    filtros.combustiveis,
+-  );
+-
+-  if (
+-    new Set(postos.map((p) => p.id)).size !== postos.length ||
+-    postos.some((p) =>
+-      valor.localizacao_usada
+-        ? p.distancia_m === undefined
+-        : p.distancia_m !== undefined,
+-    )
+-  ) {
++  const postos = lerCatalogo(valor.postos, filtros.referencia, filtros.combustiveis);
++  if (new Set(postos.map((p) => p.id)).size !== postos.length
++    || postos.some((p) => valor.localizacao_usada
++      ? p.distancia_m === undefined : p.distancia_m !== undefined)) {
+     throw new Error("A API retornou dados inconsistentes para a busca.");
+   }
+-
+-  return {
+-    filtros,
+-    postos,
+-    total: valor.total,
+-    mensagem: valor.mensagem,
+-    interpretacao: valor.interpretacao,
+-    localizacao_usada: valor.localizacao_usada,
+-  };
++  return { filtros, postos, total: valor.total, mensagem: valor.mensagem,
++    interpretacao: valor.interpretacao, localizacao_usada: valor.localizacao_usada };
+ }
+ 
++// Envia um retrato da busca com a sessão capturada; nunca cria coordenadas padrão.
+ export async function consultarAssistente(
+   mensagem: string,
+   filtros: FiltrosPostos,
+   usuario: PosicaoUsuario | null,
+   signal: AbortSignal,
++  token?: string,
+ ) {
+-  const { data } = await api.post(
+-    "/ia/consultar",
+-    {
+-      mensagem: mensagem.trim(),
+-      filtros,
+-      ...(usuario
+-        ? {
+-            latitude: usuario.lat,
+-            longitude: usuario.lon,
+-          }
+-        : {}),
+-    },
+-    {
+-      signal,
+-      timeout: 60000,
+-    },
+-  );
+-
++  const texto = mensagem.trim();
++  if (!texto || texto.length > 500) throw new Error("Informe uma busca de até 500 caracteres.");
++  if (token !== undefined && !token.trim()) throw new Error("Entre novamente para usar o assistente.");
++  if (signal.aborted) throw new Error("Busca cancelada.");
++  const selecao = validarFiltrosBusca(filtros);
++  if (usuario && (!Number.isFinite(usuario.lat) || Math.abs(usuario.lat) > 90
++    || !Number.isFinite(usuario.lon) || Math.abs(usuario.lon) > 180
++    || (usuario.lat === 0 && usuario.lon === 0))) {
++    throw new Error("Atualize sua localização antes de buscar por proximidade.");
++  }
++  const { data } = await api.post("/ia/consultar", {
++    mensagem: texto, filtros: selecao,
++    ...(usuario ? { latitude: usuario.lat, longitude: usuario.lon } : {}),
++  }, { signal, timeout: 60000,
++    ...(token ? { headers: { Authorization: "Bearer " + token } } : {}),
++  });
+   return validarBusca(data);
+ }
+ 
++// Mantém mensagens de rede/recusa legíveis, sem imprimir payloads ou credenciais.
+ export function mensagemErroBusca(erro: unknown) {
+   if (isAxiosError<{ error?: unknown }>(erro)) {
+-    if (!erro.response) {
+-      return "A API não respondeu. " + "Confira a conexão e tente novamente.";
+-    }
+-
+-    const detalhe =
+-      typeof erro.response.data?.error === "string"
+-        ? erro.response.data.error
+-        : "Não foi possível consultar os postos.";
+-
++    if (!erro.response) return "A API não respondeu. Confira a conexão e tente novamente.";
++    const detalhe = typeof erro.response.data?.error === "string"
++      ? erro.response.data.error : "Não foi possível consultar os postos.";
+     return "HTTP " + erro.response.status + ": " + detalhe;
+   }
+-
+-  return erro instanceof Error
+-    ? erro.message
+-    : "Não foi possível consultar os postos.";
++  return erro instanceof Error ? erro.message : "Não foi possível consultar os postos.";
+ }
+diff --git a/front_end/src/services/voz.web.ts b/front_end/src/services/voz.web.ts
+index 04eb4db..9a5b156 100644
+--- a/front_end/src/services/voz.web.ts
++++ b/front_end/src/services/voz.web.ts
+@@ -2,124 +2,92 @@ interface Reconhecimento {
+   lang: string;
+   interimResults: boolean;
+   continuous: boolean;
+-
+-  onresult:
+-    | ((evento: {
+-        results: ArrayLike<ArrayLike<{ transcript: string }>>;
+-      }) => void)
+-    | null;
+-
++  onresult: ((evento: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+   onerror: ((evento: { error?: string }) => void) | null;
+-
+   onend: (() => void) | null;
+-
+   start(): void;
+   abort(): void;
+ }
+ 
++// A captura direta exige suporte do navegador e contexto seguro (HTTPS ou localhost).
+ function construtor() {
+   const navegador = globalThis as unknown as {
+     SpeechRecognition?: new () => Reconhecimento;
+     webkitSpeechRecognition?: new () => Reconhecimento;
+     isSecureContext?: boolean;
+   };
+-
+   return navegador.isSecureContext
+-    ? (navegador.SpeechRecognition ?? navegador.webkitSpeechRecognition)
+-    : undefined;
++    ? navegador.SpeechRecognition ?? navegador.webkitSpeechRecognition : undefined;
+ }
+ 
+ export const vozDisponivel = () => Boolean(construtor());
+ 
++// Entrega uma transcrição revisável; a função retornada encerra a escuta uma só vez.
+ export function iniciarVoz(
+   texto: (texto: string) => void,
+   fim: () => void,
+   erro: (mensagem: string) => void,
+ ): () => void {
+   const Criar = construtor();
+-
+-  if (!Criar) {
+-    throw new Error(
+-      "Reconhecimento de voz indisponível. " +
+-        "Use o ditado do teclado ou digite.",
+-    );
+-  }
+-
++  if (!Criar) throw new Error("Reconhecimento de voz indisponível. Use o ditado do teclado ou digite.");
+   const voz = new Criar();
+-
+   let encerrado = false;
++  let recebeuEvento = false;
+   let tempo: ReturnType<typeof setTimeout> | null = null;
+ 
++  // Remove handlers e temporizador antes de abortar, evitando callbacks duplicados.
+   const encerrar = () => {
+     if (encerrado) return;
+-
+     encerrado = true;
+-
+     if (tempo !== null) clearTimeout(tempo);
+-
+     voz.onresult = null;
+     voz.onerror = null;
+     voz.onend = null;
+-
+-    try {
+-      voz.abort();
+-    } catch {
+-      // O navegador pode já ter encerrado.
+-    }
+-
++    try { voz.abort(); } catch { /* O navegador pode já ter encerrado. */ }
+     fim();
+   };
+ 
+   voz.lang = "pt-BR";
+   voz.interimResults = false;
+   voz.continuous = false;
+-
+   voz.onresult = (evento) => {
+     if (encerrado) return;
+-
+-    const resultado = evento.results[0]?.[0]?.transcript;
+-
+-    if (typeof resultado === "string" && resultado.trim()) {
+-      texto(resultado.trim());
+-    } else {
+-      erro("Nenhuma fala foi reconhecida. " + "Tente novamente ou digite.");
+-    }
+-
+-    encerrar();
++    recebeuEvento = true;
++    try {
++      const resultado = evento.results[0]?.[0]?.transcript;
++      if (typeof resultado !== "string" || !resultado.trim()) {
++        erro("Nenhuma fala foi reconhecida. Tente novamente ou digite.");
++      } else if (resultado.trim().length > 500) {
++        erro("A fala ficou muito longa. Faça uma busca de até 500 caracteres.");
++      } else texto(resultado.trim());
++    } finally { encerrar(); }
+   };
+-
+   voz.onerror = (evento) => {
+     if (encerrado) return;
+-
+-    erro(
+-      evento.error === "not-allowed" || evento.error === "service-not-allowed"
++    recebeuEvento = true;
++    try {
++      erro(evento.error === "not-allowed" || evento.error === "service-not-allowed"
+         ? "Permita o microfone no navegador ou digite sua busca."
+-        : "Não foi possível reconhecer a fala. " + "Tente novamente ou digite.",
+-    );
+-
+-    encerrar();
++        : evento.error === "no-speech"
++          ? "Nenhuma fala foi reconhecida. Tente novamente ou digite."
++          : "Não foi possível reconhecer a fala. Tente novamente ou digite.");
++    } finally { encerrar(); }
++  };
++  voz.onend = () => {
++    if (encerrado) return;
++    try {
++      if (!recebeuEvento) erro("A escuta terminou sem reconhecer uma fala. Tente novamente ou digite.");
++    } finally { encerrar(); }
+   };
+-
+-  voz.onend = encerrar;
+-
+   tempo = setTimeout(() => {
+     if (encerrado) return;
+-
+-    erro("O tempo de escuta terminou. " + "Tente novamente ou digite.");
+-
+-    encerrar();
++    try { erro("O tempo de escuta terminou. Tente novamente ou digite."); }
++    finally { encerrar(); }
+   }, 12000);
+-
+-  try {
+-    voz.start();
+-  } catch {
++  try { voz.start(); }
++  catch {
+     encerrar();
+-
+-    throw new Error(
+-      "Não foi possível iniciar o microfone. " +
+-        "Confira a permissão ou digite.",
+-    );
++    throw new Error("Não foi possível iniciar o microfone. Confira a permissão ou digite.");
+   }
+-
+   return encerrar;
+ }
+diff --git a/back_end/scripts/verificar_assistente.py b/back_end/scripts/verificar_assistente.py
+new file mode 100644
+index 0000000..1898907
+--- /dev/null
++++ b/back_end/scripts/verificar_assistente.py
+@@ -0,0 +1,128 @@
++"""Diagnóstico sem rede por padrão; --teste-provedor envia uma frase sintética ao Gemini."""
++import argparse
++import importlib
++from importlib import metadata
++import json
++import os
++from pathlib import Path
++import sys
++
++ROOT = Path(__file__).resolve().parents[1]
++if str(ROOT) not in sys.path:
++    sys.path.insert(0, str(ROOT))
++
++
++# Consulta instalação/configuração sem mostrar segredos ou acessar catálogo/banco.
++def diagnosticar(ambiente=None, importar=importlib.import_module, versao=metadata.version):
++    ambiente = os.environ if ambiente is None else ambiente
++    chave = bool(ambiente.get("GEMINI_API_KEY", "").strip())
++    modelo = ambiente.get("GEMINI_MODEL", "").strip()
++    segredo = ambiente.get("SECRET_KEY", "")
++    segredo_valido = (len(segredo.strip().encode("utf-8")) >= 32
++                      and segredo.strip() != "segredo-padrao-temporario")
++    resultado = {
++        "status": "pendencias",
++        "chave_configurada": chave,
++        "modelo_explicito": bool(modelo),
++        "secret_key_valida": segredo_valido,
++        "sdk_importavel": False,
++        "rotas_usam_sdk_atual": False,
++        "versao_sdk": None,
++        "modulos_assistente_importaveis": False,
++        "modelo_corresponde_ambiente": False,
++        "comando_objetivo_validado": False,
++        "rota_consulta_registrada": False,
++        "catalogo_consultado": False,
++        "tentativa_provedor": False,
++        "pendencias": [],
++    }
++    if not chave:
++        resultado["pendencias"].append("GEMINI_API_KEY ausente: interpretação livre indisponível.")
++    if not modelo:
++        resultado["pendencias"].append("Defina GEMINI_MODEL com um modelo disponível na sua conta.")
++    if not segredo_valido:
++        resultado["pendencias"].append("SECRET_KEY ausente ou inválida para verificar as rotas.")
++    sdk = tipos = None
++    try:
++        sdk = importar("google.genai")
++        tipos = importar("google.genai.types")
++        resultado["versao_sdk"] = versao("google-genai")
++        resultado["sdk_importavel"] = True
++    except Exception as erro:
++        resultado["pendencias"].append("SDK indisponível: " + type(erro).__name__)
++    try:
++        ia = importar("app.rotas.ia")
++        comandos = importar("services.comandos_ia")
++        importar("app.rotas.assistente")
++        resultado["modulos_assistente_importaveis"] = True
++        resultado["rotas_usam_sdk_atual"] = bool(
++            sdk is not None and tipos is not None and ia.genai is sdk and ia.types is tipos
++        )
++        if not resultado["rotas_usam_sdk_atual"]:
++            resultado["pendencias"].append("SDK das rotas difere da instalação; verifique o runtime e reinicie.")
++        resultado["modelo_corresponde_ambiente"] = bool(modelo and ia.MODELO == modelo)
++        if modelo and not resultado["modelo_corresponde_ambiente"]:
++            resultado["pendencias"].append("Modelo carregado difere do ambiente; reinicie o processo.")
++        esperado = {"combustiveis": ["etanol"], "referencia": "etanol", "marca": "Shell", "ordenar": "preco"}
++        resultado["comando_objetivo_validado"] = comandos.interpretar_comando(
++            "etanol Shell mais barato", ([], "gasolina_comum", None, "distancia"),
++        ) == esperado
++        if not resultado["comando_objetivo_validado"]:
++            resultado["pendencias"].append("O comando objetivo não preservou combustível, bandeira e referência.")
++        if segredo_valido:
++            app = importar("app").create_app()
++            resultado["rota_consulta_registrada"] = any(
++                regra.rule.rstrip("/") == "/ia/consultar" and "POST" in regra.methods
++                for regra in app.url_map.iter_rules()
++            )
++            if not resultado["rota_consulta_registrada"]:
++                resultado["pendencias"].append("POST /ia/consultar não foi registrado.")
++    except Exception as erro:
++        resultado["pendencias"].append("Módulos/rotas indisponíveis: " + type(erro).__name__)
++    if not resultado["pendencias"]:
++        resultado["status"] = "pronto_para_teste"
++    return resultado
++
++
++# É uma única chamada opcional, sem coordenadas, foto, conta real ou consulta ao banco.
++def testar_provedor(resultado, importar=importlib.import_module):
++    if resultado["status"] != "pronto_para_teste":
++        resultado["teste_provedor"] = "nao_executado"
++        return resultado
++    resultado["tentativa_provedor"] = True
++    try:
++        assistente = importar("app.rotas.assistente")
++        filtros = assistente._interpretar_ia(
++            "Quero etanol da Shell, ordenando por menor preço.",
++            ([], "gasolina_comum", None, "distancia"),
++        )
++        esperado = {"combustiveis": ["etanol"], "referencia": "etanol", "marca": "Shell", "ordenar": "preco"}
++        if filtros != esperado:
++            raise ValueError("Filtros sintéticos incompatíveis")
++        resultado["teste_provedor"] = "aprovado"
++    except Exception as erro:
++        resultado["status"] = "falha_provedor"
++        resultado["teste_provedor"] = "falhou"
++        resultado["erro_tipo"] = type(erro).__name__
++        codigo = getattr(erro, "code", None)
++        resultado["status_http"] = codigo if isinstance(codigo, int) and not isinstance(codigo, bool) else None
++    return resultado
++
++
++# A chamada externa exige a opção explícita; o comando comum não cria cliente Gemini.
++def main(argv=None):
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--teste-provedor", action="store_true",
++                        help="Envia uma frase sintética ao Gemini; pode consumir quota. Não acessa o banco.")
++    args = parser.parse_args(argv)
++    from dotenv import load_dotenv
++    load_dotenv(ROOT / ".env", override=False)
++    resultado = diagnosticar()
++    if args.teste_provedor:
++        testar_provedor(resultado)
++    print(json.dumps(resultado, ensure_ascii=False, indent=2))
++    return 0 if resultado["status"] == "pronto_para_teste" else 1
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/back_end/tests/test_verificar_assistente.py b/back_end/tests/test_verificar_assistente.py
+new file mode 100644
+index 0000000..3ab9793
+--- /dev/null
++++ b/back_end/tests/test_verificar_assistente.py
+@@ -0,0 +1,98 @@
++"""Diagnóstico com módulos sintéticos; não chama Gemini, Flask ou banco reais."""
++import importlib.util
++from pathlib import Path
++from types import SimpleNamespace
++import unittest
++from unittest.mock import Mock
++
++CAMINHO = Path(__file__).resolve().parents[1] / "scripts" / "verificar_assistente.py"
++SPEC = importlib.util.spec_from_file_location("verificador_assistente", CAMINHO)
++verificador = importlib.util.module_from_spec(SPEC)
++SPEC.loader.exec_module(verificador)
++
++FILTROS = {"combustiveis": ["etanol"], "referencia": "etanol", "marca": "Shell", "ordenar": "preco"}
++AMBIENTE = {"GEMINI_API_KEY": "chave-sintetica-nao-real", "GEMINI_MODEL": "modelo-sintetico", "SECRET_KEY": "x" * 40}
++
++
++# Separa módulos e permite comprovar que o diagnóstico não invoca o modelo.
++def modulos():
++    provedor = Mock(return_value=FILTROS)
++    regra = SimpleNamespace(rule="/ia/consultar", methods={"POST"})
++    app = SimpleNamespace(url_map=SimpleNamespace(iter_rules=lambda: [regra]))
++    sdk, tipos = object(), object()
++    fontes = {
++        "google.genai": sdk, "google.genai.types": tipos,
++        "app.rotas.ia": SimpleNamespace(MODELO="modelo-sintetico", genai=sdk, types=tipos),
++        "services.comandos_ia": SimpleNamespace(interpretar_comando=Mock(return_value=FILTROS)),
++        "app.rotas.assistente": SimpleNamespace(_interpretar_ia=provedor),
++        "app": SimpleNamespace(create_app=lambda: app),
++    }
++    return fontes, provedor
++
++
++class DiagnosticoTests(unittest.TestCase):
++    def test_padrao_so_verifica_e_nao_chama_provedor(self):
++        fontes, provedor = modulos()
++        r = verificador.diagnosticar(AMBIENTE, fontes.__getitem__, lambda _: "2.34.0")
++        self.assertEqual(r["status"], "pronto_para_teste")
++        self.assertFalse(r["tentativa_provedor"])
++        self.assertFalse(r["catalogo_consultado"])
++        provedor.assert_not_called()
++        self.assertNotIn(AMBIENTE["GEMINI_API_KEY"], str(r))
++        self.assertNotIn(AMBIENTE["SECRET_KEY"], str(r))
++
++    def test_sem_chave_nao_testa_provedor(self):
++        fontes, provedor = modulos()
++        r = verificador.diagnosticar({**AMBIENTE, "GEMINI_API_KEY": ""}, fontes.__getitem__, lambda _: "2.34.0")
++        verificador.testar_provedor(r, fontes.__getitem__)
++        self.assertEqual(r["teste_provedor"], "nao_executado")
++        provedor.assert_not_called()
++
++    def test_modelo_deve_ser_explicito_e_corresponder_ao_runtime(self):
++        fontes, _ = modulos()
++        for valor in ("", "outro-modelo"):
++            r = verificador.diagnosticar({**AMBIENTE, "GEMINI_MODEL": valor}, fontes.__getitem__, lambda _: "2.34.0")
++            self.assertEqual(r["status"], "pendencias")
++
++    def test_sdk_ausente_e_reportado_sem_stack_ou_segredo(self):
++        fontes, _ = modulos()
++        def importar(nome):
++            if nome == "google.genai":
++                raise ModuleNotFoundError("detalhe-privado-nao-deve-sair")
++            return fontes[nome]
++        r = verificador.diagnosticar(AMBIENTE, importar, lambda _: "2.34.0")
++        self.assertEqual(r["status"], "pendencias")
++        self.assertNotIn("detalhe-privado", str(r))
++
++    def test_rotas_com_sdk_antigo_exigem_reinicio(self):
++        fontes, _ = modulos()
++        fontes["app.rotas.ia"].genai = None
++        r = verificador.diagnosticar(AMBIENTE, fontes.__getitem__, lambda _: "2.34.0")
++        self.assertEqual(r["status"], "pendencias")
++        self.assertFalse(r["rotas_usam_sdk_atual"])
++
++    def test_teste_explicito_faz_uma_chamada_sintetica(self):
++        fontes, provedor = modulos()
++        r = verificador.diagnosticar(AMBIENTE, fontes.__getitem__, lambda _: "2.34.0")
++        verificador.testar_provedor(r, fontes.__getitem__)
++        self.assertEqual(r["teste_provedor"], "aprovado")
++        provedor.assert_called_once()
++
++    def test_filtros_inventados_nao_passam_na_homologacao(self):
++        fontes, provedor = modulos()
++        provedor.return_value = {**FILTROS, "referencia": "diesel"}
++        r = verificador.diagnosticar(AMBIENTE, fontes.__getitem__, lambda _: "2.34.0")
++        verificador.testar_provedor(r, fontes.__getitem__)
++        self.assertEqual(r["status"], "falha_provedor")
++
++    def test_falha_do_provedor_omite_detalhes_sensiveis(self):
++        fontes, provedor = modulos()
++        provedor.side_effect = RuntimeError("segredo-privado-nao-deve-sair")
++        r = verificador.diagnosticar(AMBIENTE, fontes.__getitem__, lambda _: "2.34.0")
++        verificador.testar_provedor(r, fontes.__getitem__)
++        self.assertEqual(r["erro_tipo"], "RuntimeError")
++        self.assertNotIn("segredo-privado", str(r))
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/front_end/tests/apoio-assistente.cjs b/front_end/tests/apoio-assistente.cjs
+new file mode 100644
+index 0000000..feee587
+--- /dev/null
++++ b/front_end/tests/apoio-assistente.cjs
+@@ -0,0 +1,142 @@
++/* global __dirname */
++// Simula hooks/JSX, foco, API e voz. Não renderiza React ou React Native reais.
++const fs = require("node:fs");
++const path = require("node:path");
++const vm = require("node:vm");
++const assert = require("node:assert/strict");
++const ts = require("typescript");
++let corrente = null;
++
++const hooks = {
++  useState(inicial) {
++    const dono = corrente, i = dono.indice++;
++    if (!(i in dono.slots)) dono.slots[i] = inicial;
++    return [dono.slots[i], (valor) => {
++      if (!dono.montado) dono.atualizacoesAposSaida++;
++      dono.slots[i] = typeof valor === "function" ? valor(dono.slots[i]) : valor;
++    }];
++  },
++  useRef(inicial) {
++    const dono = corrente, i = dono.indice++;
++    if (!(i in dono.slots)) dono.slots[i] = { current: inicial };
++    return dono.slots[i];
++  },
++  useCallback: (fn) => fn,
++  useEffect(fn, deps) {
++    const dono = corrente, i = dono.indice++, antes = dono.slots[i];
++    if (!antes || deps.some((v, j) => !Object.is(v, antes.deps[j]))) {
++      dono.efeitos.push(() => {
++        antes?.cleanup?.();
++        dono.slots[i] = { deps, cleanup: fn() };
++      });
++    }
++  },
++};
++const jsx = (type, props, key) => ({ type, props: props || {}, key });
++const turno = () => new Promise((resolve) => setImmediate(resolve));
++
++// Lê os fontes instalados, trocando somente as fronteiras externas por simuladores.
++function ambiente() {
++  const env = {
++    chamadas: [], navegacoes: [], aplicacoes: [],
++    auth: { token: "sessao-sintetica-a", status: "AUTHENTICATED", openAuth() {} },
++    contexto: { filtros: { combustiveis: [], referencia: "gasolina_comum", marca: "", ordenar: "preco" }, usuario: null },
++    vozAtiva: false,
++  };
++  env.contexto.aplicar = (filtros) => env.aplicacoes.push(filtros);
++  env.resposta = () => ({ filtros: { combustiveis: ["etanol"], referencia: "etanol", marca: "Shell", ordenar: "preco" },
++    postos: [], total: 0, interpretacao: "comando", localizacao_usada: false, mensagem: "Nenhum posto encontrado." });
++  env.postImpl = async () => ({ data: env.resposta() });
++  const cache = new Map();
++  function carregar(relativo) {
++    const arquivo = path.resolve(__dirname, "../src", relativo);
++    if (cache.has(arquivo)) return cache.get(arquivo);
++    let codigo = fs.readFileSync(arquivo, "utf8");
++    if (relativo.endsWith("Assistente/index.tsx")) codigo += "\nexport { ConteudoAssistente };";
++    const js = ts.transpileModule(codigo, { compilerOptions: {
++      module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX,
++    } }).outputText;
++    const modulo = { exports: {} };
++    const importar = (nome) => {
++      if (nome === "react") return hooks;
++      if (nome === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
++      if (nome === "react-native") return { View: "View" };
++      if (nome === "@react-navigation/native") return {
++        useNavigation: () => ({ navigate: (rota) => env.navegacoes.push(rota) }),
++        useFocusEffect: (fn) => hooks.useEffect(() => {
++          const fechar = fn(); env.desfocar = fechar; env.refocar = fn;
++          return fechar;
++        }, []),
++      };
++      if (nome.endsWith("/AuthContext")) return { useAuth: () => env.auth };
++      if (nome.endsWith("/FiltrosPostosContext")) return { useFiltrosPostos: () => env.contexto };
++      if (nome.endsWith("/API")) return { api: { post: async (...args) => {
++        env.chamadas.push(args); return env.postImpl(...args);
++      } } };
++      if (nome === "axios") return { isAxiosError: (erro) => !!erro?.isAxiosError };
++      if (nome.endsWith("/design")) return { AppButton: "AppButton", AppField: "AppField", Notice: "Notice", Page: "Page", Surface: "Surface" };
++      if (nome.endsWith("/cartao-posto")) return { CartaoPosto: "CartaoPosto" };
++      if (nome.endsWith("/voz")) return {
++        vozDisponivel: () => env.vozAtiva,
++        iniciarVoz: (texto, fim, erro) => {
++          env.transcrever = texto; env.fimVoz = fim; env.erroVoz = erro;
++          return () => { env.abortouVoz = true; fim(); };
++        },
++      };
++      const destino = path.resolve(path.dirname(arquivo), nome);
++      const ext = [".ts", ".tsx"].find((sufixo) => fs.existsSync(destino + sufixo));
++      if (!ext) throw new Error("Import não simulado: " + nome);
++      return carregar(path.relative(path.resolve(__dirname, "../src"), destino + ext));
++    };
++    vm.runInNewContext("(function(require,module,exports){" + js + "\n})", { AbortController, Error, Date })(importar, modulo, modulo.exports);
++    cache.set(arquivo, modulo.exports);
++    return modulo.exports;
++  }
++  env.tela = carregar("screens/Assistente/index.tsx");
++  env.servico = carregar("services/assistente.ts");
++  return env;
++}
++
++// Mantém uma instância entre handlers; verificação de chaves é separada.
++function montar(funcao, props = {}) {
++  const dono = { slots: [], indice: 0, efeitos: [], montado: true, atualizacoesAposSaida: 0,
++    render() {
++      this.indice = 0; this.efeitos = []; corrente = this;
++      try { this.arvore = funcao(props); } finally { corrente = null; }
++      for (const efeito of this.efeitos) efeito();
++      return this.arvore;
++    },
++    sair() { this.montado = false; for (const slot of this.slots) slot?.cleanup?.(); },
++  };
++  dono.render();
++  return dono;
++}
++
++function todos(no, filtro, itens = []) {
++  if (Array.isArray(no)) no.forEach((n) => todos(n, filtro, itens));
++  else if (no && typeof no === "object") {
++    if (filtro(no)) itens.push(no);
++    todos(no.props?.children, filtro, itens);
++  }
++  return itens;
++}
++function botao(dono, nome) {
++  const b = todos(dono.arvore, (n) => n.type === "AppButton" && n.props.label === nome)[0];
++  assert.ok(b, "Botão ausente: " + nome);
++  return b;
++}
++function editar(dono, texto) {
++  todos(dono.arvore, (n) => n.type === "AppField")[0].props.onChangeText(texto);
++  dono.render();
++}
++async function buscar(dono, texto = "etanol Shell mais barato") {
++  editar(dono, texto);
++  botao(dono, "Buscar postos").props.onPress();
++  await turno(); dono.render();
++}
++function pendente() {
++  let resolve;
++  const promise = new Promise((fn) => { resolve = fn; });
++  return { promise, resolve };
++}
++module.exports = { ambiente, montar, todos, botao, editar, buscar, pendente, turno };
+diff --git a/front_end/tests/assistente-sessao.test.cjs b/front_end/tests/assistente-sessao.test.cjs
+new file mode 100644
+index 0000000..ac767db
+--- /dev/null
++++ b/front_end/tests/assistente-sessao.test.cjs
+@@ -0,0 +1,106 @@
++const { test } = require("node:test");
++const assert = require("node:assert/strict");
++const { ambiente, montar, todos, botao, buscar, pendente, turno } = require("./apoio-assistente.cjs");
++
++test("assistente separa rascunho e resultado por sessão", () => {
++  const e = ambiente(), primeira = e.tela.default().key;
++  e.auth.token = "sessao-sintetica-b";
++  assert.notEqual(e.tela.default().key, primeira);
++  e.auth.status = "GUEST"; e.auth.token = null;
++  const pagina = montar(e.tela.default);
++  botao(pagina, "Entrar para usar o assistente");
++  assert.equal(e.chamadas.length, 0);
++});
++
++test("busca não aplica filtros ou navega antes da confirmação", async () => {
++  const e = ambiente(), d = montar(e.tela.ConteudoAssistente, { token: e.auth.token });
++  await buscar(d);
++  assert.equal(e.aplicacoes.length, 0); assert.equal(e.navegacoes.length, 0);
++  assert.equal(e.chamadas[0][2].headers.Authorization, "Bearer sessao-sintetica-a");
++  botao(d, "Aplicar esta busca no mapa").props.onPress();
++  assert.equal(e.aplicacoes[0].referencia, "etanol");
++  assert.equal(e.aplicacoes[0].combustiveis.join(","), "etanol");
++  assert.equal(e.navegacoes[0], "Mapa");
++});
++
++test("cancelar ignora retorno tardio e permite outra busca", async () => {
++  const e = ambiente(), espera = pendente(); e.postImpl = () => espera.promise;
++  const d = montar(e.tela.ConteudoAssistente, { token: e.auth.token });
++  await buscar(d);
++  botao(d, "Cancelar busca").props.onPress(); d.render();
++  assert.equal(e.chamadas[0][2].signal.aborted, true);
++  e.postImpl = async () => ({ data: e.resposta() });
++  await buscar(d, "etanol");
++  espera.resolve({ data: { ...e.resposta(), mensagem: "RESULTADO ANTIGO" } });
++  await turno(); d.render();
++  assert.equal(JSON.stringify(d.arvore).includes("RESULTADO ANTIGO"), false);
++  assert.equal(e.chamadas.length, 2);
++});
++
++test("duplo clique inicia uma única busca", async () => {
++  const e = ambiente(), espera = pendente(); e.postImpl = () => espera.promise;
++  const d = montar(e.tela.ConteudoAssistente, { token: e.auth.token });
++  await buscar(d);
++  botao(d, "Buscar postos").props.onPress(); await turno();
++  assert.equal(e.chamadas.length, 1);
++  d.sair(); espera.resolve({ data: e.resposta() }); await turno();
++  assert.equal(d.atualizacoesAposSaida, 0);
++});
++
++test("desfocar aborta pedido e não deixa a tela ocupada ao voltar", async () => {
++  const e = ambiente(), espera = pendente(); e.postImpl = () => espera.promise;
++  const d = montar(e.tela.ConteudoAssistente, { token: e.auth.token });
++  await buscar(d); e.desfocar();
++  assert.equal(e.chamadas[0][2].signal.aborted, true);
++  espera.resolve({ data: e.resposta() }); await turno();
++  e.refocar(); d.render();
++  assert.equal(botao(d, "Buscar postos").props.busy, false);
++});
++
++test("mudança dos filtros ou GPS impede aplicar uma prévia anterior", async () => {
++  for (const alteracao of [
++    (e) => { e.contexto.filtros = { ...e.contexto.filtros, marca: "Ipiranga" }; },
++    (e) => { e.contexto.usuario = { lat: -7.12, lon: -34.87 }; },
++  ]) {
++    const e = ambiente(), d = montar(e.tela.ConteudoAssistente, { token: e.auth.token });
++    await buscar(d); alteracao(e); d.render();
++    const aplicar = botao(d, "Aplicar esta busca no mapa");
++    assert.equal(aplicar.props.disabled, true);
++    aplicar.props.onPress(); assert.equal(e.aplicacoes.length, 0);
++  }
++});
++
++test("fala preenche texto sem consultar nem aplicar automaticamente", () => {
++  const e = ambiente(); e.vozAtiva = true;
++  const d = montar(e.tela.ConteudoAssistente, { token: e.auth.token });
++  botao(d, "Falar busca").props.onPress(); e.transcrever("diesel e etanol"); e.fimVoz(); d.render();
++  assert.equal(todos(d.arvore, (n) => n.type === "AppField")[0].props.value, "diesel e etanol");
++  assert.equal(e.chamadas.length, 0); assert.equal(e.aplicacoes.length, 0);
++});
++
++test("sair durante escuta ignora transcrição tardia", () => {
++  const e = ambiente(); e.vozAtiva = true;
++  const d = montar(e.tela.ConteudoAssistente, { token: e.auth.token });
++  botao(d, "Falar busca").props.onPress(); d.sair();
++  e.transcrever("resposta antiga");
++  assert.equal(e.abortouVoz, true); assert.equal(d.atualizacoesAposSaida, 0);
++});
++
++test("serviço recusa mensagem inválida, GPS fictício e sessão vazia antes do POST", async () => {
++  const e = ambiente(), signal = new AbortController().signal;
++  for (const mensagem of ["", "x".repeat(501)]) {
++    await assert.rejects(e.servico.consultarAssistente(mensagem, e.contexto.filtros, null, signal));
++  }
++  await assert.rejects(e.servico.consultarAssistente("etanol", e.contexto.filtros, { lat: 0, lon: 0 }, signal));
++  await assert.rejects(e.servico.consultarAssistente("etanol", e.contexto.filtros, null, signal, ""));
++  assert.equal(e.chamadas.length, 0);
++});
++
++test("busca já cancelada não envia e filtros são copiados", async () => {
++  const e = ambiente(), controller = new AbortController(); controller.abort();
++  await assert.rejects(e.servico.consultarAssistente("etanol", e.contexto.filtros, null, controller.signal));
++  assert.equal(e.chamadas.length, 0);
++  const filtros = e.servico.validarFiltrosBusca(e.contexto.filtros);
++  filtros.combustiveis.push("etanol");
++  assert.equal(e.contexto.filtros.combustiveis.length, 0);
++});
+diff --git a/front_end/tests/voz-revisao.test.cjs b/front_end/tests/voz-revisao.test.cjs
+new file mode 100644
+index 0000000..9b8ed8e
+--- /dev/null
++++ b/front_end/tests/voz-revisao.test.cjs
+@@ -0,0 +1,49 @@
++/* global __dirname */
++const { test } = require("node:test");
++const assert = require("node:assert/strict");
++const fs = require("node:fs"), path = require("node:path"), vm = require("node:vm");
++const ts = require("typescript");
++
++// O navegador é simulado; estes casos verificam limpeza e integridade da transcrição.
++function ambiente() {
++  let voz, fim = 0;
++  const textos = [], erros = [], timers = new Map();
++  class Reconhecimento {
++    constructor() { voz = this; }
++    start() {}
++    abort() { this.abortos = (this.abortos || 0) + 1; }
++  }
++  const modulo = { exports: {} };
++  const js = ts.transpileModule(fs.readFileSync(path.resolve(__dirname, "../src/services/voz.web.ts"), "utf8"), {
++    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
++  }).outputText;
++  vm.runInNewContext(js, { module: modulo, exports: modulo.exports, Error,
++    SpeechRecognition: Reconhecimento, isSecureContext: true,
++    setTimeout: (fn) => { timers.set(1, fn); return 1; }, clearTimeout: (id) => timers.delete(id),
++  });
++  return {
++    iniciar(callback = (texto) => textos.push(texto)) {
++      return modulo.exports.iniciarVoz(callback, () => { fim++; }, (erro) => erros.push(erro));
++    },
++    voz: () => voz, fim: () => fim, textos, erros, timers,
++  };
++}
++
++test("fim da escuta sem resultado produz orientação e limpa recursos", () => {
++  const e = ambiente(); e.iniciar(); e.voz().onend();
++  assert.equal(e.fim(), 1); assert.equal(e.timers.size, 0);
++  assert.equal(e.voz().abortos, 1); assert.equal(e.erros.length, 1);
++  assert.equal(e.textos.length, 0);
++});
++
++test("fala longa não é truncada nem enviada como outra busca", () => {
++  const e = ambiente(); e.iniciar(); e.voz().onresult({ results: [[{ transcript: "x".repeat(501) }]] });
++  assert.equal(e.textos.length, 0); assert.match(e.erros[0], /500/);
++  assert.equal(e.fim(), 1); assert.equal(e.timers.size, 0);
++});
++
++test("exceção no consumidor não deixa escuta e temporizador ativos", () => {
++  const e = ambiente(); e.iniciar(() => { throw new Error("consumidor falhou"); });
++  assert.throws(() => e.voz().onresult({ results: [[{ transcript: "etanol" }]] }), /consumidor falhou/);
++  assert.equal(e.fim(), 1); assert.equal(e.timers.size, 0); assert.equal(e.voz().onresult, null);
++});

@@ -1,0 +1,49 @@
+/usr/local/lib/python3.12/site-packages/dropbox/session.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+test_conta_nome_favoritos_preferencias_e_exclusao (__main__.IntegracaoParticipacao.test_conta_nome_favoritos_preferencias_e_exclusao) ... /app/app/rotas/conta.py:47: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  agora = datetime.utcnow()
+ok
+test_fila_favoritos_quedas_idempotencia_e_concorrencia (__main__.IntegracaoParticipacao.test_fila_favoritos_quedas_idempotencia_e_concorrencia) ... ok
+test_fila_recupera_falha_sem_aviso_parcial (__main__.IntegracaoParticipacao.test_fila_recupera_falha_sem_aviso_parcial) ... ok
+test_novo_preco_nao_herda_avaliacoes (__main__.IntegracaoParticipacao.test_novo_preco_nao_herda_avaliacoes) ... ok
+test_oferta_concorrente_preserva_uma_auditoria (__main__.IntegracaoParticipacao.test_oferta_concorrente_preserva_uma_auditoria) ... ok
+test_oferta_idempotente_nao_altera_preco_karma (__main__.IntegracaoParticipacao.test_oferta_idempotente_nao_altera_preco_karma) ... ok
+test_oferta_preserva_negativa_e_origem_osm (__main__.IntegracaoParticipacao.test_oferta_preserva_negativa_e_origem_osm) ... ok
+test_oferta_validacoes_e_autenticacao (__main__.IntegracaoParticipacao.test_oferta_validacoes_e_autenticacao) ... ok
+test_preco_grava_evento_e_historico_atomicos (__main__.IntegracaoParticipacao.test_preco_grava_evento_e_historico_atomicos) ... [2026-11-14 00:07:02,471] ERROR in precos: Erro ao registrar preço
+Traceback (most recent call last):
+  File "/app/app/rotas/precos.py", line 360, in registrar_preco_validado
+    registrar_karma(
+  File "/usr/local/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: falha simulada
+ok
+test_trocas_concorrentes_mesma_conta_mantem_saldo (__main__.IntegracaoParticipacao.test_trocas_concorrentes_mesma_conta_mantem_saldo) ... ok
+test_voto_falha_reverte_pontos_score_e_voto (__main__.IntegracaoParticipacao.test_voto_falha_reverte_pontos_score_e_voto) ... [2026-11-14 00:07:02,710] ERROR in votos: Falha na avaliação do preço
+Traceback (most recent call last):
+  File "/app/app/rotas/votos.py", line 71, in votos
+    registrar_karma(cursor, autor, delta * 2, f"voto:{voto_id}:{sequencia}", "Avaliação de preço pela comunidade", registo_id)
+  File "/usr/local/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: falha simulada
+ok
+test_voto_proprio_repeticao_troca_e_retorno (__main__.IntegracaoParticipacao.test_voto_proprio_repeticao_troca_e_retorno) ... ok
+test_votos_concorrentes_mesma_conta_e_duas_contas (__main__.IntegracaoParticipacao.test_votos_concorrentes_mesma_conta_e_duas_contas) ... ok
+test_votos_json_invalido_e_registro_inexistente (__main__.IntegracaoParticipacao.test_votos_json_invalido_e_registro_inexistente) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 3.007s
+
+OK

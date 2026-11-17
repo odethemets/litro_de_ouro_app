@@ -1,0 +1,21 @@
+{
+  "status": "ok",
+  "iniciado_em_utc": "2026-11-15T05:37:23.218620+00:00",
+  "modo": "somente_fonte",
+  "origem": "arquivo",
+  "atribuicao": "© OpenStreetMap contributors — ODbL",
+  "licenca_url": "https://www.openstreetmap.org/copyright",
+  "gravacao_habilitada": false,
+  "consulta_banco_solicitada": false,
+  "municipio": {
+    "nome": "João Pessoa",
+    "codigo_ibge": "2507507",
+    "osm_area_id": 3600301405
+  },
+  "sha256_fonte": "2a8b7606f7cc47f5d76c422850dfee902dee9d2e8f88bae0407a307825e74e11",
+  "data_base_fonte_utc": "2026-11-11T03:05:04+00:00",
+  "postos_normalizados": 88,
+  "descartados_na_leitura": 1,
+  "etapa": "concluido",
+  "finalizado_em_utc": "2026-11-15T05:37:23.223450+00:00"
+}

@@ -1,0 +1,852 @@
+[
+  {
+    "arquivo": "front_end/src/components/acesso-restrito.tsx",
+    "sha256": "8c9e4a4580b35c77597a9be95e19175c2867ff15ab294297af005eed0bf13363",
+    "linhas": 55
+  },
+  {
+    "arquivo": "front_end/src/components/animated-icon.tsx",
+    "sha256": "53772b1cfee876e9e79be0456fc6a4500b76a88e12990c63b3cc96d9ba9842b5",
+    "linhas": 148
+  },
+  {
+    "arquivo": "front_end/src/components/animated-icon.web.tsx",
+    "sha256": "d99b902d487bb7a0c6357b201cc5c5fda1fd1a482e6edea3d896324e949712d2",
+    "linhas": 108
+  },
+  {
+    "arquivo": "front_end/src/components/cartao-posto.tsx",
+    "sha256": "130415f50909c1d5301d0c4bfa21f0b032832906f3f4999e1e4909b971c40fd5",
+    "linhas": 226
+  },
+  {
+    "arquivo": "front_end/src/components/confirmar-oferta.tsx",
+    "sha256": "d70e7e4e26dcee95c6b7b4279b74ae0f7c24d06ca51510dcaca66db7ac31af9c",
+    "linhas": 135
+  },
+  {
+    "arquivo": "front_end/src/components/design.tsx",
+    "sha256": "161dbf0a56efba8e83206cded933b64b7c977cdd9853554f146ee6824638e95f",
+    "linhas": 436
+  },
+  {
+    "arquivo": "front_end/src/components/favoritos.tsx",
+    "sha256": "0ad28f734c3f7bbb40a2200abdde8f7ec544c08d501f44ffcc8a2e29a5b0ffb7",
+    "linhas": 113
+  },
+  {
+    "arquivo": "front_end/src/components/feedback-acao.tsx",
+    "sha256": "dd4040448689cc76ffe5e1e1d8d12f1df00cadab650def47e2845b6a5db3d9b7",
+    "linhas": 99
+  },
+  {
+    "arquivo": "front_end/src/components/filtros-postos.tsx",
+    "sha256": "17252d9105f916b13dcf8992e1eeb89442a02d9f54d946a4f50e8943d8c55ce4",
+    "linhas": 285
+  },
+  {
+    "arquivo": "front_end/src/components/form-auth.tsx",
+    "sha256": "64306929b9dec63693ab17dd39250f51ff2bca5f2c0d42427e4c314f3eee48c7",
+    "linhas": 97
+  },
+  {
+    "arquivo": "front_end/src/components/hint-row.tsx",
+    "sha256": "2b5b1bbd4da6d9946e9a267587d7d6279059b0fab01dfeca144cd8cc3653a099",
+    "linhas": 35
+  },
+  {
+    "arquivo": "front_end/src/components/leitor-totem.tsx",
+    "sha256": "324880dfa1e6fa37c94e767af8f305cd948a1f6afbd291e0210f6106b967651a",
+    "linhas": 209
+  },
+  {
+    "arquivo": "front_end/src/components/lista-conta.tsx",
+    "sha256": "715eda850f9d39b9ca5483e77fa50416074603855f29f5ddba58e7d2085efa4b",
+    "linhas": 114
+  },
+  {
+    "arquivo": "front_end/src/components/lista-postos-consulta.tsx",
+    "sha256": "ffab12377adef86e122e570c3440b9a4085e526b47a9f70cb753aeed445035b7",
+    "linhas": 170
+  },
+  {
+    "arquivo": "front_end/src/components/mapa/mapaHtml.ts",
+    "sha256": "212a77752c9195f49695e60061101c9e90ef27b060b196c93d4f181789755e92",
+    "linhas": 225
+  },
+  {
+    "arquivo": "front_end/src/components/mapa/MapaLeaflet.tsx",
+    "sha256": "11a3b75ce99f5b58ed7df1bb03201aacc940e6dfeebafb64c35e6a38366986b8",
+    "linhas": 144
+  },
+  {
+    "arquivo": "front_end/src/components/mapa/MapaLeaflet.web.tsx",
+    "sha256": "903f6eb1ae36b234ef37f9b3bc633eb554ab9b54cb909858878c2e1b008dc39a",
+    "linhas": 126
+  },
+  {
+    "arquivo": "front_end/src/components/mapa/tipos.ts",
+    "sha256": "301d2b5be081559e16af4d3d657cf545ff9601128d14cc4ff42a01177c3b8f28",
+    "linhas": 57
+  },
+  {
+    "arquivo": "front_end/src/components/mapa/useMapaBridge.ts",
+    "sha256": "1b170114a45dbc281f137cf5820c1cf7cc0d6584c437b92bc16c7cfd5ed81099",
+    "linhas": 191
+  },
+  {
+    "arquivo": "front_end/src/components/navegacao.tsx",
+    "sha256": "01039030f8edbf18c4972c64f3a7503dfc3ad97c482bac4fa4bdb00bcf30cdd4",
+    "linhas": 132
+  },
+  {
+    "arquivo": "front_end/src/components/themed-text.tsx",
+    "sha256": "a8ff3da42cfc9fc19b6d74927b34d8227637db658d32ed2c8c2a3ddd580b5237",
+    "linhas": 73
+  },
+  {
+    "arquivo": "front_end/src/components/themed-view.tsx",
+    "sha256": "e13930b2f4dfd4dab093d1a86c1586825a97d56e895ba8cb9c89233e654138c9",
+    "linhas": 16
+  },
+  {
+    "arquivo": "front_end/src/components/ui/collapsible.tsx",
+    "sha256": "73613fbb9c2d64215f7c365683ec790dbf6f04160bea48bc7273cc0a36d4a95b",
+    "linhas": 65
+  },
+  {
+    "arquivo": "front_end/src/components/votar-preco.tsx",
+    "sha256": "93e8d47348c533e8f992c384a04b23b1e0a818123b295af4a570bb60b6e7a3a3",
+    "linhas": 118
+  },
+  {
+    "arquivo": "front_end/src/components/web-badge.tsx",
+    "sha256": "0af7715337e070c7c476202c8dd77f2fd6a3514255ace1ead9f832ccc8351a7f",
+    "linhas": 43
+  },
+  {
+    "arquivo": "front_end/src/constants/theme.ts",
+    "sha256": "a6eb2eb18e825540d08e54e700718726a3f4b840a4a5da5c7b1e7cb7c4ee5a78",
+    "linhas": 65
+  },
+  {
+    "arquivo": "front_end/src/contexts/AuthContext.tsx",
+    "sha256": "f79f4bcf4dbbb6ca9fdcda1a38d4110eb3065ff8b22f8f1d06ddfca70cfab572",
+    "linhas": 92
+  },
+  {
+    "arquivo": "front_end/src/contexts/FavoritosContext.tsx",
+    "sha256": "a189ad0f057048f7f83efef23db336291904f9679a0ee7d770a1316b6305165c",
+    "linhas": 203
+  },
+  {
+    "arquivo": "front_end/src/contexts/FiltrosPostosContext.tsx",
+    "sha256": "c6583f0730f4c360aced38360027709ab7a6c950244bedf45d8f136f50875307",
+    "linhas": 161
+  },
+  {
+    "arquivo": "front_end/src/contexts/ThemeContext.tsx",
+    "sha256": "d74dcf87486b8d2670ed2bc2655af836054050b59963f6b5ec1d44932f0c7398",
+    "linhas": 94
+  },
+  {
+    "arquivo": "front_end/src/hooks/use-color-scheme.ts",
+    "sha256": "f12cd8d9ed13e29d1f3f9db3ffc422fd99549802abb13665d53ad44bb4136c80",
+    "linhas": 22
+  },
+  {
+    "arquivo": "front_end/src/hooks/use-color-scheme.web.ts",
+    "sha256": "54c5e67a80784d00c8183f14b615e51206945b5ea503d6126ed85109511bc47e",
+    "linhas": 21
+  },
+  {
+    "arquivo": "front_end/src/hooks/use-theme.ts",
+    "sha256": "b7ea32dce74e8b74ab7012a0d727a52856517e42dbb6a2c8e886681034235b31",
+    "linhas": 11
+  },
+  {
+    "arquivo": "front_end/src/hooks/useConsultaConta.ts",
+    "sha256": "160fe3fd32ce352a2b4a74dfe40f006cf8fcd60d762f52f97a57d048334dddc3",
+    "linhas": 79
+  },
+  {
+    "arquivo": "front_end/src/routes/app.routes.tsx",
+    "sha256": "6884220501b2c296eff5f206f59fd1008150d3d862696a45d285e56237da6007",
+    "linhas": 267
+  },
+  {
+    "arquivo": "front_end/src/routes/auth.routes.tsx",
+    "sha256": "9468cc8df130f22476cb92b199ec8a580fe99cbfe5cfe98da8c0e7a7cde94902",
+    "linhas": 58
+  },
+  {
+    "arquivo": "front_end/src/routes/index.tsx",
+    "sha256": "e1d529e3a0cdf53966881794c4c112dfab94a7e2691ea909d5f2012c0114f1de",
+    "linhas": 104
+  },
+  {
+    "arquivo": "front_end/src/screens/AdicionarPreco/index.tsx",
+    "sha256": "3fb01bbb8670316beb64f7ab065dbaf37bb31f30b1515e19bd8c68e62217c7d9",
+    "linhas": 902
+  },
+  {
+    "arquivo": "front_end/src/screens/ApagarConta/index.tsx",
+    "sha256": "af0ab9bfb06e9284edb4076642282bc853ad4598dac674053f830b84bcd8f319",
+    "linhas": 132
+  },
+  {
+    "arquivo": "front_end/src/screens/Aparencia/index.tsx",
+    "sha256": "fa91447480c71f6bbc4ee5f65c2d01772750a8f3cbd6f830aba2bc8e3fb2be3c",
+    "linhas": 110
+  },
+  {
+    "arquivo": "front_end/src/screens/Assistente/index.tsx",
+    "sha256": "13eecb504f245e3de6baf1a06c389f8d6df02a53468025f31b5862a3c2030d6a",
+    "linhas": 203
+  },
+  {
+    "arquivo": "front_end/src/screens/Atividade/index.tsx",
+    "sha256": "19e7689a3cc60d8290f9edf9c5a8d2d39e7c440d0a74cea82dfc9857a863a569",
+    "linhas": 341
+  },
+  {
+    "arquivo": "front_end/src/screens/Configuracoes/index.tsx",
+    "sha256": "574922c26b10580cfc5f7b9e0d3c61ded0bbd810bb8412feca4e43faa6f07ee3",
+    "linhas": 79
+  },
+  {
+    "arquivo": "front_end/src/screens/ConsultaPostos/detalhes.tsx",
+    "sha256": "11dcdcf810d4a9184af3cd89034608d0c22a9af6b873d8e95e6f108c8c96dd8a",
+    "linhas": 175
+  },
+  {
+    "arquivo": "front_end/src/screens/ConsultaPostos/index.tsx",
+    "sha256": "d5fb356c7c80e95596c2c3d51a3081e4575588d96c7934e4d5189a36ffa4a2fa",
+    "linhas": 498
+  },
+  {
+    "arquivo": "front_end/src/screens/ConsultaPostos/layout.tsx",
+    "sha256": "3c29b6043c8b32ea12e5c248eff5ae6506e05884e1f2863a2225b5cb507c0b9c",
+    "linhas": 116
+  },
+  {
+    "arquivo": "front_end/src/screens/Conta/index.tsx",
+    "sha256": "33c3a94500d638b155b7d9e338c4fdab7ebebefafbc0f695e594ef85c895b163",
+    "linhas": 385
+  },
+  {
+    "arquivo": "front_end/src/screens/DadosPessoais/index.tsx",
+    "sha256": "0e34d9ad9f31b0c6ec72cd4a5b991eaa944d62954b99d13174405e75b8a317c8",
+    "linhas": 197
+  },
+  {
+    "arquivo": "front_end/src/screens/Entrada/index.tsx",
+    "sha256": "ddc1f141b7ec346f084cba04b74bb9aee5c46cb04dcf29bac5032c13fb02ae37",
+    "linhas": 52
+  },
+  {
+    "arquivo": "front_end/src/screens/Favoritos/index.tsx",
+    "sha256": "c99a2d8927c0dd4f929fceada717412c11b22b3e4819f1c8224e677f4efe3e47",
+    "linhas": 147
+  },
+  {
+    "arquivo": "front_end/src/screens/HistoricoKarma/index.tsx",
+    "sha256": "f63d1cce8c1ca91cd2926c891ea27e35cb546b019e07e0a7722265042f752ea4",
+    "linhas": 77
+  },
+  {
+    "arquivo": "front_end/src/screens/Inicio/index.tsx",
+    "sha256": "c6e293ad490a63c842e0c7c308d2644568da89b67851f1dc1c4f1495b84a827b",
+    "linhas": 1503
+  },
+  {
+    "arquivo": "front_end/src/screens/Login/index.tsx",
+    "sha256": "23b15395b6913e4943192801061ba2ec0e8f91c1828b07f36194044052be9f29",
+    "linhas": 191
+  },
+  {
+    "arquivo": "front_end/src/screens/Login/ValidarCodigo.tsx",
+    "sha256": "ab5912f090b765a13d52fbddee0686a142fcd3ef8e827fc43ebc0c424a28252e",
+    "linhas": 389
+  },
+  {
+    "arquivo": "front_end/src/screens/Mapa/index.tsx",
+    "sha256": "0e2870d973a3520039e3b2b5b033f24a8feea65b4d96397b6506a4e1033cba50",
+    "linhas": 2
+  },
+  {
+    "arquivo": "front_end/src/screens/Notificacoes/index.tsx",
+    "sha256": "6d59111d554f0b259d26ca38184f585f7366d8bb3cb6ed4673aa795953b5ff57",
+    "linhas": 153
+  },
+  {
+    "arquivo": "front_end/src/screens/PreferenciaAlertas/index.tsx",
+    "sha256": "769486f5f08fa44e001b23ce8b88e73fa7a23c877c384ba7269de265a7b390e4",
+    "linhas": 273
+  },
+  {
+    "arquivo": "front_end/src/screens/Raking/index.tsx",
+    "sha256": "2eb20d513a17f6027e54f95947d6f7b63e9cf28fe96c53329318999c6e6ca47d",
+    "linhas": 55
+  },
+  {
+    "arquivo": "front_end/src/screens/RecuperarSenha/index.tsx",
+    "sha256": "4cbd79f4e0add698f806794fddd64328c37de3082b52ecb409042582b665e170",
+    "linhas": 161
+  },
+  {
+    "arquivo": "front_end/src/screens/RedefinirSenha/index.tsx",
+    "sha256": "6f5d7eee8185d6f111f31d3d145ed8676d68b87594640b4e45cf52c53cb5a2da",
+    "linhas": 113
+  },
+  {
+    "arquivo": "front_end/src/screens/RedefinirSenhaConta/index.tsx",
+    "sha256": "4e1415a56e0b98ce068b47f36dd6f9f9a18330dc2e7888d1dc642bf16cb5e040",
+    "linhas": 199
+  },
+  {
+    "arquivo": "front_end/src/screens/Registro/index.tsx",
+    "sha256": "2a84accf9e46c6fbcf2dd14b7d6a657f473ea3ab6a3f3995da42d01ef603dc22",
+    "linhas": 294
+  },
+  {
+    "arquivo": "front_end/src/services/alertas.ts",
+    "sha256": "3a36f0dd142f58a2ba003f3ecb36ba38694548afe82f0ab97ef9b3d18727eff3",
+    "linhas": 134
+  },
+  {
+    "arquivo": "front_end/src/services/API.ts",
+    "sha256": "318820bc3836eb1036e3070af5f6e07c9ffc2a5a1c36230df422b2cdbece0e21",
+    "linhas": 59
+  },
+  {
+    "arquivo": "front_end/src/services/assistente.ts",
+    "sha256": "5f62443e2fe7a30f299d701896671e98c29107c8b3d56a68021f8432524f5bfe",
+    "linhas": 102
+  },
+  {
+    "arquivo": "front_end/src/services/atividadeConta.ts",
+    "sha256": "e135c09c6cddb4b58e41ed41014a36dc951dfc946bcca7a27e296c14c7bcdb10",
+    "linhas": 119
+  },
+  {
+    "arquivo": "front_end/src/services/buscaPostosNome.ts",
+    "sha256": "192443cd71e1d6f229f72c4f65bc0f7505b0b19e4ec5b76530df1fd7d48bce3b",
+    "linhas": 48
+  },
+  {
+    "arquivo": "front_end/src/services/cadastroPreco.ts",
+    "sha256": "5ddcd59d4784e8b72fba16915ef59ad7d1de6962945dc07ab236d10313994f04",
+    "linhas": 275
+  },
+  {
+    "arquivo": "front_end/src/services/catalogoPostos.ts",
+    "sha256": "99285365d989d0b3cd81b52d4355dc723b03b31ad69f4dcd9e7c68196463e1d7",
+    "linhas": 264
+  },
+  {
+    "arquivo": "front_end/src/services/configuracao.ts",
+    "sha256": "786ea9693de22b614eb57706a731af54a6cdd152e3787674c158be278600fec5",
+    "linhas": 30
+  },
+  {
+    "arquivo": "front_end/src/services/contratoAuth.ts",
+    "sha256": "fe6d7b13b2d4601ec1f27a590fd225a6d6ffec1ee53ce9b5f9bc90849b2bcefb",
+    "linhas": 51
+  },
+  {
+    "arquivo": "front_end/src/services/controleSessao.ts",
+    "sha256": "7298e8cf332da8ff70c3d9eb43f0bd14980fc307cba0fe50644d79b8db485bc9",
+    "linhas": 204
+  },
+  {
+    "arquivo": "front_end/src/services/favoritos.ts",
+    "sha256": "9faf018d42a46c692099637602f0528945cde3bf57b1740f38670832063b87c3",
+    "linhas": 40
+  },
+  {
+    "arquivo": "front_end/src/services/historicoVistos.ts",
+    "sha256": "33cc3ee4364f40b40b467cf6e86941218d08f56aa4bfe983a2c658fd4929b1bc",
+    "linhas": 62
+  },
+  {
+    "arquivo": "front_end/src/services/karma.ts",
+    "sha256": "3bdfa184ef283fef31204a30d06597a16c44a48555b44ee4fce54dbe38b52c4f",
+    "linhas": 87
+  },
+  {
+    "arquivo": "front_end/src/services/leituraTotem.ts",
+    "sha256": "1ae477995339b8a76215f519f55be7864d5de326c48ccac926439f80a1e32c07",
+    "linhas": 107
+  },
+  {
+    "arquivo": "front_end/src/services/lista-postos-consulta.tsx",
+    "sha256": "2524378e7fd8ce14a68740dcd21729d26356cdb8b3d60aed22e2d4d8b4c08b8e",
+    "linhas": 170
+  },
+  {
+    "arquivo": "front_end/src/services/ofertas.ts",
+    "sha256": "d0dea87aa9ede89f535eac5958b250e72ad22d6a1a1b7d8f21a0ab0ab6a5e2c9",
+    "linhas": 26
+  },
+  {
+    "arquivo": "front_end/src/services/participacao.ts",
+    "sha256": "e4891dd979735e4fb1742298800018a40542af71347feced8049a9bd6a1a7b19",
+    "linhas": 72
+  },
+  {
+    "arquivo": "front_end/src/services/sessao.ts",
+    "sha256": "853c589aa0b5d9cd4cb67fb4e95f76aeb4e63fbb714038a3c271eb8de3038c4a",
+    "linhas": 65
+  },
+  {
+    "arquivo": "front_end/src/services/votos.ts",
+    "sha256": "b3141769450f01fd5f7b438a17a9fb0ea14abba47d09454be6a00ab4a4e52428",
+    "linhas": 21
+  },
+  {
+    "arquivo": "front_end/src/services/voz.ts",
+    "sha256": "8ffd7d81bfdce4b9cb8a0f4710cf0eb4bb7fc951542ea148c661d2d78d96980d",
+    "linhas": 11
+  },
+  {
+    "arquivo": "front_end/src/services/voz.web.ts",
+    "sha256": "9493e6ed616b1eac52c763d83466eef00fe92e1703135f217e4af6596cd63836",
+    "linhas": 93
+  },
+  {
+    "arquivo": "front_end/src/theme/colors.tsx",
+    "sha256": "5c1c265007c51e739ec318bb1cc28bb0ce76b82dbef7e669f8f0c5f5b21b936f",
+    "linhas": 35
+  },
+  {
+    "arquivo": "front_end/src/theme/design.ts",
+    "sha256": "653dfbf17280491c4855675638113488805ca892c5925eaaed0de2fbf3bd5af2",
+    "linhas": 24
+  },
+  {
+    "arquivo": "front_end/src/types/styles.d.ts",
+    "sha256": "04b8a037bd5001b01fd59623756b40c8248be2e2ae849aec195ea3457ba004b3",
+    "linhas": 8
+  },
+  {
+    "arquivo": "front_end/src/utils/cores.ts",
+    "sha256": "c67c1b78a3ef480b130e0e2d88236bad3581f8d0cc100ab91483fa3d8060bc09",
+    "linhas": 32
+  },
+  {
+    "arquivo": "front_end/src/utils/feedbackPostos.ts",
+    "sha256": "9e5e83a91cdca722c5fd85f1bec452d16b0a5cf5c4b961c7e2e6174a83657083",
+    "linhas": 50
+  },
+  {
+    "arquivo": "front_end/src/utils/localizacao.ts",
+    "sha256": "ee37abb81800a6e2c551e4d9f0d59f6b4ec917b5b6395e67bed8db5294114d47",
+    "linhas": 158
+  },
+  {
+    "arquivo": "front_end/src/utils/token.ts",
+    "sha256": "bbf01111ef8db2b9e344af62779756e06c9ba9515762e7780424a661ef9b1559",
+    "linhas": 6
+  },
+  {
+    "arquivo": "back_end/app/db.py",
+    "sha256": "49ef1fb864a22ee07c13dd5b166f608d9ad75aeda777dccca7df84574119a8b4",
+    "linhas": 4
+  },
+  {
+    "arquivo": "back_end/app/rotas/assistente.py",
+    "sha256": "5f790f9e4efc6d68504edee8c018352c3e14db5346edc2efdc180c38d08e9c6d",
+    "linhas": 243
+  },
+  {
+    "arquivo": "back_end/app/rotas/atividade.py",
+    "sha256": "96e58588a77c830951d5053d4d99a5e9bb087b468d033b50f671259e5deea500",
+    "linhas": 36
+  },
+  {
+    "arquivo": "back_end/app/rotas/auth.py",
+    "sha256": "b4acf67b191f19ea52c44b8e65ddafd0e6e3a1bb85857648aaf63548be8662f8",
+    "linhas": 814
+  },
+  {
+    "arquivo": "back_end/app/rotas/conta.py",
+    "sha256": "fdf0a0b752e444d54344393ac6bac6af3068f26e367ae658ccd1d179e9552fb2",
+    "linhas": 466
+  },
+  {
+    "arquivo": "back_end/app/rotas/ia.py",
+    "sha256": "2e9a32c0a5bb4d0d4b2565d7442db937ecfc8357a0b26ec275d4440af68214e7",
+    "linhas": 247
+  },
+  {
+    "arquivo": "back_end/app/rotas/ofertas.py",
+    "sha256": "462d7be15e14a0540363430fe077d205bec61a3a93c0fbb43bd268b221600cdc",
+    "linhas": 73
+  },
+  {
+    "arquivo": "back_end/app/rotas/participacao.py",
+    "sha256": "aeb348e71ee27640a74b66d067ac4121d95a154e9e9a71a452a00cb9bbb9a2a0",
+    "linhas": 420
+  },
+  {
+    "arquivo": "back_end/app/rotas/postos.py",
+    "sha256": "058a403944322a2df304e96eee0bca0f03b1da5f07d75c79c69192b580458635",
+    "linhas": 279
+  },
+  {
+    "arquivo": "back_end/app/rotas/precos.py",
+    "sha256": "d065b2010b102c0884ba94d115cdb132e5d6eedd3be422da7878e7bdcaad6086",
+    "linhas": 408
+  },
+  {
+    "arquivo": "back_end/app/rotas/votos.py",
+    "sha256": "d22346fcb6a3c84390df5a0f8e1c01c304127649f5eb7f2c44ee383c0715004d",
+    "linhas": 86
+  },
+  {
+    "arquivo": "back_end/app/utils/decorator.py",
+    "sha256": "98885e60f62757055ff2ddf16a55993e3917a6fe8662b994265b1a29fd7769d0",
+    "linhas": 120
+  },
+  {
+    "arquivo": "back_end/app/utils/geofence.py",
+    "sha256": "7dc775fcc169c337a1db5ae12c99ad60b00e9717bd0a80628e4236edec7f0b0d",
+    "linhas": 160
+  },
+  {
+    "arquivo": "back_end/app/__init__.py",
+    "sha256": "8e7eb189c59eb0be15f152b57eb276075cecd367840670e8da377a857b91d0db",
+    "linhas": 66
+  },
+  {
+    "arquivo": "back_end/services/admin_reports.py",
+    "sha256": "2feb441506fbe1a79fc2fca4af3bfeff645795d17cd967b99a369102802ce26b",
+    "linhas": 57
+  },
+  {
+    "arquivo": "back_end/services/atividade_alertas.py",
+    "sha256": "fcc7284775154febf1cca9d6cb2dbc0dad63f9211b3bea1061bfb95aa65eeb63",
+    "linhas": 69
+  },
+  {
+    "arquivo": "back_end/services/catalogo_postos.py",
+    "sha256": "315f4d2e846f1344f1ae2d332390b99ff9862ab1c5c09d09eb582d9d3f2795b0",
+    "linhas": 180
+  },
+  {
+    "arquivo": "back_end/services/comandos_ia.py",
+    "sha256": "493d5367fed4453621535ed59d8447e0a9469e880aa585f6b2619feff9360911",
+    "linhas": 254
+  },
+  {
+    "arquivo": "back_end/services/contrato_migracoes.py",
+    "sha256": "a55e6a2799f81d566bb9d0625addd5a07df77ad0f834acbaae20520002340c53",
+    "linhas": 251
+  },
+  {
+    "arquivo": "back_end/services/database.py",
+    "sha256": "7c40a93f6ab12c0241b67d040c7390951146eb78085b3a3efcd09fd283198579",
+    "linhas": 195
+  },
+  {
+    "arquivo": "back_end/services/diagnosticar_tidb.py",
+    "sha256": "bcca4d25bd8d34885b6cae188e893be70d1f7b61348852f626a06bc814895c91",
+    "linhas": 53
+  },
+  {
+    "arquivo": "back_end/services/diagnostico_tidb.py",
+    "sha256": "a85a2f569c53c12521352d958aef04acf4ddb7735f899864c6b1c205c0f68e4a",
+    "linhas": 353
+  },
+  {
+    "arquivo": "back_end/services/dropbox_services.py",
+    "sha256": "538d2e1e19b8de5e2fe3d0ec3034d347a587ecddb315661c8001fe07d7c5f4fd",
+    "linhas": 32
+  },
+  {
+    "arquivo": "back_end/services/email_services.py",
+    "sha256": "86ed83b48aa3385b17e8470a6dcf857459869f979746d67a1c76f0a0521e4401",
+    "linhas": 247
+  },
+  {
+    "arquivo": "back_end/services/executor_alertas.py",
+    "sha256": "8b4f0596cea0709a747918ba78fd0590c2f7f90ba149424090d4444ab5e5589f",
+    "linhas": 261
+  },
+  {
+    "arquivo": "back_end/services/grid_postos.py",
+    "sha256": "f42ab624131d58fa54e3ee228bdd3aec96fc725c558a786dc46a788e6e32207b",
+    "linhas": 814
+  },
+  {
+    "arquivo": "back_end/services/infra_web.py",
+    "sha256": "b6213a8f1b6bcf5bc3a09685f6ce0acf92781cd4dd950a6ebf83595f26769bdb",
+    "linhas": 262
+  },
+  {
+    "arquivo": "back_end/services/leitura_totem.py",
+    "sha256": "a9cb72ffa72e30f9759305093d46d3ac40b5c8a42cf837d95522180cdec791c1",
+    "linhas": 82
+  },
+  {
+    "arquivo": "back_end/services/mapbox_service.py",
+    "sha256": "a9d76e480d99f20334d4879de09233dcad9a18d4fef788952ce79cb894d2e35e",
+    "linhas": 141
+  },
+  {
+    "arquivo": "back_end/services/migrations.py",
+    "sha256": "514ea0c54463c43a9decf063a3524a507e9fd0df49bb2f3d4cb6fac4125483fe",
+    "linhas": 159
+  },
+  {
+    "arquivo": "back_end/services/osm_service.py",
+    "sha256": "c4dfd64143a63a3f7fad44170ad373d2993d210d68006358f8ae35e407d9d9f9",
+    "linhas": 808
+  },
+  {
+    "arquivo": "back_end/services/plano_migracoes.py",
+    "sha256": "5c47926e17c19287a4e0263f1898d6b35b0e5e96aed166da09ab380adadd4b9f",
+    "linhas": 217
+  },
+  {
+    "arquivo": "back_end/services/transferencia_banco.py",
+    "sha256": "640eb8410d20b4e46c6453d1de5e453567c97d0c5dd7933a3337669c762ae1e1",
+    "linhas": 954
+  },
+  {
+    "arquivo": "back_end/services/transferir_para_tidb.py",
+    "sha256": "d4cd6dd281c4b71317f8b773cb5c135d4d2a3430902face4d604d3b9316c95f9",
+    "linhas": 67
+  },
+  {
+    "arquivo": "back_end/services/validacao_migracoes.py",
+    "sha256": "73838d011290595601ea4341f84cc3d9bee70e6bb5ea930de110c70205224068",
+    "linhas": 338
+  },
+  {
+    "arquivo": "back_end/scripts/completar_catalogo_osm.py",
+    "sha256": "3066e066cbf89a14d988ea1068393c2d4c5461e4a6c0b6211a686bd93b010560",
+    "linhas": 348
+  },
+  {
+    "arquivo": "back_end/scripts/executar_alertas.py",
+    "sha256": "1ef71b10646a000107da0ac01c7b32e51fd84a913a05dd76ae4d6e868f72133b",
+    "linhas": 198
+  },
+  {
+    "arquivo": "back_end/scripts/executar_job_osm.py",
+    "sha256": "5f1156dbf83819076e7730620a604e5253b532cfcf201e2565706e8d21aac669",
+    "linhas": 218
+  },
+  {
+    "arquivo": "back_end/scripts/importar_postos_osm.py",
+    "sha256": "ca0d19aeefd9a48040402b5b59570d1b60d7d46197def0c7dd111a709420b577",
+    "linhas": 676
+  },
+  {
+    "arquivo": "back_end/scripts/migrar_banco.py",
+    "sha256": "ca93ccae24b430a9f896dd017bc35e08a021b65b4de3aac0f76c2d100516f12c",
+    "linhas": 188
+  },
+  {
+    "arquivo": "back_end/scripts/previa_limpeza_precos.py",
+    "sha256": "0e34ab7b5e3a95c7cc7789552ab243fd15e3057d510739e6815e69bde2c534c8",
+    "linhas": 217
+  },
+  {
+    "arquivo": "back_end/scripts/processar_alertas.py",
+    "sha256": "2d89731a5ee07bdde364ba479b1b87c5602f91a76456f7188e4ad5f73fb1ef4f",
+    "linhas": 33
+  },
+  {
+    "arquivo": "back_end/scripts/revisar_osm.py",
+    "sha256": "614b6635ec99214af0546ab03e4354e356a1b7aa7a5f0c079ae6d8b8b3b9c25b",
+    "linhas": 356
+  },
+  {
+    "arquivo": "back_end/scripts/testar_offline.py",
+    "sha256": "2bfb62c10a98271ce53ad8670fcd62ba72e2351ac1e94c3240418232ca1f0335",
+    "linhas": 27
+  },
+  {
+    "arquivo": "back_end/scripts/transferir_para_tidb.py",
+    "sha256": "dc20f24711693d7bac942986db90577efe07009125c076b01471ac67ec8bdef8",
+    "linhas": 72
+  },
+  {
+    "arquivo": "back_end/scripts/usar_destino.py",
+    "sha256": "0776202ccb31514c5f4edcbf17dba4ecb8360e38a3b057d03203344841e3b6c0",
+    "linhas": 92
+  },
+  {
+    "arquivo": "back_end/scripts/verificar_assistente.py",
+    "sha256": "435c98035c00f25752f8841eb3b5c4ea3ed6e8cfaccf2cb73455aa0f24a9b4f6",
+    "linhas": 128
+  },
+  {
+    "arquivo": "back_end/scripts/verificar_sdk_ia.py",
+    "sha256": "99f6cfee345de32dd67c3dcf279397960ccee8c72c9f495d7efea2ea039bbede",
+    "linhas": 54
+  },
+  {
+    "arquivo": "back_end/tests/integracao_participacao.py",
+    "sha256": "9caa4d86221141fc924c39ec6d2c8a4cf91c32bb34cebd973c23e338228516ed",
+    "linhas": 282
+  },
+  {
+    "arquivo": "back_end/tests/test_catalogo_postos.py",
+    "sha256": "7ed5160257909c511b4eec175f407f4147f45e4359b337dbeaeee0f8cc91d5ff",
+    "linhas": 146
+  },
+  {
+    "arquivo": "back_end/tests/test_completar_catalogo_osm.py",
+    "sha256": "425fcebefd98e72b2d134f9f40560185a8d91b8a0685cbf6dbfec58fb3d27185",
+    "linhas": 213
+  },
+  {
+    "arquivo": "back_end/tests/test_executar_alertas_cli.py",
+    "sha256": "23c291110e359e2f8168590b66d80c6e6304f74d44841006f1af03edfaa33ef2",
+    "linhas": 212
+  },
+  {
+    "arquivo": "back_end/tests/test_executar_job_osm.py",
+    "sha256": "735715a13a7eab6f85b7a57e8b08c45b22e40b174aa71e0c1ed2f91eb5e5e668",
+    "linhas": 310
+  },
+  {
+    "arquivo": "back_end/tests/test_executor_alertas.py",
+    "sha256": "f15bb1be99ed721e25fbcab3c03e8420884c4517afbbd26f739612f6d3d54065",
+    "linhas": 386
+  },
+  {
+    "arquivo": "back_end/tests/test_geofence.py",
+    "sha256": "cf5cd301b901274788129bf43805030d1d2b0d710b9cfc19e6ba3788c8f1c435",
+    "linhas": 62
+  },
+  {
+    "arquivo": "back_end/tests/test_ia.py",
+    "sha256": "49463098f5af9cb8d34824d526ace8263705c5081b4e097be55600524ce5cce1",
+    "linhas": 167
+  },
+  {
+    "arquivo": "back_end/tests/test_infra_banco.py",
+    "sha256": "9e04940c05e822868bfec71884b9d43e4f855f62cd15f30e1642706876a8a0d8",
+    "linhas": 378
+  },
+  {
+    "arquivo": "back_end/tests/test_infra_web.py",
+    "sha256": "07f0c70aa71b7aaaa8f98309a27896850e38a1f2a14c2ca2c0f239e26df66c64",
+    "linhas": 422
+  },
+  {
+    "arquivo": "back_end/tests/test_leitura_totem.py",
+    "sha256": "fdd95d0320ad593090f19f1064e9adf0a5f13086d23a5f486ce770103e04f142",
+    "linhas": 81
+  },
+  {
+    "arquivo": "back_end/tests/test_osm_batch.py",
+    "sha256": "e71333e32f2da52106faf73b49a73fa5f692008783d0ed5ac3c542f77604b57e",
+    "linhas": 836
+  },
+  {
+    "arquivo": "back_end/tests/test_revisar_osm.py",
+    "sha256": "257aa96a583dfbfeaf70b030ff430038e570c533f9a02545243cce32e641c094",
+    "linhas": 372
+  },
+  {
+    "arquivo": "back_end/tests/test_transferencia_tidb.py",
+    "sha256": "c3d22134662c899770ead4b665d0716056270c36203835183864b17f9b7ae453",
+    "linhas": 1037
+  },
+  {
+    "arquivo": "back_end/tests/test_verificar_assistente.py",
+    "sha256": "a8538f680ce0472fcfb63dc6de6a688e6643a2a73a047851a474f8a96b45fe02",
+    "linhas": 98
+  },
+  {
+    "arquivo": "back_end/tests/transferencia_tidb.py",
+    "sha256": "6c01d0ab67fc3d14158bcfe1ef78ba659b9552f6f3644a0c6bd25a17891b2216",
+    "linhas": 392
+  },
+  {
+    "arquivo": "back_end/migrations/001_catalogo_disponibilidade.sql",
+    "sha256": "e8525dc3888354bc86b65749ffa551d1878bc6207dd91a7af09e94fdb394c70c",
+    "linhas": 39
+  },
+  {
+    "arquivo": "back_end/migrations/002_marcas_postos.sql",
+    "sha256": "5784e2bb64293f854b227d1869f29dd77a8e5b9f1cc8cf20ff2cb9af77721e55",
+    "linhas": 7
+  },
+  {
+    "arquivo": "back_end/migrations/003_gestao_conta.sql",
+    "sha256": "d144cd0371a09dd38cdcc5da02d58e80fc2b3f4b33b0c8cf3059223b48963c60",
+    "linhas": 19
+  },
+  {
+    "arquivo": "back_end/migrations/004_atividade_alertas.sql",
+    "sha256": "d28b504c794ec9caab773da5270e7571f828fffd2be59b87ff0355456c27501e",
+    "linhas": 58
+  },
+  {
+    "arquivo": ".github/workflows/osm_diagnostico.yml",
+    "sha256": "3f17d620e827adf3d532936b75e32b79aee93342656bcf9837f996f35ff279b6",
+    "linhas": 112
+  },
+  {
+    "arquivo": ".github/workflows/osm_sync.yml",
+    "sha256": "1a376d0039344aef56736722c60c0a1d935518b776fcbc9ea2e12e5888bb50e7",
+    "linhas": 93
+  },
+  {
+    "arquivo": "front_end/App.tsx",
+    "sha256": "39069d3146869cf2f6a3c89b3809c520b71a94372532e619eb7b9a32a5ec2274",
+    "linhas": 33
+  },
+  {
+    "arquivo": "front_end/package.json",
+    "sha256": "72a2c75fc361ec60fbb2a4461f4343b40e7e08e1e04bb1fab4fea344e52cf927",
+    "linhas": 60
+  },
+  {
+    "arquivo": "front_end/package-lock.json",
+    "sha256": "f58f1d0429f366a00fb90ab4b12354d58d168090ba6ba7147cfc3fdacc427dc4",
+    "linhas": 11413
+  },
+  {
+    "arquivo": "front_end/app.json",
+    "sha256": "87cd0293213792e3e392d3c76f10e3fecec3850ce3d4229482ae7d6ca7b35358",
+    "linhas": 47
+  },
+  {
+    "arquivo": "front_end/vercel.json",
+    "sha256": "5bb240d4b3d236494d52a758cce8e32bbceeba97b02d0509de5440f7d218fd17",
+    "linhas": 12
+  },
+  {
+    "arquivo": "back_end/requirements.txt",
+    "sha256": "2427f600b011b260f2128e5b9200ba8ca46d211d8b9d99d3f5ef05fc6bf2b1ec",
+    "linhas": 11
+  },
+  {
+    "arquivo": "back_end/requirements-docker.txt",
+    "sha256": "475bf34041ed35370d86841abbd544afd58c7c3d2d912ec84edf267dbd8dfda2",
+    "linhas": 4
+  },
+  {
+    "arquivo": "back_end/Dockerfile",
+    "sha256": "42c6264fb3e35650b937905bcbb47ec824c365e5d41fe7957034fdc2feb76860",
+    "linhas": 20
+  },
+  {
+    "arquivo": "compose.yaml",
+    "sha256": "ec41009c1939664929adfcbf488f0776a5c0f1644690a32820bcd8709b2f5954",
+    "linhas": 121
+  },
+  {
+    "arquivo": "docker/compose.testes-precos.yaml",
+    "sha256": "7e78fa9f13e4c32856b4d2d417629baeed93aaa930c8ad823bf8905013c3b8be",
+    "linhas": 5
+  }
+]

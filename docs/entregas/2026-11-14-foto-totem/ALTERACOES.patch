@@ -1,0 +1,1105 @@
+diff --git a/front_end/src/components/leitor-totem.tsx b/front_end/src/components/leitor-totem.tsx
+new file mode 100644
+index 0000000..57b5644
+--- /dev/null
++++ b/front_end/src/components/leitor-totem.tsx
+@@ -0,0 +1,209 @@
++import * as ImagePicker from "expo-image-picker";
++import { useCallback, useEffect, useRef, useState } from "react";
++import { useFocusEffect } from "@react-navigation/native";
++import { Image, Platform, View } from "react-native";
++
++import { useAuth } from "../contexts/AuthContext";
++import { COMBUSTIVEIS, precoFormatado, type Combustivel } from "../services/catalogoPostos";
++import { formularioLeitura, lerFotoTotem, prepararFotoWeb, validarFoto, type LeituraTotem } from "../services/leituraTotem";
++import { obterPosicao } from "../utils/localizacao";
++import { AppButton, Notice, Surface } from "./design";
++
++interface Props {
++  postoId: number;
++  bloqueado: boolean;
++  permitidos?: Combustivel[];
++  usar(codigo: Combustivel, preco: string, fotoUrl: string | null): void;
++  limparComprovante(): void;
++}
++
++// Uma foto/resposta não pode pertencer à conta ou ao posto anterior.
++export function LeitorTotem(props: Props) {
++  const { token, status } = useAuth();
++  if (!token || status !== "AUTHENTICATED") return null;
++  return <ConteudoLeitor key={JSON.stringify([token, status, props.postoId])} {...props} token={token} />;
++}
++
++// O leitor sugere valores para o formulário; nunca chama a rota de cadastro de preço.
++function ConteudoLeitor({ postoId, bloqueado, permitidos, usar, limparComprovante, token }: Props & { token: string }) {
++  const [foto, setFoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
++  const [guardar, setGuardar] = useState(false);
++  const [leitura, setLeitura] = useState<LeituraTotem | null>(null);
++  const [operacao, setOperacao] = useState<AbortController | null>(null);
++  const busy = !bloqueado && !!operacao && !operacao.signal.aborted;
++  const [erro, setErro] = useState("");
++  const [aviso, setAviso] = useState("");
++  const consulta = useRef<AbortController | null>(null);
++  const ativo = useRef(false);
++  const selecao = useRef(0);
++  const selecionando = useRef(false);
++  const bloqueio = useRef(bloqueado);
++  const limpar = useRef(limparComprovante);
++
++  useEffect(() => { limpar.current = limparComprovante; }, [limparComprovante]);
++  useEffect(() => {
++    bloqueio.current = bloqueado;
++    if (bloqueado) {
++      consulta.current?.abort();
++      consulta.current = null;
++      selecao.current++;
++      selecionando.current = false;
++    }
++  }, [bloqueado]);
++
++  // Sair invalida picker e rede; o servidor pode ter recebido um envio já iniciado.
++  useFocusEffect(useCallback(() => {
++    ativo.current = true;
++    setOperacao(null);
++    setFoto(null);
++    setLeitura(null);
++    setGuardar(false);
++    setErro("");
++    setAviso("");
++    if (!bloqueio.current) limpar.current();
++    return () => {
++      ativo.current = false;
++      selecao.current++;
++      selecionando.current = false;
++      consulta.current?.abort();
++      consulta.current = null;
++    };
++  }, []));
++
++  // Lê o controlador no momento da interrupção, inclusive após uma espera do picker.
++  function interromperPedido() {
++    const atual = consulta.current;
++    consulta.current = null;
++    atual?.abort();
++  }
++
++  // Uma recuperação Android sem contexto não é vinculada automaticamente a este posto.
++  useEffect(() => {
++    if (Platform.OS !== "android") return;
++    let atual = true;
++    void ImagePicker.getPendingResultAsync().then((pendente) => {
++      if (atual && ativo.current && pendente && "assets" in pendente && pendente.assets?.length) {
++        setAviso("Uma seleção anterior foi interrompida. Escolha novamente a foto para este posto.");
++      }
++    }).catch(() => undefined);
++    return () => { atual = false; };
++  }, []);
++
++  // Na web o cancelamento do picker pode não resolver: a última seleção vence.
++  async function selecionar() {
++    if (!ativo.current || bloqueio.current || consulta.current
++      || (Platform.OS !== "web" && selecionando.current)) return;
++    const id = ++selecao.current;
++    selecionando.current = Platform.OS !== "web";
++    setErro("");
++    try {
++      const resultado = await ImagePicker.launchImageLibraryAsync({
++        mediaTypes: ["images"], allowsEditing: false, quality: 0.8, exif: false, base64: false,
++      });
++      if (!ativo.current || bloqueio.current || selecao.current !== id || resultado.canceled) return;
++      const imagem = resultado.assets[0];
++      validarFoto(imagem);
++      interromperPedido();
++      setOperacao(null);
++      limpar.current();
++      setFoto(imagem);
++      setLeitura(null);
++      setAviso("");
++    } catch (falha) {
++      if (ativo.current && selecao.current === id) {
++        setErro(falha instanceof Error ? falha.message : "Não foi possível selecionar a foto.");
++      }
++    } finally {
++      if (selecao.current === id) selecionando.current = false;
++    }
++  }
++
++  // Arquivo pronto → GPS atual → endpoint de leitura, com uma operação por vez.
++  async function ler() {
++    if (!foto || bloqueio.current || !ativo.current || consulta.current || selecionando.current) return;
++    const atual = new AbortController();
++    consulta.current = atual;
++    setOperacao(atual);
++    setErro("");
++    setAviso("");
++    setLeitura(null);
++    let enviou = false;
++    try {
++      limpar.current();
++      validarFoto(foto);
++      const arquivo = Platform.OS === "web" ? await prepararFotoWeb(foto, atual.signal) : null;
++      if (atual.signal.aborted || !ativo.current || bloqueio.current) return;
++      const gps = await obterPosicao("registro");
++      if (atual.signal.aborted || !ativo.current || bloqueio.current) return;
++      const dados = formularioLeitura(postoId, foto, arquivo, gps, guardar);
++      enviou = true;
++      const resultado = await lerFotoTotem(dados, token, atual.signal, guardar);
++      if (consulta.current !== atual || atual.signal.aborted || !ativo.current || bloqueio.current) return;
++      setLeitura(resultado);
++      setAviso(guardar && !resultado.fotoUrl
++        ? "Preços lidos. O comprovante não foi confirmado e não será anexado."
++        : "Revise os valores e escolha qual levar para o formulário. A leitura não cadastra preços.");
++    } catch (falha) {
++      if (atual.signal.aborted || consulta.current !== atual || !ativo.current) return;
++      const resposta = (falha as { response?: { data?: { error?: unknown } } } | null)?.response;
++      setErro(typeof resposta?.data?.error === "string" ? resposta.data.error
++        : enviou ? "Não foi possível confirmar a leitura. A leitura não cadastra preços. O envio pode ter sido processado; confira antes de reenviar."
++          : falha instanceof Error ? falha.message : "Não foi possível preparar a foto ou verificar a localização.");
++    } finally {
++      if (consulta.current === atual) {
++        consulta.current = null;
++        if (ativo.current) setOperacao(null);
++      }
++    }
++  }
++
++  // Usar um valor apenas preenche o cadastro, que continua com sua própria confirmação.
++  function usarValor(codigo: Combustivel, preco: number) {
++    if (bloqueio.current || !ativo.current || consulta.current || !leitura) return;
++    if (permitidos && !permitidos.includes(codigo)) {
++      setErro("Este produto não está disponível para cadastro neste posto.");
++      return;
++    }
++    usar(codigo, preco.toFixed(2), leitura.fotoUrl);
++    setAviso("Confira no formulário se combustível, unidade e preço estão corretos antes de cadastrar.");
++  }
++
++  return (
++    <Surface>
++      <Notice>Leitura de foto do totem · R$/L</Notice>
++      <Notice>Leia gasolina comum, aditivada, etanol ou diesel. Informe GNV e recarga elétrica manualmente.</Notice>
++      <Notice>A imagem será enviada ao serviço de IA. Somente os valores que você revisar serão levados ao formulário.</Notice>
++      <AppButton label={foto ? "Escolher outra foto" : "Escolher foto do totem"} secondary
++        disabled={busy || bloqueado} onPress={() => void selecionar()} />
++      {foto ? (
++        <>
++          <Image source={{ uri: foto.uri }} accessibilityLabel="Foto selecionada para este posto"
++            style={{ width: "100%", height: 200 }} resizeMode="contain" />
++          <AppButton label={guardar ? "Salvar comprovante: ativado" : "Salvar comprovante: desativado"}
++            secondary selected={guardar} disabled={busy || bloqueado} onPress={() => {
++              setGuardar((valor) => !valor);
++              setLeitura(null);
++              setAviso("");
++              limpar.current();
++            }} />
++          <Notice>Opcional: guardar uma cópia no Dropbox. Quem tiver o link poderá acessar a foto.
++            Desativar não exclui cópias já enviadas.</Notice>
++          <AppButton label="Ler preços da foto" busy={busy} disabled={bloqueado} onPress={() => void ler()} />
++        </>
++      ) : null}
++      {busy ? <AppButton label="Cancelar leitura" secondary onPress={() => {
++        interromperPedido();
++        setOperacao(null);
++        setAviso("Leitura cancelada nesta tela. O envio já iniciado pode ter sido processado. A leitura não cadastra preços.");
++      }} /> : null}
++      {erro ? <Notice error>{erro}</Notice> : null}
++      {aviso ? <View accessibilityLiveRegion="polite"><Notice>{aviso}</Notice></View> : null}
++      {leitura?.valores.map((v) => (
++        <AppButton key={v.codigo} label={"Usar " + COMBUSTIVEIS.find((c) => c.codigo === v.codigo)!.nome
++          + ": " + precoFormatado(v.preco) + " / L"} secondary
++          disabled={busy || bloqueado || (permitidos !== undefined && !permitidos.includes(v.codigo))}
++          onPress={() => usarValor(v.codigo, v.preco)} />
++      ))}
++    </Surface>
++  );
++}
+diff --git a/front_end/src/services/leituraTotem.ts b/front_end/src/services/leituraTotem.ts
+new file mode 100644
+index 0000000..8f5462d
+--- /dev/null
++++ b/front_end/src/services/leituraTotem.ts
+@@ -0,0 +1,107 @@
++import type { ImagePickerAsset } from "expo-image-picker";
++import type { PosicaoGps } from "../utils/localizacao";
++import { api } from "./API";
++import { COMBUSTIVEIS, type Combustivel } from "./catalogoPostos";
++import { payloadOferta } from "./ofertas";
++
++export const LIMITE_FOTO = 8 * 1024 * 1024;
++const TIPOS = ["image/jpeg", "image/png", "image/webp"];
++const CODIGOS_FOTO = ["gasolina_comum", "gasolina_aditivada", "etanol", "diesel"];
++const HOSTS_COMPROVANTE = ["dropbox.com", "www.dropbox.com", "dl.dropboxusercontent.com"];
++
++export interface LeituraTotem {
++  valores: { codigo: Combustivel; preco: number }[];
++  fotoUrl: string | null;
++  comprovanteSolicitado: boolean;
++}
++
++// Metadados ajudam na seleção; o servidor ainda valida os bytes de verdade.
++export function validarFoto(foto: ImagePickerAsset) {
++  if (!foto || typeof foto.uri !== "string" || !foto.uri.trim()
++    || (foto.type != null && foto.type !== "image")
++    || (foto.mimeType && !TIPOS.includes(foto.mimeType.toLowerCase()))
++    || (foto.fileSize !== undefined && (!Number.isSafeInteger(foto.fileSize)
++      || foto.fileSize <= 0 || foto.fileSize > LIMITE_FOTO))) {
++    throw new Error("Escolha uma imagem JPEG, PNG ou WebP de até 8 MB.");
++  }
++  if (foto.width > 0 && foto.height > 0 && foto.width * foto.height > 24_000_000) {
++    throw new Error("Escolha uma imagem de até 24 megapixels.");
++  }
++}
++
++// Um link inválido não é anexado; os preços válidos podem continuar sendo revisados.
++function comprovante(valor: unknown): string | null {
++  if (typeof valor !== "string" || valor.length > 500 || /\s|[\u0000-\u001f\u007f]/.test(valor)) return null;
++  try {
++    const url = new URL(valor);
++    return url.protocol === "https:" && HOSTS_COMPROVANTE.includes(url.hostname)
++      && !url.username && !url.password ? valor : null;
++  } catch { return null; }
++}
++
++// Valida os produtos/unidades sem estimar preço, arredondar ou aceitar GNV/kWh como litro.
++export function validarLeitura(valor: unknown, guardar: boolean): LeituraTotem {
++  const r = valor as { sucesso?: unknown; precos?: unknown; foto_url?: unknown } | null;
++  if (!r || r.sucesso !== true || !r.precos || typeof r.precos !== "object" || Array.isArray(r.precos)) {
++    throw new Error("A leitura não retornou preços válidos. Você pode informar o preço manualmente.");
++  }
++  const precos = r.precos as Record<string, unknown>;
++  const valores = COMBUSTIVEIS.flatMap((c) => {
++    const preco = precos[c.nome];
++    if (!CODIGOS_FOTO.includes(c.codigo) || typeof preco !== "number" || !Number.isFinite(preco)
++      || preco < 1 || preco > 25 || Math.abs(preco * 100 - Math.round(preco * 100)) > 1e-8) return [];
++    return [{ codigo: c.codigo, preco }];
++  });
++  if (!valores.length) throw new Error("Nenhum preço legível foi confirmado. Informe o valor manualmente ou escolha outra foto.");
++  return { valores, fotoUrl: guardar ? comprovante(r.foto_url) : null, comprovanteSolicitado: guardar };
++}
++
++// Prepara o arquivo antes do GPS para que a posição não envelheça durante a leitura local.
++export async function prepararFotoWeb(foto: ImagePickerAsset, signal: AbortSignal): Promise<Blob> {
++  validarFoto(foto);
++  if (signal.aborted) throw new Error("Leitura cancelada.");
++  let arquivo: Blob;
++  if (foto.file) arquivo = foto.file;
++  else {
++    const resposta = await fetch(foto.uri, { signal });
++    if (!resposta.ok) throw new Error("Não foi possível abrir a foto selecionada.");
++    arquivo = await resposta.blob();
++  }
++  if (signal.aborted) throw new Error("Leitura cancelada.");
++  if (!arquivo.size || arquivo.size > LIMITE_FOTO || (arquivo.type && !TIPOS.includes(arquivo.type))) {
++    throw new Error("Escolha uma imagem JPEG, PNG ou WebP de até 8 MB.");
++  }
++  return arquivo;
++}
++
++// Reutiliza a validação de GPS de registro já aplicada à confirmação de oferta.
++export function formularioLeitura(
++  postoId: number, foto: ImagePickerAsset, arquivo: Blob | null, gps: PosicaoGps, guardar: boolean,
++) {
++  validarFoto(foto);
++  if (!Number.isSafeInteger(postoId) || postoId <= 0 || postoId > 2147483647) {
++    throw new Error("Escolha um posto válido antes de ler a foto.");
++  }
++  const posicao = payloadOferta(gps);
++  const dados = new FormData();
++  if (arquivo) dados.append("foto", arquivo, "totem");
++  else dados.append("foto", { uri: foto.uri, name: "totem", type: foto.mimeType ?? "image/jpeg" } as unknown as Blob);
++  dados.append("posto_id", String(postoId));
++  dados.append("latitude", String(posicao.latitude));
++  dados.append("longitude", String(posicao.longitude));
++  dados.append("precisao_m", String(posicao.precisao_m));
++  dados.append("simulada", "false");
++  dados.append("guardar_comprovante", String(guardar));
++  return dados;
++}
++
++// O endpoint só devolve sugestões; o cadastro continuará exigindo confirmação separada.
++export async function lerFotoTotem(dados: FormData, token: string, signal: AbortSignal, guardar: boolean) {
++  if (!token.trim() || signal.aborted) throw new Error("Entre novamente ou reinicie a leitura.");
++  const { data } = await api.post("/ia/ler-totem", dados, {
++    signal, timeout: 60000,
++    headers: { Authorization: "Bearer " + token, "Content-Type": undefined },
++  });
++  if (signal.aborted) throw new Error("Leitura cancelada.");
++  return validarLeitura(data, guardar);
++}
+diff --git a/back_end/services/leitura_totem.py b/back_end/services/leitura_totem.py
+new file mode 100644
+index 0000000..a89aa17
+--- /dev/null
++++ b/back_end/services/leitura_totem.py
+@@ -0,0 +1,82 @@
++"""Imagem preparada e preços do OCR; sem modelo, banco ou armazenamento externo."""
++from decimal import Decimal, InvalidOperation
++import io
++import re
++
++from PIL import Image, ImageOps, UnidentifiedImageError
++
++COMBUSTIVEIS_FOTO = ("Gasolina Comum", "Gasolina Aditivada", "Etanol", "Diesel")
++MAX_BYTES = 8 * 1024 * 1024
++MAX_PIXELS = 24_000_000
++FORMATOS = {"JPEG", "PNG", "WEBP"}
++
++
++class FotoTotemInvalida(ValueError):
++    pass
++
++
++# Reduz JPEG antes de decodificar quando possível; a saída não carrega EXIF/ICC.
++def preparar_imagem(bruto, lado_maximo=1600):
++    if not isinstance(bruto, bytes) or not 0 < len(bruto) <= MAX_BYTES:
++        raise FotoTotemInvalida("Envie uma imagem de até 8 MB.")
++    if not isinstance(lado_maximo, int) or isinstance(lado_maximo, bool) or not 1 <= lado_maximo <= 1600:
++        raise FotoTotemInvalida("Dimensão de saída inválida.")
++    try:
++        with Image.open(io.BytesIO(bruto)) as original:
++            if original.format not in FORMATOS:
++                raise FotoTotemInvalida("Use uma imagem JPEG, PNG ou WebP.")
++            if original.width * original.height > MAX_PIXELS:
++                raise FotoTotemInvalida("Escolha uma imagem de até 24 megapixels.")
++            original.draft("RGB", (lado_maximo, lado_maximo))
++            original.load()
++            imagem = ImageOps.exif_transpose(original).convert("RGB")
++            try:
++                imagem.thumbnail((lado_maximo, lado_maximo))
++                imagem.info.clear()
++                saida = io.BytesIO()
++                imagem.save(saida, "JPEG", quality=88)
++                return saida.getvalue()
++            finally:
++                imagem.close()
++    except FotoTotemInvalida:
++        raise
++    except (UnidentifiedImageError, OSError, Image.DecompressionBombError, ValueError) as erro:
++        raise FotoTotemInvalida("A imagem não pôde ser preparada.") from erro
++
++
++# Aceita apenas um literal monetário; não remove letras para fabricar um número.
++def _preco(valor):
++    if isinstance(valor, bool) or valor is None:
++        return None
++    if isinstance(valor, str):
++        texto = valor.strip()
++        if not re.fullmatch(r"(?:R\$\s*)?[0-9]{1,2}(?:[.,][0-9]{1,3})?", texto):
++            return None
++        texto = re.sub(r"^R\$\s*", "", texto).replace(",", ".")
++    elif isinstance(valor, (int, float, Decimal)):
++        texto = str(valor)
++    else:
++        return None
++    try:
++        numero = Decimal(texto)
++        # Mantém o intervalo de OCR anterior; o formulário manual continua independente.
++        if not numero.is_finite() or not Decimal("1.00") <= numero <= Decimal("25.00"):
++            return None
++        centavos = numero.quantize(Decimal("0.01"))
++        if numero != centavos:
++            return None
++        return float(centavos)
++    except (InvalidOperation, ValueError, OverflowError):
++        return None
++
++
++# Uma foto de totem só sugere os quatro combustíveis líquidos, todos em R$/L.
++def normalizar_precos(bruto):
++    if not isinstance(bruto, dict):
++        return {}
++    resultado = {}
++    for nome in COMBUSTIVEIS_FOTO:
++        preco = _preco(bruto.get(nome))
++        if preco is not None:
++            resultado[nome] = preco
++    return resultado
+diff --git a/back_end/tests/test_leitura_totem.py b/back_end/tests/test_leitura_totem.py
+new file mode 100644
+index 0000000..9078ac8
+--- /dev/null
++++ b/back_end/tests/test_leitura_totem.py
+@@ -0,0 +1,81 @@
++"""Pillow real e valores sintéticos; sem Gemini, Dropbox ou banco."""
++import io
++from pathlib import Path
++import sys
++import unittest
++from unittest.mock import MagicMock, patch
++
++from PIL import Image
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
++from services.leitura_totem import FotoTotemInvalida, normalizar_precos, preparar_imagem
++
++
++def imagem(formato="JPEG", orientacao=None):
++    with Image.new("RGB", (200, 100), "white") as foto:
++        saida = io.BytesIO()
++        exif = Image.Exif()
++        exif[271] = "metadado-sintetico-que-deve-sumir"
++        if orientacao:
++            exif[274] = orientacao
++        foto.save(saida, formato, exif=exif)
++        return saida.getvalue()
++
++
++class PrecosTests(unittest.TestCase):
++    def test_preserva_preco_decimal_sem_fabricar_numeros(self):
++        self.assertEqual(normalizar_precos({"Etanol": "R$ 4,55", "Diesel": 5.89}), {"Etanol": 4.55, "Diesel": 5.89})
++        for valor in ("preço 5,89", "1e1", "5 reais", "6/7", "R$ 5,899", 5.899, True, None, float("nan"), float("inf")):
++            with self.subTest(valor=valor):
++                self.assertEqual(normalizar_precos({"Etanol": valor}), {})
++
++    def test_limites_do_ocr_nao_alteram_cadastro_manual(self):
++        for valor in (1, 25, "1,00", "25.00", "5.890"):
++            self.assertTrue(normalizar_precos({"Etanol": valor}))
++        for valor in (0.5, 0, -1, 25.01, 589):
++            self.assertEqual(normalizar_precos({"Etanol": valor}), {})
++
++    def test_produtos_de_outras_unidades_nao_viram_litros(self):
++        self.assertEqual(normalizar_precos({"GNV": 4.5, "Recarga Elétrica": 2.2, "Etanol": 4.39}), {"Etanol": 4.39})
++        self.assertEqual(normalizar_precos([5.89]), {})
++
++
++class ImagemTests(unittest.TestCase):
++    def test_corrige_orientacao_e_remove_metadados(self):
++        jpeg = preparar_imagem(imagem(orientacao=6))
++        with Image.open(io.BytesIO(jpeg)) as foto:
++            self.assertEqual(foto.format, "JPEG")
++            self.assertEqual(foto.size, (100, 200))
++            self.assertEqual(len(foto.getexif()), 0)
++            self.assertNotIn("icc_profile", foto.info)
++
++    def test_png_vira_jpeg_e_respeita_dimensao(self):
++        jpeg = preparar_imagem(imagem("PNG"), 80)
++        with Image.open(io.BytesIO(jpeg)) as foto:
++            self.assertEqual(foto.size, (80, 40))
++            self.assertEqual(foto.format, "JPEG")
++
++    def test_pixels_excessivos_sao_recusados_antes_de_load(self):
++        original = MagicMock()
++        original.format = "JPEG"
++        original.width = 24_000_001
++        original.height = 1
++        original.__enter__.return_value = original
++        with patch("services.leitura_totem.Image.open", return_value=original):
++            with self.assertRaises(FotoTotemInvalida):
++                preparar_imagem(b"imagem-sintetica")
++        original.load.assert_not_called()
++        original.draft.assert_not_called()
++
++    def test_vazio_invalido_e_arquivo_grande_sao_recusados(self):
++        for bruto in (b"", b"nao-e-foto", b"x" * (8 * 1024 * 1024 + 1)):
++            with self.assertRaises(FotoTotemInvalida):
++                preparar_imagem(bruto)
++
++    def test_formato_fora_do_contrato_e_recusado(self):
++        with self.assertRaises(FotoTotemInvalida):
++            preparar_imagem(imagem("GIF"))
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/front_end/tests/apoio-leitor-totem.cjs b/front_end/tests/apoio-leitor-totem.cjs
+new file mode 100644
+index 0000000..f199ab6
+--- /dev/null
++++ b/front_end/tests/apoio-leitor-totem.cjs
+@@ -0,0 +1,112 @@
++/* global __dirname */
++// Simula hooks/JSX/foco/picker/API; não renderiza React Native nem abre a galeria.
++const fs = require("node:fs"), path = require("node:path"), vm = require("node:vm");
++const ts = require("typescript"), assert = require("node:assert/strict");
++let corrente;
++const jsx = (type, props, key) => ({ type, props: props || {}, key });
++const hooks = {
++  useState(inicial) {
++    const dono = corrente, i = dono.indice++;
++    if (!(i in dono.slots)) dono.slots[i] = inicial;
++    return [dono.slots[i], (v) => {
++      if (!dono.montado) dono.atualizacoesAposSaida++;
++      dono.slots[i] = typeof v === "function" ? v(dono.slots[i]) : v;
++    }];
++  },
++  useRef(inicial) {
++    const dono = corrente, i = dono.indice++;
++    if (!(i in dono.slots)) dono.slots[i] = { current: inicial };
++    return dono.slots[i];
++  },
++  useCallback: (fn) => fn,
++  useEffect(fn, deps) {
++    const dono = corrente, i = dono.indice++, antes = dono.slots[i];
++    if (!antes || deps.some((v, j) => !Object.is(v, antes.deps[j]))) {
++      dono.efeitos.push(() => { antes?.cleanup?.(); dono.slots[i] = { deps, cleanup: fn() }; });
++    }
++  },
++};
++function foto(uri = "blob:foto-sintetica") {
++  return { uri, width: 200, height: 100, fileSize: 20, mimeType: "image/jpeg", type: "image" };
++}
++const turno = () => new Promise((resolve) => setImmediate(resolve));
++function pendente() {
++  let resolve;
++  const promise = new Promise((fn) => { resolve = fn; });
++  return { promise, resolve };
++}
++
++// Carrega os fontes reais instalados, mantendo apenas as fronteiras simuladas.
++function ambiente() {
++  const e = { chamadas: [], usados: [], ordem: [], limpezas: 0,
++    auth: { token: "sessao-sintetica", status: "AUTHENTICATED" }, plataforma: "web" };
++  e.pickImpl = async () => ({ canceled: false, assets: [foto()] });
++  e.gpsImpl = async () => ({ latitude: -7.11, longitude: -34.86, precisaoM: 10, obtidaEm: Date.now(), simulada: false });
++  e.postImpl = async () => ({ data: { sucesso: true, precos: { Etanol: 4.39 }, foto_url: null } });
++  const cache = new Map();
++  function carregar(relativo) {
++    if (cache.has(relativo)) return cache.get(relativo);
++    const arquivo = path.resolve(__dirname, "../src", relativo);
++    let codigo = fs.readFileSync(arquivo, "utf8");
++    if (relativo.endsWith("leitor-totem.tsx")) codigo += "\nexport { ConteudoLeitor };";
++    const js = ts.transpileModule(codigo, { compilerOptions: {
++      module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX,
++    } }).outputText;
++    const modulo = { exports: {} };
++    const importar = (nome) => {
++      if (nome === "react") return hooks;
++      if (nome === "react/jsx-runtime") return { jsx, jsxs: jsx };
++      if (nome === "@react-navigation/native") return { useFocusEffect: (fn) => hooks.useEffect(fn, []) };
++      if (nome === "react-native") return { View: "View", Image: "Image", Platform: { OS: e.plataforma } };
++      if (nome === "expo-image-picker") return { launchImageLibraryAsync: (...args) => e.pickImpl(...args), getPendingResultAsync: async () => null };
++      if (nome.endsWith("/AuthContext")) return { useAuth: () => e.auth };
++      if (nome.endsWith("/localizacao")) return { obterPosicao: () => { e.ordem.push("gps"); return e.gpsImpl(); } };
++      if (nome.endsWith("/API")) return { api: { post: async (...args) => {
++        e.chamadas.push(args); e.ordem.push("api"); return e.postImpl(...args);
++      } } };
++      if (nome === "./design") return { AppButton: "AppButton", Notice: "Notice", Surface: "Surface" };
++      const destino = path.resolve(path.dirname(arquivo), nome);
++      const ext = [".ts", ".tsx"].find((s) => fs.existsSync(destino + s));
++      if (!ext) throw new Error("Import não simulado: " + nome);
++      return carregar(path.relative(path.resolve(__dirname, "../src"), destino + ext));
++    };
++    vm.runInNewContext("(function(require,module,exports){" + js + "\n})", {
++      Error, Date, AbortController, Blob, FormData, URL,
++      fetch: async () => { e.ordem.push("arquivo"); return { ok: true, blob: async () => new Blob(["imagem"], { type: "image/jpeg" }) }; },
++    })(importar, modulo, modulo.exports);
++    cache.set(relativo, modulo.exports); return modulo.exports;
++  }
++  e.leitor = carregar("components/leitor-totem.tsx");
++  e.props = { postoId: 10, token: e.auth.token, bloqueado: false,
++    usar: (...args) => e.usados.push(args), limparComprovante: () => { e.limpezas++; } };
++  return e;
++}
++
++function montar(fn, inicial) {
++  let props = inicial;
++  const d = { slots: [], indice: 0, efeitos: [], montado: true, atualizacoesAposSaida: 0,
++    render(novos = {}) {
++      props = { ...props, ...novos }; this.indice = 0; this.efeitos = []; corrente = this;
++      try { this.arvore = fn(props); } finally { corrente = null; }
++      for (const efeito of this.efeitos) efeito();
++    },
++    sair() { this.montado = false; for (const slot of this.slots) slot?.cleanup?.(); },
++  };
++  d.render(); return d;
++}
++function todos(no, tipo, itens = []) {
++  if (Array.isArray(no)) no.forEach((n) => todos(n, tipo, itens));
++  else if (no && typeof no === "object") {
++    if (no.type === tipo) itens.push(no);
++    todos(no.props?.children, tipo, itens);
++  }
++  return itens;
++}
++function botao(d, nome) {
++  const b = todos(d.arvore, "AppButton").find((n) => n.props.label === nome);
++  assert.ok(b, "Botão ausente: " + nome); return b;
++}
++async function clicar(d, nome) {
++  botao(d, nome).props.onPress(); await turno(); d.render();
++}
++module.exports = { ambiente, montar, todos, botao, clicar, pendente, turno, foto };
+diff --git a/front_end/tests/leitor-totem-sessao.test.cjs b/front_end/tests/leitor-totem-sessao.test.cjs
+new file mode 100644
+index 0000000..029e895
+--- /dev/null
++++ b/front_end/tests/leitor-totem-sessao.test.cjs
+@@ -0,0 +1,95 @@
++const { test } = require("node:test");
++const assert = require("node:assert/strict");
++const { ambiente, montar, todos, botao, clicar, pendente, turno, foto } = require("./apoio-leitor-totem.cjs");
++
++test("leitor isola foto por conta/posto e não aparece para visitante", () => {
++  const e = ambiente(), inicial = e.leitor.LeitorTotem(e.props).key;
++  assert.notEqual(e.leitor.LeitorTotem({ ...e.props, postoId: 11 }).key, inicial);
++  e.auth.token = "outra-sessao"; assert.notEqual(e.leitor.LeitorTotem(e.props).key, inicial);
++  e.auth.status = "GUEST"; e.auth.token = null;
++  assert.equal(e.leitor.LeitorTotem(e.props), null);
++});
++
++test("seleção não envia; arquivo é preparado antes do GPS e comprovante começa desativado", async () => {
++  const e = ambiente(), d = montar(e.leitor.ConteudoLeitor, e.props);
++  await clicar(d, "Escolher foto do totem");
++  assert.equal(e.chamadas.length, 0); assert.equal(e.ordem.length, 0);
++  await clicar(d, "Ler preços da foto");
++  assert.equal(e.ordem.join(","), "arquivo,gps,api");
++  assert.equal(e.chamadas[0][1].get("guardar_comprovante"), "false");
++  assert.equal(e.usados.length, 0);
++  await clicar(d, "Usar Etanol: R$ 4,39 / L");
++  assert.equal(e.usados[0][0], "etanol"); assert.equal(e.usados[0][1], "4.39");
++  assert.equal(e.chamadas[0][0], "/ia/ler-totem"); assert.equal(e.chamadas.length, 1);
++});
++
++test("última seleção web vence sem bloquear se um cancelamento não resolveu", async () => {
++  const e = ambiente(), a = pendente(), b = pendente();
++  let numero = 0; e.pickImpl = () => (++numero === 1 ? a.promise : b.promise);
++  const d = montar(e.leitor.ConteudoLeitor, e.props);
++  await clicar(d, "Escolher foto do totem"); await clicar(d, "Escolher foto do totem");
++  b.resolve({ canceled: false, assets: [foto("blob:B")] }); await turno(); d.render();
++  a.resolve({ canceled: false, assets: [foto("blob:A")] }); await turno(); d.render();
++  assert.equal(todos(d.arvore, "Image")[0].props.source.uri, "blob:B");
++});
++
++test("nova seleção invalida leitura anterior ainda em andamento", async () => {
++  const e = ambiente(), leitura = pendente(), picker = pendente();
++  const d = montar(e.leitor.ConteudoLeitor, e.props);
++  await clicar(d, "Escolher foto do totem");
++  e.pickImpl = () => picker.promise;
++  await clicar(d, "Escolher outra foto");
++  e.postImpl = () => leitura.promise;
++  await clicar(d, "Ler preços da foto");
++  picker.resolve({ canceled: false, assets: [foto("blob:nova")] }); await turno(); d.render();
++  assert.equal(e.chamadas[0][2].signal.aborted, true);
++  leitura.resolve({ data: { sucesso: true, precos: { Etanol: 4.39 } } }); await turno(); d.render();
++  assert.equal(todos(d.arvore, "Image")[0].props.source.uri, "blob:nova");
++  assert.equal(todos(d.arvore, "AppButton").some((b) => b.props.label.startsWith("Usar ")), false);
++});
++
++test("sair durante GPS impede POST e atualizações após desmontagem", async () => {
++  const e = ambiente(), espera = pendente(); e.gpsImpl = () => espera.promise;
++  const d = montar(e.leitor.ConteudoLeitor, e.props);
++  await clicar(d, "Escolher foto do totem"); await clicar(d, "Ler preços da foto"); d.sair();
++  espera.resolve({ latitude: -7.11, longitude: -34.86, precisaoM: 10, obtidaEm: Date.now(), simulada: false });
++  await turno(); assert.equal(e.chamadas.length, 0); assert.equal(d.atualizacoesAposSaida, 0);
++});
++
++test("cancelar leitura ignora retorno tardio sem preencher cadastro", async () => {
++  const e = ambiente(), espera = pendente(); e.postImpl = () => espera.promise;
++  const d = montar(e.leitor.ConteudoLeitor, e.props);
++  await clicar(d, "Escolher foto do totem"); await clicar(d, "Ler preços da foto");
++  await clicar(d, "Cancelar leitura");
++  espera.resolve({ data: { sucesso: true, precos: { Etanol: 4.39 } } }); await turno(); d.render();
++  assert.equal(e.chamadas[0][2].signal.aborted, true); assert.equal(e.usados.length, 0);
++  assert.equal(todos(d.arvore, "AppButton").some((b) => b.props.label.startsWith("Usar ")), false);
++});
++
++test("cadastro em andamento aborta leitura e impede reaproveitar resposta", async () => {
++  const e = ambiente(), espera = pendente(); e.postImpl = () => espera.promise;
++  const d = montar(e.leitor.ConteudoLeitor, e.props);
++  await clicar(d, "Escolher foto do totem"); await clicar(d, "Ler preços da foto");
++  d.render({ bloqueado: true });
++  assert.equal(e.chamadas[0][2].signal.aborted, true);
++  espera.resolve({ data: { sucesso: true, precos: { Etanol: 4.39 } } }); await turno(); d.render();
++  assert.equal(e.usados.length, 0);
++});
++
++test("produto não permitido não é levado ao formulário", async () => {
++  const e = ambiente(), d = montar(e.leitor.ConteudoLeitor, { ...e.props, permitidos: ["diesel"] });
++  await clicar(d, "Escolher foto do totem"); await clicar(d, "Ler preços da foto");
++  const usar = botao(d, "Usar Etanol: R$ 4,39 / L"); assert.equal(usar.props.disabled, true);
++  usar.props.onPress(); assert.equal(e.usados.length, 0);
++});
++
++test("comprovante só é anexado com opção ativa e confirmação Dropbox", async () => {
++  const e = ambiente();
++  e.postImpl = async () => ({ data: { sucesso: true, precos: { Etanol: 4.39 }, foto_url: "https://www.dropbox.com/s/prova.jpg?raw=1" } });
++  const d = montar(e.leitor.ConteudoLeitor, e.props);
++  await clicar(d, "Escolher foto do totem"); await clicar(d, "Salvar comprovante: desativado");
++  await clicar(d, "Ler preços da foto");
++  assert.equal(e.chamadas[0][1].get("guardar_comprovante"), "true");
++  await clicar(d, "Usar Etanol: R$ 4,39 / L");
++  assert.equal(e.usados[0][2], "https://www.dropbox.com/s/prova.jpg?raw=1");
++});
+diff --git a/front_end/tests/leitura-totem.test.cjs b/front_end/tests/leitura-totem.test.cjs
+new file mode 100644
+index 0000000..3410a77
+--- /dev/null
++++ b/front_end/tests/leitura-totem.test.cjs
+@@ -0,0 +1,98 @@
++/* global __dirname */
++const { test } = require("node:test");
++const assert = require("node:assert/strict");
++const fs = require("node:fs"), path = require("node:path"), vm = require("node:vm");
++const ts = require("typescript");
++
++// Contratos reais do serviço, fronteira HTTP simulada e FormData/Blob reais do Node.
++function ambiente(api) {
++  const chamadas = [], cache = new Map();
++  function carregar(nome) {
++    if (cache.has(nome)) return cache.get(nome);
++    const modulo = { exports: {} };
++    const js = ts.transpileModule(fs.readFileSync(path.resolve(__dirname, "../src/services", nome + ".ts"), "utf8"), {
++      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
++    }).outputText;
++    const importar = (alvo) => alvo === "./API" ? { api: api || { post: async (...args) => {
++      chamadas.push(args); return { data: { sucesso: true, precos: { Etanol: 4.39 }, foto_url: null } };
++    } } } : carregar(alvo.replace("./", ""));
++    vm.runInNewContext("(function(require,module,exports){" + js + "\n})", { Blob, FormData, URL, fetch, Error })(importar, modulo, modulo.exports);
++    cache.set(nome, modulo.exports); return modulo.exports;
++  }
++  return { servico: carregar("leituraTotem"), chamadas };
++}
++const foto = (extra = {}) => ({ uri: "blob:foto-sintetica", width: 200, height: 100, mimeType: "image/jpeg", fileSize: 20, type: "image", ...extra });
++const gps = (extra = {}) => ({ latitude: -7.11, longitude: -34.86, precisaoM: 10, obtidaEm: Date.now(), simulada: false, ...extra });
++
++test("OCR não arredonda centavos nem mistura produtos de outras unidades", () => {
++  const { servico } = ambiente();
++  const r = servico.validarLeitura({ sucesso: true, precos: { Etanol: 4.39, Diesel: 5.899, GNV: 4.1, "Recarga Elétrica": 2.2 } }, false);
++  assert.equal(r.valores.length, 1); assert.equal(r.valores[0].codigo, "etanol");
++  for (const valor of [true, "4.39", NaN, Infinity, 0.5, 25.01]) {
++    assert.throws(() => servico.validarLeitura({ sucesso: true, precos: { Etanol: valor } }, false));
++  }
++});
++
++test("comprovante depende de consentimento e de URL Dropbox válida", () => {
++  const { servico } = ambiente();
++  const corpo = { sucesso: true, precos: { Etanol: 4.39 }, foto_url: "https://www.dropbox.com/s/prova.jpg?raw=1" };
++  assert.equal(servico.validarLeitura(corpo, false).fotoUrl, null);
++  assert.equal(servico.validarLeitura(corpo, true).fotoUrl, corpo.foto_url);
++  for (const url of ["http://www.dropbox.com/prova", "https://www.dropbox.com.evil.test/prova", "https://usuario:senha@www.dropbox.com/prova", "javascript:alert(1)"]) {
++    const r = servico.validarLeitura({ ...corpo, foto_url: url }, true);
++    assert.equal(r.fotoUrl, null); assert.equal(r.valores.length, 1);
++  }
++});
++
++test("foto inválida ou grande é recusada antes do envio", () => {
++  const { servico } = ambiente();
++  for (const alteracao of [{ uri: "" }, { type: "video" }, { mimeType: "image/heic" }, { fileSize: 0 }, { fileSize: 8 * 1024 * 1024 + 1 }, { width: 6001, height: 4000 }]) {
++    assert.throws(() => servico.validarFoto(foto(alteracao)));
++  }
++});
++
++test("corpo contém foto e GPS, sem confirmar oferta nem cadastrar preço", () => {
++  const { servico } = ambiente();
++  const dados = servico.formularioLeitura(10, foto(), new Blob(["imagem"], { type: "image/jpeg" }), gps(), false);
++  assert.equal(dados.get("posto_id"), "10"); assert.equal(dados.get("guardar_comprovante"), "false");
++  assert.equal(dados.get("simulada"), "false"); assert.ok(dados.get("foto"));
++  for (const campo of ["preco", "karma", "confirmado"]) assert.equal(dados.has(campo), false);
++});
++
++test("GPS antigo, fictício ou impreciso não gera formulário", () => {
++  const { servico } = ambiente();
++  for (const alteracao of [{ latitude: 0, longitude: 0 }, { precisaoM: 151 }, { simulada: true }, { obtidaEm: Date.now() - 16000 }]) {
++    assert.throws(() => servico.formularioLeitura(10, foto(), null, gps(alteracao), false));
++  }
++});
++
++test("web verifica tamanho real do arquivo antes de usar o GPS", async () => {
++  const { servico } = ambiente(), signal = new AbortController().signal;
++  await assert.rejects(servico.prepararFotoWeb(foto({ file: new Blob([]) }), signal));
++  const arquivo = new Blob(["imagem"], { type: "image/png" });
++  assert.equal(await servico.prepararFotoWeb(foto({ file: arquivo }), signal), arquivo);
++});
++
++test("envio é somente leitura e preserva sessão capturada e cancelamento", async () => {
++  const { servico, chamadas } = ambiente(), signal = new AbortController().signal;
++  const dados = servico.formularioLeitura(10, foto(), new Blob(["imagem"], { type: "image/jpeg" }), gps(), false);
++  await servico.lerFotoTotem(dados, "sessao-sintetica", signal, false);
++  assert.equal(chamadas.length, 1); assert.equal(chamadas[0][0], "/ia/ler-totem");
++  assert.equal(chamadas[0][2].headers.Authorization, "Bearer sessao-sintetica");
++  assert.equal(chamadas[0][2].headers["Content-Type"], undefined);
++  assert.equal(chamadas[0][2].signal, signal);
++});
++
++test("Axios não transforma o multipart em JSON por herdar Content-Type global", async () => {
++  const axios = require("axios"), capturas = [];
++  const cliente = axios.create({ headers: { "Content-Type": "application/json" }, adapter: async (config) => {
++    capturas.push(config);
++    return { status: 200, statusText: "OK", headers: {}, config,
++      data: { sucesso: true, precos: { Etanol: 4.39 }, foto_url: null } };
++  } });
++  const { servico } = ambiente(cliente);
++  const dados = servico.formularioLeitura(10, foto(), new Blob(["imagem"], { type: "image/jpeg" }), gps(), false);
++  await servico.lerFotoTotem(dados, "sessao-sintetica", new AbortController().signal, false);
++  assert.ok(capturas[0].data instanceof FormData);
++  assert.notEqual(capturas[0].headers.getContentType(), "application/json");
++});
+diff --git a/back_end/app/rotas/ia.py b/back_end/app/rotas/ia.py
+index 955bf53..a985934 100644
+--- a/back_end/app/rotas/ia.py
++++ b/back_end/app/rotas/ia.py
+@@ -13,6 +13,11 @@ from flask import Blueprint, jsonify, request
+ from PIL import Image, ImageOps, UnidentifiedImageError
+ 
+ from services.dropbox_services import upload_foto_totem
++from services.leitura_totem import (
++    FotoTotemInvalida,
++    preparar_imagem as preparar_imagem_totem,
++    normalizar_precos as normalizar_precos_totem,
++)
+ from ..db import get_db_connection
+ from ..utils.decorator import token_required
+ from ..utils.geofence import GeofenceError, validar_proximidade
+@@ -114,17 +119,11 @@ class _FotoInvalida(Exception):
+ 
+ 
+ def _preparar_imagem(bruto):
+-    """Valida que é imagem de verdade, corrige a rotação do celular (EXIF) e reduz o tamanho."""
++    """Prepara JPEG sem metadados e preserva a exceção já tratada pela rota."""
+     try:
+-        img = Image.open(io.BytesIO(bruto))
+-        img.load()
+-        img = ImageOps.exif_transpose(img).convert('RGB')
+-    except (UnidentifiedImageError, OSError, Image.DecompressionBombError, ValueError):
+-        raise _FotoInvalida()
+-    img.thumbnail((LADO_MAX_PX, LADO_MAX_PX))
+-    saida = io.BytesIO()
+-    img.save(saida, 'JPEG', quality=88)
+-    return saida.getvalue()
++        return preparar_imagem_totem(bruto, LADO_MAX_PX)
++    except FotoTotemInvalida as erro:
++        raise _FotoInvalida(str(erro)) from erro
+ 
+ 
+ def _extrair_json(texto):
+@@ -139,23 +138,8 @@ def _extrair_json(texto):
+ 
+ 
+ def _normalizar_precos(bruto):
+-    """Só chaves conhecidas, valores numéricos entre R$ 1,00 e R$ 25,00 (mesmo limite do /precos)."""
+-    if not isinstance(bruto, dict):
+-        return {}
+-    precos = {}
+-    for nome in COMBUSTIVEIS:
+-        valor = bruto.get(nome)
+-        if valor is None or isinstance(valor, bool):
+-            continue
+-        try:
+-            if isinstance(valor, str):
+-                valor = re.sub(r'[^0-9.,]', '', valor).replace(',', '.')
+-            numero = float(valor)
+-        except (TypeError, ValueError):
+-            continue
+-        if math.isfinite(numero) and 1.0 <= numero <= 25.0:
+-            precos[nome] = round(numero, 2)
+-    return precos
++    """Filtra sugestões do OCR sem fabricar números nem arredondar frações de centavo."""
++    return normalizar_precos_totem(bruto)
+ 
+ 
+ def _carregar_posto(posto_id):
+@@ -218,8 +202,8 @@ def ler_totem(current_user_id):
+         return jsonify({"error": "Foto muito grande. O limite é de 8 MB."}), 413
+     try:
+         jpeg = _preparar_imagem(bruto)
+-    except _FotoInvalida:
+-        return jsonify({"error": "O ficheiro enviado não é uma imagem válida."}), 400
++    except _FotoInvalida as erro:
++        return jsonify({"error": str(erro)}), 400
+ 
+     # 3. LIMITE DE USO (cada leitura custa dinheiro)
+     if _excedeu_limite(current_user_id):
+@@ -253,9 +237,11 @@ def ler_totem(current_user_id):
+ 
+     # 5. PROVA NO COFRE: só depois de uma leitura bem-sucedida (não guarda foto inútil)
+     foto_url = None
+-    try:
+-        foto_url = upload_foto_totem(io.BytesIO(jpeg), 'totem.jpg')
+-    except Exception:
+-        log.exception('Falha ao guardar a prova no Dropbox')
++    # A ausência de consentimento nunca inicia armazenamento externo.
++    if request.form.get('guardar_comprovante', '').strip().lower() == 'true':
++        try:
++            foto_url = upload_foto_totem(io.BytesIO(jpeg), 'totem.jpg')
++        except Exception:
++            log.exception('Falha ao guardar a prova no Dropbox')
+ 
+     return jsonify({"sucesso": True, "precos": precos, "foto_url": foto_url}), 200
+\ No newline at end of file
+diff --git a/back_end/tests/test_ia.py b/back_end/tests/test_ia.py
+index 2c5b470..c8a1f9d 100644
+--- a/back_end/tests/test_ia.py
++++ b/back_end/tests/test_ia.py
+@@ -88,7 +88,7 @@ def zerar():
+     IA.get_db_connection = lambda: Conn(POSTO); IA.MODELO = "gemini-3.1-pro-preview"; IA.NIVEL_RACIOCINIO = ""
+ 
+ # ---------- sucesso: modelo, JSON, imagem reduzida, prova guardada
+-zerar(); r = enviar(jpeg())
++zerar(); r = enviar(jpeg(), guardar_comprovante="true")
+ assert r.status_code == 200, r.get_json()
+ j = r.get_json(); assert j == {"sucesso": True, "precos": {"Gasolina Comum": 6.29, "Etanol": 4.59}, "foto_url": "https://dropbox/prova.jpg"}
+ c = chamadas[0]
+@@ -98,6 +98,11 @@ img_enviada = Image.open(io.BytesIO(c.contents[0].data)); assert max(img_enviada
+ assert Image.open(io.BytesIO(uploads[0][0])).size == img_enviada.size and uploads[0][1] == "totem.jpg"
+ assert clientes[0].api_key == "chave-teste" and clientes[0].http_options.timeout == 45000
+ 
++# Sem consentimento explícito, não guarda comprovante mesmo após OCR válido.
++for opcao in ("__remover__", "false", "1", "sim"):
++    zerar(); r = enviar(guardar_comprovante=opcao)
++    assert r.status_code == 200 and r.get_json()["foto_url"] is None and not uploads
++
+ # nível de raciocínio explícito e modelo configurável por ambiente
+ zerar(); IA.NIVEL_RACIOCINIO = "high"; IA.MODELO = "outro-modelo"; enviar()
+ assert chamadas[0].config.thinking_config.thinking_level == "high" and chamadas[0].model == "outro-modelo"
+@@ -157,6 +162,6 @@ for erro in [ErroApi(404), ErroApi(503), TimeoutError("lento")]:
+     zerar(); RESP["erro"] = erro; r = enviar()
+     assert r.status_code == 502 and "chave" not in r.get_data(as_text=True) and not uploads
+ zerar(); dbx.upload_foto_totem = lambda s, n: (_ for _ in ()).throw(RuntimeError("dropbox fora"))
+-IA.upload_foto_totem = dbx.upload_foto_totem; r = enviar()
++IA.upload_foto_totem = dbx.upload_foto_totem; r = enviar(guardar_comprovante="true")
+ assert r.status_code == 200 and r.get_json()["foto_url"] is None             # a leitura não se perde por falha do cofre
+ print("ia.py: todos os testes passaram")
+\ No newline at end of file
+diff --git a/front_end/src/screens/AdicionarPreco/index.tsx b/front_end/src/screens/AdicionarPreco/index.tsx
+index 8e0849c..24c3ab8 100644
+--- a/front_end/src/screens/AdicionarPreco/index.tsx
++++ b/front_end/src/screens/AdicionarPreco/index.tsx
+@@ -19,6 +19,7 @@ import {
+ } from "react-native";
+ import { SafeAreaView } from "react-native-safe-area-context";
+ 
++import { LeitorTotem } from "../../components/leitor-totem";
+ import { CartaoPosto } from "../../components/cartao-posto";
+ import {
+     AppButton,
+@@ -65,10 +66,11 @@ const carregarCatalogo = async (signal: AbortSignal) =>
+ 
+ export default function AdicionarPreco() {
+   const route = useRoute<RouteProp<Abas, "Adicionar">>();
++  const { token, status } = useAuth();
+ 
+   return (
+     <FormularioPreco
+-      key={route.params?.solicitacao ?? "aba"}
++      key={JSON.stringify([token, status, route.params?.solicitacao ?? "aba"])}
+       parametros={route.params}
+     />
+   );
+@@ -90,6 +92,8 @@ function FormularioPreco({ parametros }: { parametros: Abas["Adicionar"] }) {
+     parametros?.combustivel ?? filtros.referencia,
+   );
+ 
++  // A associação da foto pertence ao posto/produto e à sessão deste formulário.
++  const [fotoUrl, definirFotoUrl] = useState<string | null>(null);
+   const [textoPreco, definirPreco] = useState("");
+   const [busca, definirBusca] = useState("");
+   const [seletorAberto, abrirSeletor] = useState(false);
+@@ -125,6 +129,7 @@ function FormularioPreco({ parametros }: { parametros: Abas["Adicionar"] }) {
+   useEffect(() => {
+     if (posto && configurado.current !== posto.id) {
+       configurado.current = posto.id;
++      definirFotoUrl(null);
+ 
+       selecionarCodigo((atual) =>
+         produtoInicialCadastro(posto, atual ?? filtros.referencia),
+@@ -135,6 +140,7 @@ function FormularioPreco({ parametros }: { parametros: Abas["Adicionar"] }) {
+   function escolher(p: PostoCatalogo) {
+     if (bloqueado) return;
+ 
++    definirFotoUrl(null);
+     selecionarPosto(p.id);
+     selecionarCodigo(
+       produtoInicialCadastro(p, parametros?.combustivel ?? filtros.referencia),
+@@ -193,6 +199,7 @@ function FormularioPreco({ parametros }: { parametros: Abas["Adicionar"] }) {
+         posto,
+         combustivel: codigo,
+         textoPreco,
++        fotoUrl,
+         token,
+       });
+ 
+@@ -200,6 +207,7 @@ function FormularioPreco({ parametros }: { parametros: Abas["Adicionar"] }) {
+ 
+       if (montado.current && lerTokenAtivo() === token) {
+         definirConfirmacao(resultado);
++        definirFotoUrl(null);
+         definirPreco("");
+         consulta.atualizar();
+       }
+@@ -467,6 +475,7 @@ function FormularioPreco({ parametros }: { parametros: Abas["Adicionar"] }) {
+                             selecionado={codigo === p.codigo}
+                             disabled={bloqueado}
+                             onPress={() => {
++                              definirFotoUrl(null);
+                               selecionarCodigo(p.codigo);
+                               definirPreco("");
+                               definirFalha(null);
+@@ -500,6 +509,33 @@ function FormularioPreco({ parametros }: { parametros: Abas["Adicionar"] }) {
+                     gap: 16,
+                   }}
+                 >
++                  {posto && posto.tipo_posto !== "Eletroposto" ? (
++                    <LeitorTotem
++                      key={posto.id}
++                      postoId={posto.id}
++                      bloqueado={bloqueado}
++                      permitidos={produtosCadastro(posto).map((item) => item.codigo)}
++                      limparComprovante={() => definirFotoUrl(null)}
++                      usar={(combustivel, valor, comprovante) => {
++                        // A sugestão só preenche o formulário; cadastrar exige outra ação.
++                        if (!produtosCadastro(posto).some((item) => item.codigo === combustivel)) {
++                          definirFalha(new FalhaCadastro("validacao", "O produto lido não está disponível para este posto."));
++                          return;
++                        }
++                        selecionarCodigo(combustivel);
++                        definirPreco(valor);
++                        definirFotoUrl(comprovante);
++                        definirFalha(null);
++                      }}
++                    />
++                  ) : null}
++                  {fotoUrl ? (
++                    <Surface>
++                      <Notice>Comprovante associado ao formulário. Remover não exclui a cópia do Dropbox.</Notice>
++                      <AppButton label="Remover comprovante" secondary disabled={bloqueado}
++                        onPress={() => definirFotoUrl(null)} />
++                    </Surface>
++                  ) : null}
+                   <Surface>
+                     <Text
+                       style={{
+diff --git a/front_end/src/services/cadastroPreco.ts b/front_end/src/services/cadastroPreco.ts
+index e9a8c69..f84633e 100644
+--- a/front_end/src/services/cadastroPreco.ts
++++ b/front_end/src/services/cadastroPreco.ts
+@@ -9,10 +9,12 @@ export interface PedidoCadastro {
+   posto: PostoCatalogo;
+   combustivel: Combustivel;
+   textoPreco: string;
++  fotoUrl?: string | null;
+   token: string;
+ }
+ 
+ export interface PayloadPreco {
++  foto_url?: string;
+   posto_id: number;
+   tipo_combustivel: string;
+   preco: string;
+@@ -139,6 +141,8 @@ export function payloadCadastro(
+   const info = COMBUSTIVEIS.find((p) => p.codigo === pedido.combustivel)!;
+ 
+   return {
++    // Encaminha apenas o comprovante escolhido; o backend valida a URL.
++    ...(pedido.fotoUrl ? { foto_url: pedido.fotoUrl } : {}),
+     posto_id: pedido.posto.id,
+     tipo_combustivel:
+       info.codigo === "recarga_eletrica" ? "Recarga Elétrica (kWh)" : info.nome,
+diff --git a/front_end/tests/cadastro-preco.test.cjs b/front_end/tests/cadastro-preco.test.cjs
+index 8daafd3..4675244 100644
+--- a/front_end/tests/cadastro-preco.test.cjs
++++ b/front_end/tests/cadastro-preco.test.cjs
+@@ -489,3 +489,14 @@ test("201 malformado nao libera mensagem de sucesso", async () => {
+ 
+   await assert.rejects(envio.enviar(pedido()), erro("incerto"));
+ });
++
++// O comprovante é opcional e não altera preço, GPS ou produto do cadastro.
++test("cadastro encaminha somente comprovante associado e permite removê-lo", () => {
++  const url = "https://www.dropbox.com/s/prova.jpg?raw=1";
++  const com = c.payloadCadastro(pedido({ fotoUrl: url }), gps());
++  assert.equal(com.foto_url, url);
++  assert.equal(com.preco, "5.89");
++  for (const fotoUrl of [undefined, null, ""]) {
++    assert.equal(Object.hasOwn(c.payloadCadastro(pedido({ fotoUrl }), gps()), "foto_url"), false);
++  }
++});

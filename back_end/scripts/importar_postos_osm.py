@@ -1,22 +1,14 @@
-"""Importação administrativa OSM.
-
-Prévia por padrão.
-Insere somente postos novos com nome.
-Não atualiza nem vincula cadastros existentes.
-"""
-
+"""Catálogo OSM administrativo. Prévia por padrão; nunca atualiza postos existentes."""
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
 import logging
 import os
-import ssl
+from pathlib import Path
 import sys
 import tempfile
-from datetime import datetime, timezone
-from pathlib import Path
-
 
 BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND))
@@ -26,51 +18,18 @@ from services.grid_postos import classificar_lugar
 
 
 def conectar():
-    # Os modos de teste HTTP não precisam importar o driver MySQL.
-    import pymysql
-    import pymysql.cursors
+    # Importacao tardia: testes somente da fonte nao precisam do MySQL.
+    from services.database import get_db_connection
 
-    host = os.getenv("DB_HOST", "").strip()
-    senha = os.getenv("DB_PASSWORD", "")
-
-    if not host or not senha:
-        raise ValueError(
-            "Configure DB_HOST e DB_PASSWORD "
-            "no ambiente do importador."
-        )
-
-    porta = int(os.getenv("DB_PORT", "26841"))
-
-    if not 1 <= porta <= 65535:
-        raise ValueError("DB_PORT inválida.")
-
-    ca = (
-        os.getenv("DB_SSL_CA", "").strip()
-        or None
-    )
-
-    # Verifica a cadeia do certificado e o nome do servidor.
-    contexto = ssl.create_default_context(cafile=ca)
-
-    return pymysql.connect(
-        host=host,
-        port=porta,
-        user=os.getenv("DB_USER", "avnadmin"),
-        password=senha,
-        database=os.getenv("DB_NAME", "defaultdb"),
-        charset="utf8mb4",
-        cursorclass=pymysql.cursors.DictCursor,
-        autocommit=False,
-        ssl=contexto,
-        connect_timeout=10,
-        read_timeout=30,
-        write_timeout=30,
+    return get_db_connection(
+        time_zone="+00:00",
     )
 
 
 def salvar_json(caminho, dados):
-    """Substitui o arquivo de destino somente após concluir a escrita."""
+    """Escreve em arquivo temporário e substitui o destino ao concluir."""
     destino = Path(caminho)
+
     destino.parent.mkdir(
         parents=True,
         exist_ok=True,
@@ -95,9 +54,13 @@ def salvar_json(caminho, dados):
                 ensure_ascii=False,
                 indent=2,
             )
+
             arquivo.write("\n")
 
-        os.replace(temporario, destino)
+        os.replace(
+            temporario,
+            destino,
+        )
 
     finally:
         if (
@@ -108,23 +71,27 @@ def salvar_json(caminho, dados):
 
 
 def ler_json(caminho):
-    limite = 16 * 1024 * 1024
-
     with Path(caminho).open("rb") as arquivo:
-        bruto = arquivo.read(limite + 1)
+        bruto = arquivo.read(
+            16 * 1024 * 1024 + 1
+        )
 
-    if len(bruto) > limite:
-        raise ValueError("Arquivo excede 16 MiB.")
+    if len(bruto) > 16 * 1024 * 1024:
+        raise ValueError(
+            "Arquivo excede 16 MiB."
+        )
 
     return json.loads(bruto)
 
 
 def normalizar_entrada(corpo, bbox=None):
-    resultado, descartados = (
-        osm.converter_resposta(corpo, bbox)
+    resultado, descartados = osm.converter_resposta(
+        corpo,
+        bbox,
     )
 
-    # Exige a tag name. Apenas brand/operator não basta.
+    # name deve existir na OSM.
+    # Brand/operator isolados nao autorizam inclusao.
     nomes = {}
 
     for elemento in corpo["elements"]:
@@ -146,22 +113,17 @@ def normalizar_entrada(corpo, bbox=None):
                 and bool(nome.strip())
             )
 
-    genericos = (
-        "posto",
-        "posto sem nome",
-        "eletroposto sem nome",
-        "sem nome",
-    )
-
     for lugar in resultado.lugares:
         nome = lugar["nome"].strip().casefold()
 
         lugar["_nome_osm_confirmado"] = (
-            nomes.get(
-                lugar["id_externo"],
-                False,
+            nomes.get(lugar["id_externo"], False)
+            and nome not in (
+                "posto",
+                "posto sem nome",
+                "eletroposto sem nome",
+                "sem nome",
             )
-            and nome not in genericos
         )
 
     return resultado.lugares, descartados
@@ -172,7 +134,7 @@ def processar_catalogo(
     lugares,
     aplicar=False,
 ):
-    """Somente INSERT de novos com nome; sem UPDATE ou DELETE."""
+    """Somente INSERT de novos com nome. Sem UPDATE, DELETE ou vínculos."""
     unicos = {}
     duplicados = 0
 
@@ -182,8 +144,7 @@ def processar_catalogo(
         if ident in unicos:
             if unicos[ident] != lugar:
                 raise ValueError(
-                    "Identificador OSM com "
-                    "dados conflitantes."
+                    "Identificador OSM com dados conflitantes."
                 )
 
             duplicados += 1
@@ -192,12 +153,11 @@ def processar_catalogo(
 
     if len(unicos) > 3000:
         raise ValueError(
-            "Catálogo excede o limite administrativo "
-            "de 3000 elementos."
+            "Catálogo excede o limite administrativo de 3000 elementos."
         )
 
-    # Considera todos os candidatos nomeados antes de inserir.
-    # Objetos próximos ficam para revisão, independentemente da ordem.
+    # Compara todos os candidatos nomeados ANTES de inserir.
+    # Objetos OSM proximos ficam para revisao independentemente da ordem.
     virtuais = {
         "entrada:" + ident: dict(
             lugar,
@@ -209,11 +169,7 @@ def processar_catalogo(
     }
 
     relatorio = {
-        "modo": (
-            "aplicar"
-            if aplicar
-            else "dry-run"
-        ),
+        "modo": "aplicar" if aplicar else "dry-run",
         "novos": 0,
         "existentes": 0,
         "ambiguos": 0,
@@ -239,21 +195,19 @@ def processar_catalogo(
             outros,
         )
 
-        item.pop("_registro_vinculo", None)
+        item.pop(
+            "_registro_vinculo",
+            None,
+        )
 
         if (
             item["categoria"] == "novos"
-            and lugar.get(
-                "_nome_osm_confirmado"
-            ) is not True
+            and lugar.get("_nome_osm_confirmado") is not True
         ):
             item.update(
                 categoria="ignorados",
                 acao="ignorar_sem_nome",
-                motivo=(
-                    "Sem name válido na OSM; "
-                    "não será importado."
-                ),
+                motivo="Sem name válido na OSM; não será importado.",
             )
 
         elif item["acao"] == "vincular":
@@ -269,15 +223,31 @@ def processar_catalogo(
         relatorio["itens"].append(item)
 
         if item["categoria"] == "novos":
-            planos.append((lugar, item))
+            planos.append(
+                (lugar, item)
+            )
 
     if aplicar:
         for lugar, item in planos:
             cursor.execute(
-                "INSERT INTO postos ("
-                "mapbox_id, nome, endereco, bairro, cidade, uf, "
-                "latitude, longitude, horario_funcionamento, tipo_posto"
-                ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                """
+                INSERT INTO postos (
+                    mapbox_id,
+                    nome,
+                    endereco,
+                    bairro,
+                    cidade,
+                    uf,
+                    latitude,
+                    longitude,
+                    horario_funcionamento,
+                    tipo_posto
+                )
+                VALUES (
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s
+                )
+                """,
                 (
                     lugar["id_externo"],
                     lugar["nome"],
@@ -309,9 +279,7 @@ def executar(
         with conn.cursor() as cursor:
             if aplicar:
                 cursor.execute(
-                    "SELECT GET_LOCK("
-                    "'litro_osm_batch', 0"
-                    ") AS adquirido"
+                    "SELECT GET_LOCK('litro_osm_batch', 0) AS adquirido"
                 )
 
                 linha = cursor.fetchone()
@@ -352,7 +320,10 @@ def executar(
         conn.close()
 
 
-def main(argv=None, get_conn=conectar):
+def main(
+    argv=None,
+    get_conn=conectar,
+):
     parser = argparse.ArgumentParser(
         description=__doc__,
     )
@@ -364,31 +335,31 @@ def main(argv=None, get_conn=conectar):
     origem.add_argument(
         "--teste-conexao",
         action="store_true",
-        help="Consulta mínima, sem MySQL.",
+        help="Consulta mínima, sem MySQL",
     )
 
     origem.add_argument(
         "--joao-pessoa",
         action="store_true",
-        help="Buscar pela área administrativa OSM.",
+        help="Buscar pela área administrativa OSM",
     )
 
     origem.add_argument(
         "--arquivo",
-        help="JSON Overpass salvo anteriormente.",
+        help="JSON Overpass salvo anteriormente",
     )
 
     origem.add_argument(
         "--buscar",
         action="store_true",
-        help="Prévia legada por bbox, sem aplicação.",
+        help="Prévia legada por bbox, sem aplicação",
     )
 
     parser.add_argument(
         "--bbox",
         help=(
-            "sul,oeste,norte,leste; exemplo: "
-            "--bbox=-7.12,-34.87,-7.10,-34.85"
+            "sul,oeste,norte,leste; "
+            "use --bbox=-7.12,-34.87,-7.10,-34.85"
         ),
     )
 
@@ -397,19 +368,19 @@ def main(argv=None, get_conn=conectar):
     modo.add_argument(
         "--somente-fonte",
         action="store_true",
-        help="Não conectar ao MySQL.",
+        help="Não conectar ao MySQL",
     )
 
     modo.add_argument(
         "--dry-run",
         action="store_true",
-        help="Prévia no banco; é o padrão.",
+        help="Prévia no banco; é o padrão",
     )
 
     modo.add_argument(
         "--aplicar",
         action="store_true",
-        help="Inserir apenas novos com nome.",
+        help="Inserir apenas novos com nome",
     )
 
     parser.add_argument(
@@ -427,12 +398,12 @@ def main(argv=None, get_conn=conectar):
 
     parser.add_argument(
         "--salvar-json",
-        help="Salvar resposta bruta para repetição offline.",
+        help="Salvar resposta bruta para repetição offline",
     )
 
     parser.add_argument(
         "--relatorio",
-        help="Salvar relatório JSON também em arquivo.",
+        help="Salvar relatório JSON também em arquivo",
     )
 
     args = parser.parse_args(argv)
@@ -443,14 +414,15 @@ def main(argv=None, get_conn=conectar):
         )
 
     if args.buscar and not args.bbox:
-        parser.error("--buscar exige --bbox")
+        parser.error(
+            "--buscar exige --bbox"
+        )
 
     if args.bbox and not (
         args.buscar or args.arquivo
     ):
         parser.error(
-            "--bbox é permitido somente "
-            "com --buscar ou --arquivo"
+            "--bbox é permitido somente com --buscar ou --arquivo"
         )
 
     if args.teste_conexao and (
@@ -459,14 +431,15 @@ def main(argv=None, get_conn=conectar):
         or args.bbox
     ):
         parser.error(
-            "--teste-conexao não importa "
-            "nem exporta o catálogo"
+            "--teste-conexao não importa nem exporta o catálogo"
         )
 
     try:
         from dotenv import load_dotenv
 
-        load_dotenv(BACKEND / ".env")
+        load_dotenv(
+            BACKEND / ".env"
+        )
 
     except ModuleNotFoundError:
         pass
@@ -481,9 +454,9 @@ def main(argv=None, get_conn=conectar):
         "fonte": "OpenStreetMap",
         "atribuicao": osm.ATRIBUICAO,
         "licenca_url": osm.LICENCA_URL,
-        "iniciado_em_utc": (
-            datetime.now(timezone.utc).isoformat()
-        ),
+        "iniciado_em_utc": datetime.now(
+            timezone.utc
+        ).isoformat(),
     }
 
     codigo = 0
@@ -532,9 +505,11 @@ def main(argv=None, get_conn=conectar):
                 relatorio.update(meta)
 
             elif args.arquivo:
-                corpo = ler_json(args.arquivo)
+                corpo = ler_json(
+                    args.arquivo
+                )
 
-                possui_area = (
+                if (
                     isinstance(corpo, dict)
                     and isinstance(
                         corpo.get("elements"),
@@ -545,14 +520,12 @@ def main(argv=None, get_conn=conectar):
                         and elemento.get("type") == "area"
                         for elemento in corpo["elements"]
                     )
-                )
-
-                if possui_area:
-                    municipio = (
-                        osm.validar_municipio(corpo)
+                ):
+                    municipio = osm.validar_municipio(
+                        corpo
                     )
 
-                # Arquivos antigos sem área: somente prévia.
+                # JSON antigo sem area: somente previa dentro da caixa legada.
                 if municipio is None and bbox is None:
                     bbox = osm.area_configurada()
 
@@ -564,24 +537,21 @@ def main(argv=None, get_conn=conectar):
                     and b <= bbox[1] < bbox[3] <= d
                 ):
                     raise ValueError(
-                        "Bbox fora da área "
-                        "de prévia configurada."
+                        "Bbox fora da área de prévia configurada."
                     )
 
-                corpo, meta = (
-                    osm.consultar_com_contingencia(
-                        osm.montar_consulta(bbox),
-                        args.tentativas,
-                        args.max_espera,
-                    )
+                corpo, meta = osm.consultar_com_contingencia(
+                    osm.montar_consulta(bbox),
+                    args.tentativas,
+                    args.max_espera,
                 )
 
                 relatorio.update(meta)
 
             if args.aplicar and municipio is None:
                 raise ValueError(
-                    "Aplicação exige resposta com a "
-                    "área administrativa de João Pessoa."
+                    "Aplicação exige resposta com a área "
+                    "administrativa de João Pessoa."
                 )
 
             lugares, descartados = normalizar_entrada(
@@ -591,8 +561,8 @@ def main(argv=None, get_conn=conectar):
 
             if municipio and not lugares:
                 raise ValueError(
-                    "A área foi encontrada, mas nenhum "
-                    "posto válido foi recebido."
+                    "A área foi encontrada, "
+                    "mas nenhum posto válido foi recebido."
                 )
 
             relatorio.update(
@@ -624,9 +594,7 @@ def main(argv=None, get_conn=conectar):
                 )
 
             else:
-                relatorio["gravacao_solicitada"] = (
-                    args.aplicar
-                )
+                relatorio["gravacao_solicitada"] = args.aplicar
 
                 resultado = executar(
                     lugares,
@@ -674,9 +642,9 @@ def main(argv=None, get_conn=conectar):
             type(erro).__name__,
         )
 
-    relatorio["finalizado_em_utc"] = (
-        datetime.now(timezone.utc).isoformat()
-    )
+    relatorio["finalizado_em_utc"] = datetime.now(
+        timezone.utc
+    ).isoformat()
 
     print(
         json.dumps(
@@ -692,11 +660,13 @@ def main(argv=None, get_conn=conectar):
                 args.relatorio,
                 relatorio,
             )
+
         except OSError:
             logging.error(
                 "Não foi possível salvar o relatório; "
                 "confira a saída do terminal."
             )
+
             codigo = 3
 
     return codigo

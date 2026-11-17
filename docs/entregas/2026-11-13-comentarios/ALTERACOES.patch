@@ -1,0 +1,383 @@
+diff --git a/back_end/app/rotas/ofertas.py b/back_end/app/rotas/ofertas.py
+index 5743186..f4dc270 100644
+--- a/back_end/app/rotas/ofertas.py
++++ b/back_end/app/rotas/ofertas.py
+@@ -11,6 +11,7 @@ from services.catalogo_postos import CATALOGO
+ ofertas_bp = Blueprint("ofertas", __name__)
+ 
+ 
++# Confirma só a disponibilidade; revisar aqui GPS, negativas e auditoria da oferta.
+ @ofertas_bp.post("/postos/<int:posto_id>/ofertas/<codigo>/confirmar")
+ @token_required
+ def confirmar_oferta(usuario_id, posto_id, codigo):
+diff --git a/back_end/app/rotas/votos.py b/back_end/app/rotas/votos.py
+index 2800a1d..2d790aa 100644
+--- a/back_end/app/rotas/votos.py
++++ b/back_end/app/rotas/votos.py
+@@ -8,6 +8,7 @@ from services.atividade_alertas import registrar_karma
+ votos_bp = Blueprint("votos", __name__)
+ 
+ 
++# Reúne contagens e voto da sessão para o registro exato exibido na interface.
+ def resumo(cursor, registo_id, usuario_id):
+     cursor.execute("""
+         SELECT r.id AS registo_id,r.usuario_id,r.confianca_score,
+@@ -25,6 +26,7 @@ def resumo(cursor, registo_id, usuario_id):
+     return item
+ 
+ 
++# Consulta ou grava avaliações; concentra locks, repetição/troca e efeito no Karma.
+ @votos_bp.route("/precos/<int:registo_id>/votos", methods=["GET"])
+ @votos_bp.route("/precos/<int:registo_id>/votar", methods=["POST"])
+ @token_required
+diff --git a/back_end/app/rotas/precos.py b/back_end/app/rotas/precos.py
+index 904b569..f2a09f7 100644
+--- a/back_end/app/rotas/precos.py
++++ b/back_end/app/rotas/precos.py
+@@ -110,6 +110,7 @@ def _id_posto_valido(valor):
+ 
+     return numero if 1 <= numero <= 2147483647 else None
+ 
++# Valida o cadastro e confirma preço, Karma, histórico e evento em uma transação.
+ def registrar_preco_validado(
+     usuario_id_token,
+     data,
+@@ -399,6 +400,7 @@ def registrar_preco_validado(
+ 
+ @precos_bp.route("", methods=["POST"], strict_slashes=False)
+ @token_required
++# Encaminha o JSON e a conta autenticada à regra compartilhada com o alias por posto.
+ def registrar_preco(usuario_id_token):
+     return registrar_preco_validado(
+         usuario_id_token,
+diff --git a/back_end/services/atividade_alertas.py b/back_end/services/atividade_alertas.py
+index b0773ba..1f39480 100644
+--- a/back_end/services/atividade_alertas.py
++++ b/back_end/services/atividade_alertas.py
+@@ -2,6 +2,7 @@
+ from services.catalogo_postos import NOMES
+ 
+ 
++# Aplica pontos uma vez por origem; o chamador controla lock da conta e commit.
+ def registrar_karma(cursor, usuario_id, pontos, origem, motivo, registo_id):
+     # O chamador deve deter o lock da conta. A origem protege reprocessamentos.
+     cursor.execute("SELECT id FROM historico_karma WHERE usuario_id=%s AND origem=%s", (usuario_id, origem))
+@@ -16,6 +17,7 @@ def registrar_karma(cursor, usuario_id, pontos, origem, motivo, registo_id):
+     """, (usuario_id, origem, motivo, pontos, saldo, registo_id))
+ 
+ 
++# Gera avisos da central conforme favoritos/preferências; não envia push nem agenda.
+ def processar_pendentes(conn, limite=100):
+     """Uma transação por evento; locks serializam executores e preferências."""
+     processados = 0
+diff --git a/back_end/services/catalogo_postos.py b/back_end/services/catalogo_postos.py
+index 762193d..412da68 100644
+--- a/back_end/services/catalogo_postos.py
++++ b/back_end/services/catalogo_postos.py
+@@ -19,6 +19,7 @@ NOMES = {nome: codigo for codigo, (nome, _) in CATALOGO.items()}
+ NOMES["Recarga Elétrica (kWh)"] = "recarga_eletrica"
+ 
+ 
++# Unifica apelidos de bandeiras; ajustar aqui quando aparecer uma nova grafia.
+ def normalizar_marca(valor):
+     if not isinstance(valor, str) or not valor.strip():
+         return None
+@@ -31,6 +32,7 @@ def normalizar_marca(valor):
+     }.get(chave, nome)
+ 
+ 
++# Converte os parâmetros da consulta em seleção, referência, bandeira e ordenação.
+ def validar_filtros(args):
+     selecionados = []
+     bruto = args.get("combustiveis", "")
+@@ -55,6 +57,7 @@ def validar_filtros(args):
+     return selecionados, referencia, normalizar_marca(marca), ordem
+ 
+ 
++# Converte valores do banco em números finitos, preservando ausência como None.
+ def _numero(valor):
+     if valor is None or isinstance(valor, bool):
+         return None
+@@ -65,6 +68,7 @@ def _numero(valor):
+     return numero if math.isfinite(numero) else None
+ 
+ 
++# Traduz flags SQL sem confundir oferta desconhecida com indisponibilidade.
+ def _estado(valor):
+     if valor in (0, "0", False):
+         return False
+@@ -73,10 +77,12 @@ def _estado(valor):
+     return None
+ 
+ 
++# Serializa datas do banco em ISO; não atribui um fuso que não veio no valor.
+ def _data(valor):
+     return valor.isoformat() if isinstance(valor, (datetime, date)) else None
+ 
+ 
++# Monta postos/ofertas/preços em lote; revisar aqui filtros e preço de referência.
+ def consultar_catalogo(conn, centro, raio_km, limite, filtros, distancia_m):
+     selecionados, referencia, marca, ordem = filtros
+     parametros = []
+diff --git a/back_end/scripts/processar_alertas.py b/back_end/scripts/processar_alertas.py
+index 61028dd..3b12bf5 100644
+--- a/back_end/scripts/processar_alertas.py
++++ b/back_end/scripts/processar_alertas.py
+@@ -9,6 +9,7 @@ from services.database import get_db_connection
+ from services.atividade_alertas import processar_pendentes
+ 
+ 
++# Confere banco/limite antes de executar uma rodada manual da fila de avisos.
+ def main():
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument("--banco", required=True)
+diff --git a/back_end/scripts/verificar_sdk_ia.py b/back_end/scripts/verificar_sdk_ia.py
+index ad6a7dd..f89962b 100644
+--- a/back_end/scripts/verificar_sdk_ia.py
++++ b/back_end/scripts/verificar_sdk_ia.py
+@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
+ sys.path.insert(0, str(ROOT))
+ 
+ 
++# Diagnostica instalação e tipos do SDK usados pelas rotas, sem chamar o provedor.
+ def verificar():
+     from google import genai
+     from google.genai import types
+diff --git a/front_end/src/services/ofertas.ts b/front_end/src/services/ofertas.ts
+index 02d5550..2c99bf1 100644
+--- a/front_end/src/services/ofertas.ts
++++ b/front_end/src/services/ofertas.ts
+@@ -1,6 +1,7 @@
+ import type { PosicaoGps } from "../utils/localizacao";
+ import { COMBUSTIVEIS, type Combustivel } from "./catalogoPostos";
+ 
++// Valida o GPS de cadastro e monta a confirmação explícita enviada à API.
+ export function payloadOferta(gps: PosicaoGps, agora = Date.now()) {
+   if (!Number.isFinite(gps.latitude) || Math.abs(gps.latitude) > 90 ||
+       !Number.isFinite(gps.longitude) || Math.abs(gps.longitude) > 180 ||
+@@ -14,6 +15,7 @@ export function payloadOferta(gps: PosicaoGps, agora = Date.now()) {
+     precisao_m: gps.precisaoM, simulada: false };
+ }
+ 
++// Só aceita sucesso para o mesmo posto/produto; resposta incompleta exige recarga.
+ export function validarConfirmacaoOferta(valor: unknown, postoId: number, codigo: Combustivel) {
+   const r = valor as Record<string, unknown> | null;
+   if (!r || r.posto_id !== postoId || r.codigo !== codigo || r.disponivel !== true ||
+diff --git a/front_end/src/services/votos.ts b/front_end/src/services/votos.ts
+index 69c46d6..c286292 100644
+--- a/front_end/src/services/votos.ts
++++ b/front_end/src/services/votos.ts
+@@ -8,6 +8,7 @@ export interface AvaliacaoPreco {
+   pode_votar: boolean;
+ }
+ 
++// Valida contagens, permissão e vínculo da avaliação com o ID do preço consultado.
+ export function lerAvaliacao(valor: unknown, registoId: number): AvaliacaoPreco {
+   const r = valor as AvaliacaoPreco | null;
+   if (!r || r.registo_id !== registoId || !Number.isSafeInteger(r.confianca_score) ||
+diff --git a/front_end/src/services/catalogoPostos.ts b/front_end/src/services/catalogoPostos.ts
+index 1a00b12..9348d98 100644
+--- a/front_end/src/services/catalogoPostos.ts
++++ b/front_end/src/services/catalogoPostos.ts
+@@ -57,11 +57,14 @@ export interface PostoCatalogo {
+   combustivel_referencia: Combustivel;
+   preco_referencia: number | null;
+ }
++// Localiza nome, unidade e cor do código conhecido no catálogo fixo de combustíveis.
+ export const produto = (codigo: Combustivel) =>
+   COMBUSTIVEIS.find((p) => p.codigo === codigo)!;
++// Formata o valor em reais; a unidade do produto é acrescentada pela interface.
+ export const precoFormatado = (valor: number) =>
+   "R$ " + valor.toFixed(2).replace(".", ",");
+ 
++// Alterna a seleção e mantém a referência entre os combustíveis selecionados.
+ export function alternarCombustivel(
+   filtros: FiltrosPostos,
+   codigo: Combustivel,
+@@ -74,6 +77,7 @@ export function alternarCombustivel(
+     : (combustiveis[0] ?? filtros.referencia);
+   return { ...filtros, combustiveis, referencia };
+ }
++// Monta a consulta da API sem enviar coordenadas fictícias quando não há GPS.
+ export function parametrosPostos(
+   filtros: FiltrosPostos,
+   local?: { lat: number; lon: number } | null,
+@@ -88,6 +92,7 @@ export function parametrosPostos(
+     ordenar: filtros.ordenar,
+   };
+ }
++// Define as barrinhas pela interseção dos filtros com as ofertas confirmadas.
+ export function segmentosPosto(
+   posto: PostoCatalogo,
+   selecionados: Combustivel[],
+@@ -100,11 +105,13 @@ export function segmentosPosto(
+       ),
+   );
+ }
++// Obtém a oferta usada como referência única do preço central e da comparação.
+ export function ofertaReferencia(posto: PostoCatalogo) {
+   return posto.combustiveis.find(
+     (p) => p.codigo === posto.combustivel_referencia,
+   )!;
+ }
++// Escolhe entre valor, ausência de preço e oferta não confirmada no cartão.
+ export function rotuloPreco(posto: PostoCatalogo) {
+   if (posto.preco_referencia !== null)
+     return precoFormatado(posto.preco_referencia);
+@@ -112,6 +119,7 @@ export function rotuloPreco(posto: PostoCatalogo) {
+     ? "Sem preço informado"
+     : "Ver preços";
+ }
++// Exibe data em Fortaleza, respeitando o fuso explícito ou o legado -03:00.
+ export function dataPublicacao(valor: string | null) {
+   if (!valor) return "Atualização não informada";
+   // DATETIME legado do backend é horário de Fortaleza, não UTC.
+@@ -121,12 +129,14 @@ export function dataPublicacao(valor: string | null) {
+     ? data.toLocaleString("pt-BR", { timeZone: "America/Fortaleza" })
+     : "Atualização não informada";
+ }
++// Define a cor pela faixa de preços recentes da mesma referência; não mede confiança.
+ export function classificarPreco(
+   posto: PostoCatalogo,
+   lista: PostoCatalogo[],
+   agora = Date.now(),
+ ) {
+   const ref = ofertaReferencia(posto);
++  // Exclui da comparação registros sem data/preço, futuros ou com mais de 72 horas.
+   const recente = (p: PostoCatalogo) => {
+     const data = ofertaReferencia(p).atualizado_em;
+     if (!data || p.preco_referencia === null) return false;
+@@ -165,6 +175,7 @@ export function classificarPreco(
+       ? { cor: "#8A6500", texto: "Faixa intermediária nesta consulta" }
+       : { cor: "#B42318", texto: "Faixa maior nesta consulta" };
+ }
++// Valida a resposta da API e preserva oferta desconhecida, autoria e ID exato do preço.
+ export function lerCatalogo(
+   valor: unknown,
+   referencia: Combustivel,
+diff --git a/front_end/src/components/confirmar-oferta.tsx b/front_end/src/components/confirmar-oferta.tsx
+index d47c7b7..4f35fbc 100644
+--- a/front_end/src/components/confirmar-oferta.tsx
++++ b/front_end/src/components/confirmar-oferta.tsx
+@@ -8,6 +8,7 @@ import { payloadOferta, validarConfirmacaoOferta } from "../services/ofertas";
+ import { obterPosicao } from "../utils/localizacao";
+ import { AppButton, Notice } from "./design";
+ 
++// Reinicia o controle ao mudar a sessão, evitando reaproveitar estado de outra conta.
+ export function ConfirmarOferta({ postoId, codigo, nome, onAtualizar }: {
+   postoId: number; codigo: Combustivel; nome: string; onAtualizar(): void;
+ }) {
+@@ -15,6 +16,7 @@ export function ConfirmarOferta({ postoId, codigo, nome, onAtualizar }: {
+   return <ControlesOferta key={token ?? "visitante"} postoId={postoId} codigo={codigo} nome={nome} onAtualizar={onAtualizar} />;
+ }
+ 
++// Exibe revisão, envio e feedback da oferta; não cadastra preço nem concede pontos.
+ function ControlesOferta({ postoId, codigo, nome, onAtualizar }: {
+   postoId: number; codigo: Combustivel; nome: string; onAtualizar(): void;
+ }) {
+@@ -29,6 +31,7 @@ function ControlesOferta({ postoId, codigo, nome, onAtualizar }: {
+     return () => { atual.current = null; };
+   }, [token]);
+ 
++  // Obtém GPS atual, envia com a sessão capturada e recarrega após confirmação válida.
+   async function confirmar() {
+     if (!token || ocupado.current) return;
+     const sessao = token;
+diff --git a/front_end/src/components/votar-preco.tsx b/front_end/src/components/votar-preco.tsx
+index f72f16b..77c16bb 100644
+--- a/front_end/src/components/votar-preco.tsx
++++ b/front_end/src/components/votar-preco.tsx
+@@ -6,11 +6,13 @@ import { api } from "../services/API";
+ import { lerAvaliacao, type AvaliacaoPreco, type Voto } from "../services/votos";
+ import { AppButton, Notice, useAppTheme } from "./design";
+ 
++// Isola o estado por sessão; o componente pai fornece a chave do registro de preço.
+ export function VotarPreco({ registoId, nome }: { registoId: number; nome: string }) {
+   const { token } = useAuth();
+   return <ControlesVoto key={token ?? "visitante"} registoId={registoId} nome={nome} />;
+ }
+ 
++// Mostra avaliações sob demanda e ações permitidas para a conta atual.
+ function ControlesVoto({ registoId, nome }: { registoId: number; nome: string }) {
+   const { token, status, openAuth } = useAuth();
+   const { colors } = useAppTheme();
+@@ -24,6 +26,7 @@ function ControlesVoto({ registoId, nome }: { registoId: number; nome: string })
+     return () => { atual.current = null; };
+   }, [token]);
+ 
++  // Sem argumento consulta; com voto grava e reconcilia a resposta do registro exato.
+   async function consultar(voto?: Voto) {
+     if (!token || ocupado.current) return;
+     const sessao = token;
+diff --git a/front_end/src/screens/ConsultaPostos/detalhes.tsx b/front_end/src/screens/ConsultaPostos/detalhes.tsx
+index ff36592..92f3f29 100644
+--- a/front_end/src/screens/ConsultaPostos/detalhes.tsx
++++ b/front_end/src/screens/ConsultaPostos/detalhes.tsx
+@@ -30,6 +30,7 @@ interface Props {
+   onAtualizar(): void;
+ }
+ 
++// Reúne rota, ofertas, preços e avaliações do posto; ações de gravação ficam nos controles.
+ export function DetalhesPostoConsulta({
+   posto,
+   referencia,
+diff --git a/front_end/src/screens/ConsultaPostos/index.tsx b/front_end/src/screens/ConsultaPostos/index.tsx
+index 6de800d..1936b49 100644
+--- a/front_end/src/screens/ConsultaPostos/index.tsx
++++ b/front_end/src/screens/ConsultaPostos/index.tsx
+@@ -52,6 +52,7 @@ import { design } from "../../theme/design";
+ import { DetalhesPostoConsulta } from "./detalhes";
+ import { BotaoConsulta, styles } from "./layout";
+ 
++// Coordena Mapa/Feed com catálogo e filtros compartilhados, seleção e painéis responsivos.
+ export default function ConsultaPostos({
+   modo = "mapa",
+ }: {
+@@ -137,6 +138,7 @@ export default function ConsultaPostos({
+     [postos, filtros.combustiveis, selecionado],
+   );
+ 
++  // Seleciona o posto, centraliza o mapa e registra a visualização da conta atual.
+   function escolher(p: PostoCatalogo) {
+     definirErroRota("");
+     selecionar(p.id);
+@@ -159,6 +161,7 @@ export default function ConsultaPostos({
+     );
+   }
+ 
++  // Monta o cartão usando a consulta completa como amostra da comparação de preços.
+   function cartao(p: PostoCatalogo) {
+     return (
+       <CartaoPostoComFavorito
+@@ -172,6 +175,7 @@ export default function ConsultaPostos({
+     );
+   }
+ 
++  // Abre a aba de cadastro com posto/produto escolhidos e fecha os detalhes atuais.
+   function abrirCadastro(
+     p: PostoCatalogo,
+     combustivel: typeof filtros.referencia,
+@@ -187,6 +191,7 @@ export default function ConsultaPostos({
+     });
+   }
+ 
++  // Liga a lista aos filtros/erros; busca por nome é habilitada apenas no Feed.
+   function lista() {
+     return (
+       <ListaPostosConsulta
+@@ -205,6 +210,7 @@ export default function ConsultaPostos({
+     );
+   }
+ 
++  // Conecta ações dos detalhes à navegação e à recarga do catálogo após confirmação.
+   function detalhes() {
+     if (!posto) return null;
+ 
+@@ -238,6 +244,7 @@ export default function ConsultaPostos({
+     legendaAberta ||
+     (!painelNaLateral && (listaAberta || !!posto));
+ 
++  // Fecha legenda/lista e limpa a seleção ao dispensar o painel ou modal.
+   function fecharPainel() {
+     abrirLegenda(false);
+     abrirLista(false);

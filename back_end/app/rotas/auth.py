@@ -56,11 +56,26 @@ def _validar_dados(*campos, senha_nova=None):
 
     if (
         len(email) > 100
-        or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email)
+        or not re.fullmatch(
+            r"[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+",
+            email,
+        )
     ):
         return None, "Informe um e-mail válido com até 100 caracteres."
 
-    dados = dict(dados, email=email)
+    dados = dict(dados, email=email.lower())
+
+    if "nome" in campos and (
+        len(dados["nome"].strip()) > 100
+        or any(ord(c) < 32 for c in dados["nome"])
+    ):
+        return None, (
+            "Informe um nome com até 100 caracteres, "
+            "sem caracteres de controle."
+        )
+
+    if "senha" in campos and len(dados["senha"]) > 1024:
+        return None, "Senha inválida."
 
     if "codigo" in campos:
         dados["codigo"] = dados["codigo"].strip()
@@ -91,39 +106,95 @@ def _gerar_codigo():
 
 
 def _atualizar_codigo(cursor, email, finalidade):
-    """
-    Utiliza somente as colunas existentes.
+    agora = datetime.utcnow()
 
-    Como existe um único token_expiracao, emitir um código
-    invalida o da outra finalidade. Apenas o mais recente vale.
-    """
+    cursor.execute(
+        "SELECT codigo_emitido_em FROM usuarios WHERE email=%s FOR UPDATE",
+        (email,),
+    )
+    usuario = cursor.fetchone()
+
+    if not usuario or (
+        usuario["codigo_emitido_em"]
+        and (agora - usuario["codigo_emitido_em"]).total_seconds() < 60
+    ):
+        return None
+
     codigo = _gerar_codigo()
-    expiracao = datetime.utcnow() + timedelta(minutes=15)
 
-    if finalidade == "recuperacao":
-        sql = """
-            UPDATE usuarios
-            SET token_recuperacao = %s,
-                token_verificacao = NULL,
-                token_expiracao = %s
-            WHERE email = %s
-        """
-    else:
-        sql = """
-            UPDATE usuarios
-            SET token_verificacao = %s,
-                token_recuperacao = NULL,
-                token_expiracao = %s
-            WHERE email = %s
-        """
+    verificacao = codigo if finalidade == "verificacao" else None
+    recuperacao = codigo if finalidade == "recuperacao" else None
 
-    cursor.execute(sql, (codigo, expiracao, email))
+    cursor.execute(
+        """
+        UPDATE usuarios
+        SET token_verificacao=%s,
+            token_recuperacao=%s,
+            token_expiracao=%s,
+            tentativas_codigo=0,
+            codigo_emitido_em=%s
+        WHERE email=%s
+        """,
+        (
+            verificacao,
+            recuperacao,
+            agora + timedelta(minutes=15),
+            agora,
+            email,
+        ),
+    )
 
     return codigo
 
 
+def _consumir_codigo(cursor, email, codigo, finalidade):
+    cursor.execute(
+        """
+        SELECT id,
+               token_verificacao,
+               token_recuperacao,
+               token_expiracao,
+               tentativas_codigo
+        FROM usuarios
+        WHERE email=%s
+        FOR UPDATE
+        """,
+        (email,),
+    )
+
+    usuario = cursor.fetchone()
+
+    if (
+        not usuario
+        or not usuario["token_expiracao"]
+        or usuario["token_expiracao"] <= datetime.utcnow()
+        or usuario["tentativas_codigo"] >= 5
+    ):
+        return None
+
+    campo = (
+        "token_recuperacao"
+        if finalidade == "recuperacao"
+        else "token_verificacao"
+    )
+    esperado = usuario[campo]
+
+    if not esperado or not secrets.compare_digest(esperado, codigo):
+        cursor.execute(
+            """
+            UPDATE usuarios
+            SET tentativas_codigo=tentativas_codigo+1
+            WHERE id=%s
+            """,
+            (usuario["id"],),
+        )
+        return None
+
+    return usuario["id"]
+
+
 # =========================================================
-# ENVIO DE E-MAIL PELO RESEND
+# ENVIO DE E-MAIL PELO SERVIÇO CONFIGURADO
 # =========================================================
 
 def enviar_email_codigo(destinatario, codigo, tipo="verificacao"):
@@ -155,18 +226,36 @@ def login():
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id, senha, email_verificado
+                SELECT id,
+                       senha,
+                       email_verificado,
+                       versao_token,
+                       falhas_login,
+                       login_bloqueado_ate
                 FROM usuarios
                 WHERE email = %s
+                FOR UPDATE
                 """,
                 (email,),
             )
+
             usuario = cursor.fetchone()
 
             if not usuario:
                 return jsonify({
                     "error": "E-mail ou senha incorretos."
                 }), 401
+
+            if (
+                usuario["login_bloqueado_ate"]
+                and usuario["login_bloqueado_ate"] > datetime.utcnow()
+            ):
+                return jsonify(
+                    error=(
+                        "E-mail ou senha incorretos. "
+                        "Aguarde antes de tentar novamente."
+                    )
+                ), 401
 
             # Senha NULL ou hash inválido resultam em
             # credenciais inválidas, sem erro interno.
@@ -182,9 +271,42 @@ def login():
                 senha_valida = False
 
             if not senha_valida:
+                falhas = usuario["falhas_login"] + 1
+
+                bloqueio = (
+                    datetime.utcnow() + timedelta(minutes=15)
+                    if falhas >= 5
+                    else None
+                )
+
+                cursor.execute(
+                    """
+                    UPDATE usuarios
+                    SET falhas_login=%s,
+                        login_bloqueado_ate=%s
+                    WHERE id=%s
+                    """,
+                    (
+                        0 if bloqueio else falhas,
+                        bloqueio,
+                        usuario["id"],
+                    ),
+                )
+                conn.commit()
+
                 return jsonify({
                     "error": "E-mail ou senha incorretos."
                 }), 401
+
+            cursor.execute(
+                """
+                UPDATE usuarios
+                SET falhas_login=0,
+                    login_bloqueado_ate=NULL
+                WHERE id=%s
+                """,
+                (usuario["id"],),
+            )
 
             if not usuario["email_verificado"]:
                 codigo = _atualizar_codigo(
@@ -194,7 +316,7 @@ def login():
                 )
                 conn.commit()
 
-                enviado = enviar_email_codigo(
+                enviado = bool(codigo) and enviar_email_codigo(
                     email,
                     codigo,
                     "verificacao",
@@ -215,6 +337,8 @@ def login():
                     "email_sent": enviado,
                 }), 403
 
+            conn.commit()
+
             # Deve ser a mesma chave usada pelo decorator JWT.
             segredo = current_app.config["SECRET_KEY"]
 
@@ -230,6 +354,8 @@ def login():
             token = jwt.encode(
                 {
                     "usuario_id": usuario["id"],
+                    "ver": usuario["versao_token"],
+                    "iat": datetime.utcnow(),
                     "exp": datetime.utcnow() + timedelta(days=7),
                 },
                 segredo,
@@ -276,25 +402,31 @@ def confirmar_email():
         conn = get_db_connection()
 
         with conn.cursor() as cursor:
-            # Confere e consome o código na mesma atualização.
+            usuario_id = _consumir_codigo(
+                cursor,
+                email,
+                codigo,
+                "verificacao",
+            )
+
+            if usuario_id is None:
+                conn.commit()
+                return jsonify(
+                    error="Código inválido ou expirado."
+                ), 400
+
             cursor.execute(
                 """
                 UPDATE usuarios
-                SET email_verificado = 1,
-                    token_verificacao = NULL,
-                    token_recuperacao = NULL,
-                    token_expiracao = NULL
-                WHERE email = %s
-                  AND token_verificacao = %s
-                  AND token_expiracao > %s
+                SET email_verificado=1,
+                    token_verificacao=NULL,
+                    token_recuperacao=NULL,
+                    token_expiracao=NULL,
+                    tentativas_codigo=0
+                WHERE id=%s
                 """,
-                (email, codigo, datetime.utcnow()),
+                (usuario_id,),
             )
-
-            if cursor.rowcount != 1:
-                return jsonify({
-                    "error": "Código inválido ou expirado."
-                }), 400
 
             conn.commit()
 
@@ -352,11 +484,12 @@ def recuperar_senha():
                 )
                 conn.commit()
 
-                enviar_email_codigo(
-                    email,
-                    codigo,
-                    "recuperacao",
-                )
+                if codigo:
+                    enviar_email_codigo(
+                        email,
+                        codigo,
+                        "recuperacao",
+                    )
 
         # Mantém a resposta neutra, inclusive quando o envio falha.
         return jsonify({
@@ -408,32 +541,35 @@ def redefinir_senha():
         conn = get_db_connection()
 
         with conn.cursor() as cursor:
-            # A senha só muda se o código ainda estiver válido.
-            # O código é consumido na mesma atualização.
+            usuario_id = _consumir_codigo(
+                cursor,
+                email,
+                codigo,
+                "recuperacao",
+            )
+
+            if usuario_id is None:
+                conn.commit()
+                return jsonify(
+                    error="Código inválido ou expirado."
+                ), 400
+
             cursor.execute(
                 """
                 UPDATE usuarios
-                SET senha = %s,
-                    token_recuperacao = NULL,
-                    token_verificacao = NULL,
-                    token_expiracao = NULL,
-                    email_verificado = 1
-                WHERE email = %s
-                  AND token_recuperacao = %s
-                  AND token_expiracao > %s
+                SET senha=%s,
+                    token_recuperacao=NULL,
+                    token_verificacao=NULL,
+                    token_expiracao=NULL,
+                    email_verificado=1,
+                    versao_token=versao_token+1,
+                    tentativas_codigo=0,
+                    falhas_login=0,
+                    login_bloqueado_ate=NULL
+                WHERE id=%s
                 """,
-                (
-                    senha_hash,
-                    email,
-                    codigo,
-                    datetime.utcnow(),
-                ),
+                (senha_hash, usuario_id),
             )
-
-            if cursor.rowcount != 1:
-                return jsonify({
-                    "error": "Código inválido ou expirado."
-                }), 400
 
             conn.commit()
 
@@ -470,7 +606,7 @@ def obter_perfil(current_user_id):
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT nome, email, plano, karma,
+                SELECT id, nome, email, plano, karma,
                        DATE_FORMAT(
                            criado_em,
                            '%%d/%%m/%%Y'
@@ -552,9 +688,10 @@ def cadastro():
                     karma,
                     email_verificado,
                     token_verificacao,
-                    token_expiracao
+                    token_expiracao,
+                    codigo_emitido_em
                 )
-                VALUES (%s, %s, %s, 'gratis', 0, 0, %s, %s)
+                VALUES (%s, %s, %s, 'gratis', 0, 0, %s, %s, %s)
                 """,
                 (
                     nome,
@@ -562,6 +699,7 @@ def cadastro():
                     senha_hash,
                     codigo,
                     expiracao,
+                    datetime.utcnow(),
                 ),
             )
             conn.commit()
@@ -643,11 +781,12 @@ def reenviar_codigo():
                 )
                 conn.commit()
 
-                enviar_email_codigo(
-                    email,
-                    codigo,
-                    "verificacao",
-                )
+                if codigo:
+                    enviar_email_codigo(
+                        email,
+                        codigo,
+                        "verificacao",
+                    )
 
         return jsonify({
             "message": (
@@ -664,7 +803,10 @@ def reenviar_codigo():
         )
 
         return jsonify({
-            "error": "Não foi possível solicitar o código. Tente novamente."
+            "error": (
+                "Não foi possível solicitar o código. "
+                "Tente novamente."
+            )
         }), 500
 
     finally:

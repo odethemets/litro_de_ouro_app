@@ -3,12 +3,12 @@ import os
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlparse
 
-import pymysql
 from flask import Blueprint, current_app, jsonify, request
 
 from app.db import get_db_connection
 from app.utils.decorator import token_required
 from app.utils.geofence import GeofenceError, validar_proximidade
+from services.atividade_alertas import registrar_karma
 
 precos_bp = Blueprint("precos", __name__)
 
@@ -110,6 +110,7 @@ def _id_posto_valido(valor):
 
     return numero if 1 <= numero <= 2147483647 else None
 
+# Valida o cadastro e confirma preço, Karma, histórico e evento em uma transação.
 def registrar_preco_validado(
     usuario_id_token,
     data,
@@ -258,6 +259,7 @@ def registrar_preco_validado(
                 SELECT latitude, longitude, nome, tipo_posto
                 FROM postos
                 WHERE id = %s
+                FOR UPDATE
                 """,
                 (posto_id,),
             )
@@ -325,6 +327,15 @@ def registrar_preco_validado(
 
             cursor.execute(
                 """
+                SELECT preco FROM registos_preco
+                WHERE posto_id=%s AND tipo_combustivel=%s
+                ORDER BY data_registro DESC,id DESC LIMIT 1
+                """, (posto_id, tipo),
+            )
+            anterior = cursor.fetchone()
+
+            cursor.execute(
+                """
                 INSERT INTO registos_preco (
                     posto_id,
                     usuario_id,
@@ -347,14 +358,14 @@ def registrar_preco_validado(
 
             registo_id = cursor.lastrowid
 
-            cursor.execute(
-                """
-                UPDATE usuarios
-                SET karma = COALESCE(karma, 0) + 5
-                WHERE id = %s
-                """,
-                (usuario_id_token,),
+            registrar_karma(
+                cursor, usuario_id_token, 5, f"preco:{registo_id}",
+                "Cadastro de preço", registo_id,
             )
+            cursor.execute("""
+                INSERT INTO eventos_preco (registo_id,preco_anterior,criado_em)
+                VALUES (%s,%s,UTC_TIMESTAMP())
+            """, (registo_id, anterior["preco"] if anterior else None))
 
             # Confirma o preço e os pontos na mesma transação.
             conn.commit()
@@ -389,150 +400,9 @@ def registrar_preco_validado(
 
 @precos_bp.route("", methods=["POST"], strict_slashes=False)
 @token_required
+# Encaminha o JSON e a conta autenticada à regra compartilhada com o alias por posto.
 def registrar_preco(usuario_id_token):
     return registrar_preco_validado(
         usuario_id_token,
         request.get_json(silent=True),
     )
-
-@precos_bp.route(
-    "/<int:registo_id>/votar",
-    methods=["POST"],
-    strict_slashes=False,
-)
-@token_required
-def votar_preco(usuario_id_token, registo_id):
-    # Mantém a lógica de votação existente.
-    data = request.get_json()
-
-    if not data or data.get("voto") not in ["positivo", "negativo"]:
-        return jsonify({
-            "error": "Envie 'voto' com o valor 'positivo' ou 'negativo'."
-        }), 400
-
-    novo_voto = data["voto"]
-    conn = None
-
-    try:
-        conn = get_db_connection()
-
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT usuario_id
-                FROM registos_preco
-                WHERE id = %s
-                """,
-                (registo_id,),
-            )
-
-            registo = cursor.fetchone()
-
-            if not registo:
-                return jsonify({
-                    "error": "Registro de preço não encontrado."
-                }), 404
-
-            autor_id = registo["usuario_id"]
-
-            if autor_id == usuario_id_token:
-                return jsonify({
-                    "error": (
-                        "Não pode votar na sua própria "
-                        "publicação de preço."
-                    )
-                }), 400
-
-            cursor.execute(
-                """
-                SELECT tipo_voto
-                FROM votos_registos
-                WHERE usuario_id = %s
-                  AND registo_id = %s
-                """,
-                (usuario_id_token, registo_id),
-            )
-
-            voto_existente = cursor.fetchone()
-
-            if not voto_existente:
-                delta_score = 1 if novo_voto == "positivo" else -1
-                delta_karma = 2 if novo_voto == "positivo" else -2
-
-                cursor.execute(
-                    """
-                    INSERT INTO votos_registos (
-                        registo_id,
-                        usuario_id,
-                        tipo_voto
-                    )
-                    VALUES (%s, %s, %s)
-                    """,
-                    (
-                        registo_id,
-                        usuario_id_token,
-                        novo_voto,
-                    ),
-                )
-
-            elif voto_existente["tipo_voto"] == novo_voto:
-                return jsonify({
-                    "message": "Já registrou este mesmo voto para este preço."
-                }), 200
-
-            else:
-                delta_score = 2 if novo_voto == "positivo" else -2
-                delta_karma = 4 if novo_voto == "positivo" else -4
-
-                cursor.execute(
-                    """
-                    UPDATE votos_registos
-                    SET tipo_voto = %s
-                    WHERE usuario_id = %s
-                      AND registo_id = %s
-                    """,
-                    (
-                        novo_voto,
-                        usuario_id_token,
-                        registo_id,
-                    ),
-                )
-
-            cursor.execute(
-                """
-                UPDATE registos_preco
-                SET confianca_score = confianca_score + %s
-                WHERE id = %s
-                """,
-                (delta_score, registo_id),
-            )
-
-            cursor.execute(
-                """
-                UPDATE usuarios
-                SET karma = karma + %s
-                WHERE id = %s
-                """,
-                (delta_karma, autor_id),
-            )
-
-            conn.commit()
-
-        return jsonify({
-            "message": (
-                f"Voto '{novo_voto}' registrado com sucesso!"
-            )
-        }), 200
-
-    except pymysql.MySQLError as erro:
-        if conn:
-            conn.rollback()
-
-        return jsonify({
-            "error": "Erro ao processar o voto",
-            "detalhes": str(erro),
-        }), 500
-
-    finally:
-        if conn:
-            conn.close()

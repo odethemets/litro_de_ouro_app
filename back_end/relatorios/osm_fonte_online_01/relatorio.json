@@ -1,0 +1,14 @@
+{
+  "status": "falha",
+  "iniciado_em_utc": "2026-11-17T02:36:35.295241+00:00",
+  "modo": "somente_fonte",
+  "origem": "overpass_municipal",
+  "atribuicao": "© OpenStreetMap contributors — ODbL",
+  "licenca_url": "https://www.openstreetmap.org/copyright",
+  "gravacao_habilitada": false,
+  "consulta_banco_solicitada": false,
+  "etapa": "ler_fonte",
+  "erro_tipo": "OSMIndisponivel",
+  "status_http": null,
+  "finalizado_em_utc": "2026-11-17T02:37:51.568744+00:00"
+}

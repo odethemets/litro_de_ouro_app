@@ -1,199 +1,113 @@
-import { CommonActions } from "@react-navigation/native";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useContext, useState } from "react";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
-} from "react-native";
-import { ThemeContext } from "../../contexts/ThemeContext";
-import { AuthStackParamList } from "../../routes/auth.routes";
+  AppButton,
+  AuthLayout,
+  Notice,
+  Surface,
+} from "../../components/design";
+import { CampoSenha, senhaValida, useAcao } from "../../components/form-auth";
+import type { AuthStackParamList } from "../../routes/auth.routes";
 import { api } from "../../services/API";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "RedefinirSenha">;
 
 export default function RedefinirSenha({ route, navigation }: Props) {
-  const { colors } = useContext(ThemeContext);
-  const { email, codigo } = route.params;
+  const [senha, setSenha] = useState("");
+  const [confirmacao, setConfirmacao] = useState("");
 
-  const [novaSenha, setNovaSenha] = useState("");
-  const [confirmarSenha, setConfirmarSenha] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const { busy, erro, setErro, run } = useAcao(
+    "Não foi possível confirmar a redefinição. Confira a conexão antes de tentar novamente.",
+  );
 
-  const handleAtualizarSenha = async () => {
-    if (!novaSenha || !confirmarSenha) {
-      Alert.alert("Atenção", "Preencha os dois campos.");
-      return;
-    }
-    if (novaSenha !== confirmarSenha) {
-      Alert.alert("Erro", "As senhas não coincidem.");
-      return;
-    }
-    if (novaSenha.length < 6) {
-      Alert.alert("Atenção", "A senha deve ter pelo menos 6 caracteres.");
+  const salvar = () => {
+    if (busy) return;
+
+    if (!senhaValida(senha)) {
+      setErro("A senha deve ter entre 6 e 1024 caracteres.");
       return;
     }
 
-    setIsLoading(true);
-    try {
-      await api.post("/auth/redefinir-senha", {
-        email,
-        codigo,
-        nova_senha: novaSenha,
-      });
+    if (senha !== confirmacao) {
+      setErro("As senhas não coincidem.");
+      return;
+    }
 
-      Alert.alert("Sucesso", "Palavra-passe atualizada com sucesso!");
-
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: "Login" }],
-        }),
+    void run(async (signal) => {
+      await api.post(
+        "/auth/redefinir-senha",
+        {
+          email: route.params.email,
+          codigo: route.params.codigo,
+          nova_senha: senha,
+        },
+        { signal },
       );
-    } catch (error: any) {
-      const msg =
-        error.response?.data?.error || "Erro ao redefinir a palavra-passe.";
-      Alert.alert("Erro", msg);
-    } finally {
-      setIsLoading(false);
-    }
+
+      if (!signal.aborted) {
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: "Login",
+              params: {
+                message: "Senha redefinida. Entre com sua nova senha.",
+              },
+            },
+          ],
+        });
+      }
+    });
   };
 
-  const ContentWrapper =
-    Platform.OS === "web" ? View : TouchableWithoutFeedback;
-  const wrapperProps =
-    Platform.OS === "web"
-      ? { style: { flex: 1 } }
-      : { onPress: Keyboard.dismiss };
-
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    <AuthLayout
+      title="Crie uma nova senha"
+      subtitle="Escolha uma senha e confirme abaixo."
     >
-      <ContentWrapper {...wrapperProps}>
-        <View
-          style={[styles.container, { backgroundColor: colors.background }]}
-        >
-          <View style={styles.contentWrapper}>
-            <View style={styles.header}>
-              <Text style={[styles.title, { color: colors.primary }]}>
-                Nova Palavra-passe
-              </Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                Escolha uma senha forte para a sua conta.
-              </Text>
-            </View>
+      <Surface>
+        {erro ? <Notice error>{erro}</Notice> : null}
 
-            <View style={styles.form}>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.surface,
-                    color: colors.textPrimary,
-                    borderColor: colors.border,
-                  },
-                ]}
-                placeholder="Nova palavra-passe"
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry
-                autoCapitalize="none"
-                value={novaSenha}
-                onChangeText={setNovaSenha}
-                editable={!isLoading}
-              />
+        <CampoSenha
+          label="Nova senha"
+          value={senha}
+          onChangeText={setSenha}
+          editable={!busy}
+          autoComplete="new-password"
+        />
 
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.surface,
-                    color: colors.textPrimary,
-                    borderColor: colors.border,
-                  },
-                ]}
-                placeholder="Confirmar palavra-passe"
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry
-                autoCapitalize="none"
-                value={confirmarSenha}
-                onChangeText={setConfirmarSenha}
-                editable={!isLoading}
-              />
+        <CampoSenha
+          label="Confirmar nova senha"
+          value={confirmacao}
+          onChangeText={setConfirmacao}
+          editable={!busy}
+          autoComplete="new-password"
+          onSubmitEditing={salvar}
+        />
 
-              {/* CORREÇÃO: Botão com estilo correto apontando para a API */}
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  {
-                    backgroundColor: colors.primary,
-                    opacity: isLoading ? 0.7 : 1,
-                  },
-                ]}
-                onPress={handleAtualizarSenha}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#121212" />
-                ) : (
-                  <Text style={styles.buttonText}>Atualizar Senha</Text>
-                )}
-              </TouchableOpacity>
+        <AppButton label="Salvar nova senha" busy={busy} onPress={salvar} />
 
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => navigation.navigate("Login")}
-                disabled={isLoading}
-              >
-                <Text
-                  style={[
-                    styles.backButtonText,
-                    { color: colors.textSecondary },
-                  ]}
-                >
-                  Cancelar e Voltar
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </ContentWrapper>
-    </KeyboardAvoidingView>
+        <Notice>Após salvar, entre com sua nova senha.</Notice>
+      </Surface>
+
+      <AppButton
+        label="Voltar ao código"
+        secondary
+        disabled={busy}
+        onPress={() => navigation.goBack()}
+      />
+
+      <AppButton
+        label="Voltar ao Login"
+        secondary
+        disabled={busy}
+        onPress={() =>
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          })
+        }
+      />
+    </AuthLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center" },
-  contentWrapper: { width: "100%", maxWidth: 400, paddingHorizontal: 24 },
-  header: { marginBottom: 32, alignItems: "center" },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 8 },
-  subtitle: { fontSize: 14, textAlign: "center" },
-  form: { width: "100%" },
-  input: {
-    height: 54,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    fontSize: 16,
-  },
-  button: {
-    height: 54,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonText: { color: "#121212", fontSize: 16, fontWeight: "bold" },
-  backButton: { marginTop: 24, alignItems: "center" },
-  backButtonText: { fontSize: 14 },
-});

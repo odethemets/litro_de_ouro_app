@@ -1,263 +1,341 @@
-// src/screens/Atividade/index.tsx
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useContext, useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useCallback, useState } from "react";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-// Adicione à primeira linha do seu ficheiro
-import { useCallback } from "react";
-// Adicione aos imports do react-navigation:
-import { useFocusEffect } from "@react-navigation/native";
-
-import { ThemeContext } from "../../contexts/ThemeContext";
+  AppButton,
+  Notice,
+  Page,
+  Surface,
+  useAppTheme,
+} from "../../components/design";
+import { useAuth } from "../../contexts/AuthContext";
+import { useConsultaConta } from "../../hooks/useConsultaConta";
 import { api } from "../../services/API";
-import { obterPostosVistos, PostoVisto } from "../../services/historicoVistos";
+import {
+  formatarPreco,
+  produtoHistorico,
+  validarRegistos,
+} from "../../services/atividadeConta";
+import { obterPostosVistos } from "../../services/historicoVistos";
 
-interface RegistoPrecoUser {
-  id: number;
-  tipo_combustivel: string;
-  preco: number;
-  data_formatada: string;
-  posto_nome: string;
-  posto_endereco: string;
-}
+import { useNavigation, type NavigationProp } from "@react-navigation/native";
+
+import type { ContaPilha } from "../../routes/app.routes";
+
+const carregarRegistos = async (signal: AbortSignal) =>
+  validarRegistos((await api.get("/atividade/meus-registos", { signal })).data);
 
 export default function Atividade() {
-  const { colors } = useContext(ThemeContext);
-
-  const [abaAtiva, setAbaAtiva] = useState<"registos" | "vistos">("registos");
-  const [registos, setRegistos] = useState<RegistoPrecoUser[]>([]);
-  const [vistos, setVistos] = useState<PostoVisto[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isLogado, setIsLogado] = useState(false);
-
-  const carregarDados = async () => {
-    setIsLoading(true);
-    const token = await AsyncStorage.getItem("@LitroDeOuro:token");
-    setIsLogado(!!token);
-
-    // Carrega postos vistos (Armazenamento Local)
-    const vistosLocais = await obterPostosVistos();
-    setVistos(vistosLocais);
-
-    // Carrega registos de preço (API Flask se estiver logado)
-    if (token) {
-      try {
-        const response = await api.get("/atividade/meus-registos", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setRegistos(response.data);
-      } catch (error) {
-        console.error("Erro ao buscar registros:", error);
-      }
-    } else {
-      setRegistos([]);
-    }
-    setIsLoading(false);
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      carregarDados();
-    }, []),
+  const navigation = useNavigation<NavigationProp<ContaPilha>>();
+  const { perfil } = useAuth();
+  const carregarVistos = useCallback(
+    () => obterPostosVistos(perfil?.id),
+    [perfil?.id],
   );
+  const { colors } = useAppTheme();
+  const [aba, setAba] = useState<"registos" | "vistos">("registos");
+  const [foco, setFoco] = useState("");
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await carregarDados();
-    setIsRefreshing(false);
-  };
+  const registos = useConsultaConta(carregarRegistos, aba === "registos");
+
+  const vistos = useConsultaConta(carregarVistos, aba === "vistos");
+
+  const consulta = aba === "registos" ? registos : vistos;
+  const quantidade = consulta.dados?.length;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.textPrimary }]}>
-        Sua Atividade
-      </Text>
+    <Page
+      title="Seu histórico"
+      subtitle="Acompanhe sua participação e os postos consultados."
+    >
+      <AppButton
+        label="Ver Histórico de Karma"
+        secondary
+        onPress={() => navigation.navigate("HistoricoKarma")}
+      />
+      <Surface>
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 16,
+            alignItems: "center",
+          }}
+        >
+          <Ionicons
+            name={aba === "registos" ? "receipt-outline" : "time-outline"}
+            size={32}
+            color={colors.textPrimary}
+            accessible={false}
+          />
 
-      {/* Selector de Abas */}
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text
+              accessibilityRole="header"
+              style={{
+                fontSize: 32,
+                fontWeight: "800",
+                color: colors.textPrimary,
+              }}
+            >
+              {quantidade === undefined ? "—" : quantidade}
+            </Text>
+
+            <Notice>
+              {aba === "registos"
+                ? "registros carregados"
+                : "postos consultados neste dispositivo"}
+            </Notice>
+          </View>
+        </View>
+
+        <Notice>
+          {aba === "registos"
+            ? "Exibindo até os 50 registros mais recentes, do mais novo ao mais antigo."
+            : "Histórico desta conta neste dispositivo. Até 20 postos recentemente consultados."}
+        </Notice>
+      </Surface>
+
       <View
-        style={[
-          styles.tabsContainer,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-        ]}
+        accessibilityRole="tablist"
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 8,
+        }}
       >
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            abaAtiva === "registos" && { backgroundColor: colors.primary },
-          ]}
-          onPress={() => setAbaAtiva("registos")}
-        >
-          <Text
+        {(
+          [
+            ["registos", "Meus preços"],
+            ["vistos", "Vistos recentemente"],
+          ] as const
+        ).map(([id, label]) => (
+          <Pressable
+            key={id}
+            accessibilityRole="tab"
+            accessibilityLabel={label}
+            accessibilityState={{ selected: aba === id }}
+            aria-selected={aba === id}
+            onFocus={() => setFoco(id)}
+            onBlur={() => setFoco("")}
+            onPress={() => setAba(id)}
             style={{
-              color: abaAtiva === "registos" ? "#121212" : colors.textPrimary,
-              fontWeight: "bold",
+              flexGrow: 1,
+              minHeight: 52,
+              padding: 14,
+              borderRadius: 16,
+              borderWidth: 2,
+              borderColor: foco === id ? colors.focus : colors.border,
+              backgroundColor: aba === id ? colors.selection : colors.surface,
             }}
           >
-            Meus Preços
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            abaAtiva === "vistos" && { backgroundColor: colors.primary },
-          ]}
-          onPress={() => setAbaAtiva("vistos")}
-        >
-          <Text
-            style={{
-              color: abaAtiva === "vistos" ? "#121212" : colors.textPrimary,
-              fontWeight: "bold",
-            }}
-          >
-            Vistos Recente
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={{
+                textAlign: "center",
+                fontSize: 16,
+                fontWeight: "700",
+                color: colors.textPrimary,
+              }}
+            >
+              {label}
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
-      {/* Conteúdo */}
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+      <AppButton
+        label="Atualizar histórico"
+        secondary
+        disabled={consulta.loading}
+        onPress={consulta.atualizar}
+      />
+
+      {consulta.loading ? (
+        <View
+          accessibilityRole="progressbar"
+          accessibilityLabel="Carregando histórico"
+          style={{
+            flexDirection: "row",
+            gap: 12,
+            alignItems: "center",
+          }}
+        >
+          <ActivityIndicator color={colors.textSecondary} />
+          <Notice>Carregando histórico...</Notice>
         </View>
-      ) : abaAtiva === "registos" ? (
-        !isLogado ? (
-          <View style={styles.center}>
-            <Text style={{ color: colors.textSecondary, textAlign: "center" }}>
-              Inicie sessão para ver o seu histórico de contribuições de preço.
-            </Text>
-          </View>
-        ) : registos.length === 0 ? (
-          <View style={styles.center}>
-            <Text style={{ color: colors.textSecondary }}>
-              Ainda não registou nenhum preço.
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={registos}
-            keyExtractor={(item) => item.id.toString()}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={handleRefresh}
-              />
-            }
-            contentContainerStyle={styles.listContent}
-            renderItem={({ item }) => (
-              <View
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[styles.cardTitle, { color: colors.textPrimary }]}
-                  >
-                    {item.posto_nome}
-                  </Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
-                    {item.tipo_combustivel}
-                  </Text>
-                  <Text
+      ) : null}
+
+      {consulta.erro ? (
+        <Surface>
+          <Notice error>
+            {consulta.dados
+              ? "Não foi possível atualizar o histórico. Exibindo os últimos dados recebidos."
+              : "Não foi possível carregar o histórico. Tente novamente."}
+          </Notice>
+
+          <AppButton
+            label="Tentar novamente"
+            disabled={consulta.loading}
+            onPress={consulta.atualizar}
+          />
+        </Surface>
+      ) : null}
+
+      {!consulta.loading && !consulta.erro && quantidade === 0 ? (
+        <Surface>
+          <Ionicons
+            name={aba === "registos" ? "receipt-outline" : "map-outline"}
+            size={40}
+            color={colors.textSecondary}
+            accessible={false}
+          />
+
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: "700",
+              color: colors.textPrimary,
+            }}
+          >
+            {aba === "registos"
+              ? "Você ainda não registrou preços"
+              : "Nenhum posto consultado recentemente"}
+          </Text>
+
+          <Notice>
+            {aba === "registos"
+              ? "Seus registros aparecerão aqui após a confirmação do envio."
+              : "Os postos que você abrir serão listados aqui."}
+          </Notice>
+        </Surface>
+      ) : null}
+
+      {aba === "registos"
+        ? registos.dados?.map((r) => {
+            const produto = produtoHistorico(r.tipo_combustivel);
+
+            return (
+              <Surface key={r.id}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <Ionicons
+                    name={
+                      produto?.unidade === "kWh"
+                        ? "flash-outline"
+                        : "receipt-outline"
+                    }
+                    size={28}
+                    color={colors.textPrimary}
+                    accessible={false}
+                  />
+
+                  <View
                     style={{
-                      color: colors.textSecondary,
-                      fontSize: 11,
-                      marginTop: 4,
+                      flex: 1,
+                      minWidth: 0,
+                      gap: 4,
                     }}
                   >
-                    {item.data_formatada}
+                    <Text
+                      style={{
+                        color: colors.textPrimary,
+                        fontSize: 20,
+                        fontWeight: "700",
+                      }}
+                    >
+                      {r.posto_nome}
+                    </Text>
+
+                    <Text
+                      style={{
+                        color: colors.textSecondary,
+                        fontSize: 14,
+                      }}
+                    >
+                      {r.posto_endereco || "Endereço não informado"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  {produto ? (
+                    <View
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: 6,
+                        backgroundColor: produto.cor,
+                      }}
+                    />
+                  ) : null}
+
+                  <Text
+                    style={{
+                      color: colors.textPrimary,
+                      fontSize: 16,
+                      flexShrink: 1,
+                    }}
+                  >
+                    {produto?.nome ?? r.tipo_combustivel}
                   </Text>
                 </View>
-                <Text style={[styles.cardPrice, { color: colors.primary }]}>
-                  R$ {item.preco.toFixed(2).replace(".", ",")}
-                </Text>
-              </View>
-            )}
-          />
-        )
-      ) : vistos.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={{ color: colors.textSecondary }}>
-            Nenhum posto consultado recentemente.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={vistos}
-          keyExtractor={(item) => item.id.toString()}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={handleRefresh}
-            />
-          }
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => (
-            <View
-              style={[
-                styles.card,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-              ]}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
-                  {item.nome}
-                </Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                  📍 {item.endereco}
-                </Text>
-              </View>
-              <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
-                Visto em: {item.dataVisualizacao}
+
+                <View
+                  style={{
+                    borderTopWidth: 1,
+                    borderColor: colors.border,
+                    paddingTop: 16,
+                    gap: 8,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: colors.textPrimary,
+                      fontSize: 32,
+                      fontWeight: "800",
+                    }}
+                  >
+                    R$ {formatarPreco(r.preco)}
+                    {produto ? "/" + produto.unidade : ""}
+                  </Text>
+
+                  <Notice>Registrado em {r.data_formatada}</Notice>
+                </View>
+              </Surface>
+            );
+          })
+        : vistos.dados?.map((p) => (
+            <Surface key={p.id}>
+              <Text
+                style={{
+                  color: colors.textPrimary,
+                  fontSize: 20,
+                  fontWeight: "700",
+                }}
+              >
+                {p.nome}
               </Text>
-            </View>
-          )}
-        />
-      )}
-    </View>
+
+              <Notice>{p.endereco || "Endereço não informado"}</Notice>
+
+              <Notice>
+                Consultado em{" "}
+                {new Date(p.dataVisualizacao).toLocaleString("pt-BR", {
+                  timeZone: "America/Fortaleza",
+                })}
+              </Notice>
+            </Surface>
+          ))}
+    </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 20, paddingTop: 60 },
-  title: { fontSize: 28, fontWeight: "bold", marginBottom: 20 },
-  tabsContainer: {
-    flexDirection: "row",
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 4,
-    marginBottom: 16,
-  },
-  tab: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8 },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  listContent: { paddingBottom: 24 },
-  card: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 10,
-  },
-  cardTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 2 },
-  cardPrice: { fontSize: 18, fontWeight: "900" },
-});

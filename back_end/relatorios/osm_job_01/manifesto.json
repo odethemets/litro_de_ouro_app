@@ -1,0 +1,10 @@
+{
+  "status": "ok",
+  "sha256": {
+    "fonte.json": "2a8b7606f7cc47f5d76c422850dfee902dee9d2e8f88bae0407a307825e74e11",
+    "relatorio.json": "1f89993f1dcedfdcb362f1dc2cc9991bdc9ef1aa536eb1200f4ea205b26b5ad6"
+  },
+  "gravacao_habilitada": false,
+  "atribuicao": "© OpenStreetMap contributors — ODbL",
+  "licenca_url": "https://www.openstreetmap.org/copyright"
+}

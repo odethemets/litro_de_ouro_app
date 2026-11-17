@@ -1,7 +1,5 @@
-// front_end/src/screens/Registro/index.tsx
-
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import axios from "axios";
+import { isAxiosError } from "axios";
 import { useContext, useState } from "react";
 import {
   ActivityIndicator,
@@ -36,6 +34,15 @@ export default function Registo({ navigation }: Props) {
   const [mensagem, setMensagem] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const voltarAoLogin = () => {
+    if (isLoading) return;
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Login" }],
+    });
+  };
+
   const handleRegisto = async () => {
     if (isLoading) return;
 
@@ -67,13 +74,10 @@ export default function Registo({ navigation }: Props) {
       const response = await api.post<RespostaCadastro>("/auth/cadastro", {
         nome: nomeNormalizado,
         email: emailNormalizado,
-
-        // Preserva exatamente a senha digitada.
         senha,
       });
 
       // A conta já existe mesmo quando o envio do e-mail falha.
-      // A tela seguinte apresenta o resultado e permite reenviar.
       navigation.navigate("ValidarCodigo", {
         email: emailNormalizado,
         finalidade: "registo",
@@ -84,11 +88,10 @@ export default function Registo({ navigation }: Props) {
             : "Conta criada. Use o código recebido para confirmar seu e-mail."),
       });
     } catch (erro: unknown) {
-      const mensagemApi = axios.isAxiosError<{ error?: string }>(erro)
+      const mensagemApi = isAxiosError(erro)
         ? erro.response?.data?.error
         : undefined;
 
-      // Não registrar o erro Axios completo: contém os dados enviados.
       setMensagem(
         mensagemApi ??
           "Não foi possível criar a conta. Confira sua conexão e tente novamente.",
@@ -199,7 +202,9 @@ export default function Registo({ navigation }: Props) {
 
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar ao Login"
+            onPress={voltarAoLogin}
             disabled={isLoading}
           >
             <Text
@@ -238,11 +243,27 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     paddingHorizontal: 24,
   },
-  header: { marginBottom: 48, alignItems: "center" },
-  title: { fontSize: 32, fontWeight: "bold", marginBottom: 8 },
-  subtitle: { fontSize: 16, textAlign: "center" },
-  form: { width: "100%" },
-  message: { marginBottom: 16, fontSize: 14, lineHeight: 21 },
+  header: {
+    marginBottom: 48,
+    alignItems: "center",
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    textAlign: "center",
+  },
+  form: {
+    width: "100%",
+  },
+  message: {
+    marginBottom: 16,
+    fontSize: 14,
+    lineHeight: 21,
+  },
   input: {
     height: 54,
     borderWidth: 1,
@@ -263,6 +284,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  backButton: { marginTop: 24, alignItems: "center" },
-  backButtonText: { fontSize: 16 },
+  backButton: {
+    marginTop: 24,
+    alignItems: "center",
+  },
+  backButtonText: {
+    fontSize: 16,
+  },
 });

@@ -1,0 +1,150 @@
+exit=0
+## main...origin/main [behind 1]
+ D back_end/.github/workflows/osm_diagnostico.yml
+ D back_end/.github/workflows/osm_sync.yml
+ M back_end/app/__init__.py
+ M back_end/app/db.py
+ M back_end/app/rotas/auth.py
+ M back_end/app/rotas/ia.py
+ M back_end/app/rotas/postos.py
+ M back_end/app/rotas/precos.py
+ M back_end/app/utils/decorator.py
+ M back_end/requirements.txt
+ M back_end/scripts/importar_postos_osm.py
+ M back_end/tests/test_ia.py
+ M back_end/tests/test_osm_batch.py
+ M front_end/App.tsx
+ M front_end/package-lock.json
+ M front_end/package.json
+ M front_end/src/components/mapa/mapaHtml.ts
+ M front_end/src/components/mapa/tipos.ts
+ M front_end/src/contexts/AuthContext.tsx
+ M front_end/src/contexts/ThemeContext.tsx
+ M front_end/src/routes/app.routes.tsx
+ M front_end/src/routes/auth.routes.tsx
+ M front_end/src/routes/index.tsx
+ M front_end/src/screens/Atividade/index.tsx
+ M front_end/src/screens/Conta/index.tsx
+ M front_end/src/screens/Inicio/index.tsx
+ M front_end/src/screens/Login/index.tsx
+ M front_end/src/screens/Mapa/index.tsx
+ M front_end/src/screens/RedefinirSenha/index.tsx
+ M front_end/src/screens/Registro/index.tsx
+ M front_end/src/services/API.ts
+ M front_end/src/services/historicoVistos.ts
+ M front_end/src/theme/colors.tsx
+ M front_end/src/utils/localizacao.ts
+ M front_end/src/utils/token.ts
+?? .github/
+?? back_end/.dockerignore
+?? back_end/.env.docker.example
+?? back_end/BANCO.env.example
+?? back_end/Dockerfile
+?? back_end/TRANSFERENCIA.env.example
+?? back_end/app/rotas/assistente.py
+?? back_end/app/rotas/conta.py
+?? back_end/app/rotas/ofertas.py
+?? back_end/app/rotas/participacao.py
+?? back_end/app/rotas/votos.py
+?? back_end/backups/
+?? back_end/certs/
+?? back_end/docker/
+?? back_end/migrations/
+?? back_end/relatorios/
+?? back_end/requirements-docker.txt
+?? back_end/scripts/completar_catalogo_osm.py
+?? back_end/scripts/executar_alertas.py
+?? back_end/scripts/executar_job_osm.py
+?? back_end/scripts/migrar_banco.py
+?? back_end/scripts/postos_osm_joao_pessoa.json
+?? back_end/scripts/previa_limpeza_precos.py
+?? back_end/scripts/processar_alertas.py
+?? back_end/scripts/revisar_osm.py
+?? back_end/scripts/testar_offline.py
+?? back_end/scripts/transferir_para_tidb.py
+?? back_end/scripts/usar_destino.py
+?? back_end/scripts/verificar_assistente.py
+?? back_end/scripts/verificar_sdk_ia.py
+?? back_end/services/admin_reports.py
+?? back_end/services/atividade_alertas.py
+?? back_end/services/catalogo_postos.py
+?? back_end/services/comandos_ia.py
+?? back_end/services/contrato_migracoes.py
+?? back_end/services/database.py
+?? back_end/services/diagnosticar_tidb.py
+?? back_end/services/diagnostico_tidb.py
+?? back_end/services/executor_alertas.py
+?? back_end/services/infra_web.py
+?? back_end/services/leitura_totem.py
+?? back_end/services/migrations.py
+?? back_end/services/plano_migracoes.py
+?? back_end/services/transferencia_banco.py
+?? back_end/services/transferir_para_tidb.py
+?? back_end/services/validacao_migracoes.py
+?? back_end/tests/integracao_participacao.py
+?? back_end/tests/test_catalogo_postos.py
+?? back_end/tests/test_completar_catalogo_osm.py
+?? back_end/tests/test_executar_alertas_cli.py
+?? back_end/tests/test_executar_job_osm.py
+?? back_end/tests/test_executor_alertas.py
+?? back_end/tests/test_infra_banco.py
+?? back_end/tests/test_infra_web.py
+?? back_end/tests/test_leitura_totem.py
+?? back_end/tests/test_revisar_osm.py
+?? back_end/tests/test_transferencia_tidb.py
+?? back_end/tests/test_verificar_assistente.py
+?? back_end/tests/transferencia_tidb.py
+?? compose.yaml
+?? docker/
+?? docs/
+?? front_end/src/components/acesso-restrito.tsx
+?? front_end/src/components/cartao-posto.tsx
+?? front_end/src/components/confirmar-oferta.tsx
+?? front_end/src/components/design.tsx
+?? front_end/src/components/favoritos.tsx
+?? front_end/src/components/filtros-postos.tsx
+?? front_end/src/components/form-auth.tsx
+?? front_end/src/components/leitor-totem.tsx
+?? front_end/src/components/lista-conta.tsx
+?? front_end/src/components/lista-postos-consulta.tsx
+?? front_end/src/components/navegacao.tsx
+?? front_end/src/components/votar-preco.tsx
+?? front_end/src/contexts/FavoritosContext.tsx
+?? front_end/src/contexts/FiltrosPostosContext.tsx
+?? front_end/src/hooks/useConsultaConta.ts
+?? front_end/src/screens/AdicionarPreco/
+?? front_end/src/screens/ApagarConta/
+?? front_end/src/screens/Aparencia/
+?? front_end/src/screens/Assistente/
+?? front_end/src/screens/Configuracoes/
+?? front_end/src/screens/ConsultaPostos/
+?? front_end/src/screens/DadosPessoais/
+?? front_end/src/screens/Entrada/
+?? front_end/src/screens/Favoritos/
+?? front_end/src/screens/HistoricoKarma/
+?? front_end/src/screens/Notificacoes/
+?? front_end/src/screens/PreferenciaAlertas/
+?? front_end/src/screens/Raking/
+?? front_end/src/screens/RedefinirSenhaConta/
+?? front_end/src/services/alertas.ts
+?? front_end/src/services/assistente.ts
+?? front_end/src/services/atividadeConta.ts
+?? front_end/src/services/buscaPostosNome.ts
+?? front_end/src/services/cadastroPreco.ts
+?? front_end/src/services/catalogoPostos.ts
+?? front_end/src/services/configuracao.ts
+?? front_end/src/services/contratoAuth.ts
+?? front_end/src/services/controleSessao.ts
+?? front_end/src/services/favoritos.ts
+?? front_end/src/services/karma.ts
+?? front_end/src/services/leituraTotem.ts
+?? front_end/src/services/lista-postos-consulta.tsx
+?? front_end/src/services/ofertas.ts
+?? front_end/src/services/participacao.ts
+?? front_end/src/services/sessao.ts
+?? front_end/src/services/votos.ts
+?? front_end/src/services/voz.ts
+?? front_end/src/services/voz.web.ts
+?? front_end/src/theme/design.ts
+?? front_end/tests/
+?? relatorios/

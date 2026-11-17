@@ -1,0 +1,93 @@
+name: Previa OSM - Joao Pessoa
+
+on:
+  workflow_dispatch:
+    inputs:
+      comparar_banco:
+        description: Comparar com o banco configurado, somente leitura?
+        type: boolean
+        default: false
+        required: true
+
+  schedule:
+    # Segunda-feira, 06:17 em João Pessoa.
+    # A execução depende da variável OSM_PREVIA_AGENDADA.
+    - cron: '17 9 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osm-sync-joao-pessoa
+  cancel-in-progress: false
+
+jobs:
+  previa:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && vars.OSM_PREVIA_AGENDADA == 'true')
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: back_end
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: back_end/requirements-osm.txt
+
+      - name: Instalar dependencias OSM
+        run: python -m pip install -r requirements-osm.txt
+
+      - name: Testar previa e executor sem rede ou banco
+        run: |
+          python -B -m unittest discover -s tests -p 'test_revisar_osm.py'
+          python -B -m unittest discover -s tests -p 'test_executar_job_osm.py'
+
+      - name: Executar previa municipal
+        env:
+          COMPARAR_BANCO: ${{ (github.event_name == 'workflow_dispatch' && inputs.comparar_banco) || (github.event_name == 'schedule' && vars.OSM_PREVIA_COM_BANCO == 'true') }}
+          OSM_BANCO_ESPERADO: ${{ vars.OSM_BANCO_ESPERADO }}
+
+          DB_HOST: ${{ secrets.OSM_DB_HOST }}
+          DB_PORT: ${{ secrets.OSM_DB_PORT }}
+          DB_USER: ${{ secrets.OSM_DB_USER }}
+          DB_PASSWORD: ${{ secrets.OSM_DB_PASSWORD }}
+          DB_NAME: ${{ secrets.OSM_DB_NAME }}
+          OSM_DB_CA_PEM: ${{ secrets.OSM_DB_CA_PEM }}
+
+          OSM_OVERPASS_URLS: ${{ vars.OSM_OVERPASS_URLS }}
+          OSM_USER_AGENT: 'LitroDeOuro/1.1 (contact: litrodeourooficial@gmail.com)'
+
+        run: |
+          argumentosOsm=(--saida "$GITHUB_WORKSPACE/back_end/relatorios/osm-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}")
+
+          if [ "$COMPARAR_BANCO" = 'true' ]; then
+            argumentosOsm+=(--banco "$OSM_BANCO_ESPERADO")
+          fi
+
+          python -B scripts/executar_job_osm.py "${argumentosOsm[@]}"
+
+      - name: Guardar fonte, relatorio e hashes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: osm-previa-${{ github.run_id }}-${{ github.run_attempt }}
+
+          path: |
+            back_end/relatorios/osm-${{ github.run_id }}-${{ github.run_attempt }}/fonte.json
+            back_end/relatorios/osm-${{ github.run_id }}-${{ github.run_attempt }}/relatorio.json
+            back_end/relatorios/osm-${{ github.run_id }}-${{ github.run_attempt }}/manifesto.json
+
+          if-no-files-found: warn
+          retention-days: 30

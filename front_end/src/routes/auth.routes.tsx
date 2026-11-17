@@ -1,5 +1,7 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
+import { useAuth } from "../contexts/AuthContext";
+import Entrada from "../screens/Entrada";
 import Login from "../screens/Login";
 import ValidarCodigo from "../screens/Login/ValidarCodigo";
 import RecuperarSenha from "../screens/RecuperarSenha";
@@ -7,7 +9,8 @@ import RedefinirSenha from "../screens/RedefinirSenha";
 import Registo from "../screens/Registro";
 
 export type AuthStackParamList = {
-  // Mensagem de confirmação ou de alteração de senha.
+  Entrada: undefined;
+
   Login:
     | {
         message?: string;
@@ -25,8 +28,6 @@ export type AuthStackParamList = {
   ValidarCodigo: {
     email: string;
     finalidade: "recuperacao" | "registo";
-
-    // Permite enviar e ler a mensagem sem torná-la obrigatória.
     message?: string;
   };
 
@@ -39,8 +40,14 @@ export type AuthStackParamList = {
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 export function AuthRoutes() {
+  const { destinoAuth } = useAuth();
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      initialRouteName={destinoAuth}
+      screenOptions={{ headerShown: false }}
+    >
+      <Stack.Screen name="Entrada" component={Entrada} />
       <Stack.Screen name="Login" component={Login} />
       <Stack.Screen name="Registo" component={Registo} />
       <Stack.Screen name="RecuperarSenha" component={RecuperarSenha} />

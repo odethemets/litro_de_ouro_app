@@ -2,7 +2,7 @@
 import io, os, sys, types, logging
 from functools import wraps
 
-BASE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, BASE)
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); sys.path.insert(0, BASE)
 logging.disable(logging.CRITICAL)
 
 def _pkg(nome, caminho):
@@ -88,7 +88,7 @@ def zerar():
     IA.get_db_connection = lambda: Conn(POSTO); IA.MODELO = "gemini-3.1-pro-preview"; IA.NIVEL_RACIOCINIO = ""
 
 # ---------- sucesso: modelo, JSON, imagem reduzida, prova guardada
-zerar(); r = enviar(jpeg())
+zerar(); r = enviar(jpeg(), guardar_comprovante="true")
 assert r.status_code == 200, r.get_json()
 j = r.get_json(); assert j == {"sucesso": True, "precos": {"Gasolina Comum": 6.29, "Etanol": 4.59}, "foto_url": "https://dropbox/prova.jpg"}
 c = chamadas[0]
@@ -97,6 +97,11 @@ assert not hasattr(c.config, "thinking_config") and not hasattr(c.config, "tempe
 img_enviada = Image.open(io.BytesIO(c.contents[0].data)); assert max(img_enviada.size) == 1600 and c.contents[0].mime_type == "image/jpeg"
 assert Image.open(io.BytesIO(uploads[0][0])).size == img_enviada.size and uploads[0][1] == "totem.jpg"
 assert clientes[0].api_key == "chave-teste" and clientes[0].http_options.timeout == 45000
+
+# Sem consentimento explícito, não guarda comprovante mesmo após OCR válido.
+for opcao in ("__remover__", "false", "1", "sim"):
+    zerar(); r = enviar(guardar_comprovante=opcao)
+    assert r.status_code == 200 and r.get_json()["foto_url"] is None and not uploads
 
 # nível de raciocínio explícito e modelo configurável por ambiente
 zerar(); IA.NIVEL_RACIOCINIO = "high"; IA.MODELO = "outro-modelo"; enviar()
@@ -157,6 +162,6 @@ for erro in [ErroApi(404), ErroApi(503), TimeoutError("lento")]:
     zerar(); RESP["erro"] = erro; r = enviar()
     assert r.status_code == 502 and "chave" not in r.get_data(as_text=True) and not uploads
 zerar(); dbx.upload_foto_totem = lambda s, n: (_ for _ in ()).throw(RuntimeError("dropbox fora"))
-IA.upload_foto_totem = dbx.upload_foto_totem; r = enviar()
+IA.upload_foto_totem = dbx.upload_foto_totem; r = enviar(guardar_comprovante="true")
 assert r.status_code == 200 and r.get_json()["foto_url"] is None             # a leitura não se perde por falha do cofre
 print("ia.py: todos os testes passaram")

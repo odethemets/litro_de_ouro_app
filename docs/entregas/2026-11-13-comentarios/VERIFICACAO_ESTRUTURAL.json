@@ -1,0 +1,62 @@
+{
+  "python": [
+    {
+      "arquivo": "back_end/app/rotas/ofertas.py",
+      "ast": "igual"
+    },
+    {
+      "arquivo": "back_end/app/rotas/votos.py",
+      "ast": "igual"
+    },
+    {
+      "arquivo": "back_end/app/rotas/precos.py",
+      "ast": "igual"
+    },
+    {
+      "arquivo": "back_end/services/atividade_alertas.py",
+      "ast": "igual"
+    },
+    {
+      "arquivo": "back_end/services/catalogo_postos.py",
+      "ast": "igual"
+    },
+    {
+      "arquivo": "back_end/scripts/processar_alertas.py",
+      "ast": "igual"
+    },
+    {
+      "arquivo": "back_end/scripts/verificar_sdk_ia.py",
+      "ast": "igual"
+    }
+  ],
+  "typescript": [
+    {
+      "arquivo": "front_end/src/services/ofertas.ts",
+      "estruturaSemComentarios": "igual"
+    },
+    {
+      "arquivo": "front_end/src/services/votos.ts",
+      "estruturaSemComentarios": "igual"
+    },
+    {
+      "arquivo": "front_end/src/services/catalogoPostos.ts",
+      "estruturaSemComentarios": "igual"
+    },
+    {
+      "arquivo": "front_end/src/components/confirmar-oferta.tsx",
+      "estruturaSemComentarios": "igual"
+    },
+    {
+      "arquivo": "front_end/src/components/votar-preco.tsx",
+      "estruturaSemComentarios": "igual"
+    },
+    {
+      "arquivo": "front_end/src/screens/ConsultaPostos/detalhes.tsx",
+      "estruturaSemComentarios": "igual"
+    },
+    {
+      "arquivo": "front_end/src/screens/ConsultaPostos/index.tsx",
+      "estruturaSemComentarios": "igual"
+    }
+  ]
+}

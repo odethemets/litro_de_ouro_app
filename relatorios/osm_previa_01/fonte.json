@@ -1,0 +1,1205 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.4 2390de5a",
+  "osm3s": {
+    "timestamp_osm_base": "2026-11-11T03:05:04Z",
+    "timestamp_areas_base": "2026-11-11T02:21:19Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "area",
+  "id": 3600301405,
+  "tags": {
+    "IBGE:GEOCODIGO": "2507507",
+    "admin_level": "8",
+    "boundary": "administrative",
+    "flag": "http://upload.wikimedia.org/wikipedia/commons/d/d9/Bandeira_de_Jo%C3%A3o_Pessoa.svg",
+    "int_name": "Joao Pessoa",
+    "loc_name": "Jampa",
+    "name": "João Pessoa",
+    "name:ar": "جواو بيسوا",
+    "name:be": "Жуан-Песоа",
+    "name:bg": "Жоао Песоа",
+    "name:eo": "Ĵoan-Pesoo",
+    "name:fa": "ژوائوپسوا",
+    "name:he": "ז'ואאו פסואה",
+    "name:hy": "Ժուան Պեսոա",
+    "name:ja": "ジョアンペソア",
+    "name:ka": "ჟუან-პესოა",
+    "name:kk": "Жуан-Песоа",
+    "name:ko": "주앙페소아",
+    "name:lt": "Žoan Pesoa",
+    "name:lv": "Žuaunpesoa",
+    "name:mk": "Јоô Песоа",
+    "name:mr": "होआव पेसोआ",
+    "name:os": "Жуан-Песоæ",
+    "name:pt": "João Pessoa",
+    "name:ru": "Жуан-Песоа",
+    "name:sh": "Žoao Pesoa",
+    "name:sr": "Жоао Песоа",
+    "name:tg": "Жуан-Песоа",
+    "name:uk": "Жуан-Пессоа",
+    "name:uz": "Juan-Pesoa",
+    "name:zh": "若昂佩索阿",
+    "place": "municipality",
+    "population": "833932",
+    "population:date": "2023-08-31",
+    "source": "IBGE",
+    "source:population": "IBGE, DOU de 31/08/2023",
+    "state_capital": "yes",
+    "type": "boundary",
+    "website": "https://www.joaopessoa.pb.gov.br/",
+    "wikidata": "Q167436",
+    "wikipedia": "pt:João Pessoa"
+  }
+},
+{
+  "type": "node",
+  "id": 631799017,
+  "lat": -7.1666181,
+  "lon": -34.8884539,
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 973662367,
+  "lat": -7.1194373,
+  "lon": -34.8406191,
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Presidente Epitácio Pessoa",
+    "amenity": "fuel",
+    "name": "Master Gás"
+  }
+},
+{
+  "type": "node",
+  "id": 973662370,
+  "lat": -7.1194692,
+  "lon": -34.8423143,
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 2666350684,
+  "lat": -7.1169552,
+  "lon": -34.8898591,
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Rua Francisco de Londres Trindade",
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "node",
+  "id": 2789543097,
+  "lat": -7.1199567,
+  "lon": -34.8621614,
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Presidente Epitácio Pessoa",
+    "amenity": "fuel",
+    "name": "Posto Santa Júlia"
+  }
+},
+{
+  "type": "node",
+  "id": 2793876544,
+  "lat": -7.1594354,
+  "lon": -34.8381750,
+  "tags": {
+    "amenity": "fuel",
+    "brand": "BR",
+    "brand:wikidata": "Q4836468",
+    "brand:wikipedia": "pt:Petrobras Distribuidora",
+    "compressed_air": "yes",
+    "name": "BR"
+  }
+},
+{
+  "type": "node",
+  "id": 2793877773,
+  "lat": -7.1581714,
+  "lon": -34.8386078,
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes",
+    "name": "Posto BR"
+  }
+},
+{
+  "type": "node",
+  "id": 2793879356,
+  "lat": -7.1552757,
+  "lon": -34.8384142,
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes",
+    "name": "Posto Shell"
+  }
+},
+{
+  "type": "node",
+  "id": 2793885200,
+  "lat": -7.1479751,
+  "lon": -34.8448524,
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes",
+    "name": "Posto ello"
+  }
+},
+{
+  "type": "node",
+  "id": 2797085773,
+  "lat": -7.1237763,
+  "lon": -34.8695994,
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Duarte da Silveira",
+    "amenity": "fuel",
+    "name": "Posto Expressão - Torre"
+  }
+},
+{
+  "type": "node",
+  "id": 2885375678,
+  "lat": -7.1277578,
+  "lon": -34.8614796,
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Ministro José Américo de Almeida",
+    "amenity": "fuel",
+    "brand": "BR",
+    "brand:wikidata": "Q4836468",
+    "brand:wikipedia": "pt:Petrobras Distribuidora",
+    "name": "BR"
+  }
+},
+{
+  "type": "node",
+  "id": 2885800138,
+  "lat": -7.1196735,
+  "lon": -34.8676637,
+  "tags": {
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "node",
+  "id": 2885800139,
+  "lat": -7.1195273,
+  "lon": -34.8672662,
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 2984979186,
+  "lat": -7.1661490,
+  "lon": -34.8880021,
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Shell",
+    "brand:wikidata": "Q110716465",
+    "compressed_air": "yes",
+    "name": "Shell"
+  }
+},
+{
+  "type": "node",
+  "id": 3167015861,
+  "lat": -7.1669501,
+  "lon": -34.8598280,
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Rua Coronel Augusto Fernandes Maia",
+    "amenity": "fuel",
+    "brand": "Texaco",
+    "brand:wikidata": "Q775060",
+    "brand:wikipedia": "en:Texaco",
+    "name": "Texaco"
+  }
+},
+{
+  "type": "node",
+  "id": 3297525208,
+  "lat": -7.2193248,
+  "lon": -34.8351508,
+  "tags": {
+    "amenity": "fuel",
+    "name": "Litoral Sul"
+  }
+},
+{
+  "type": "node",
+  "id": 4474393295,
+  "lat": -7.1682296,
+  "lon": -34.8534682,
+  "tags": {
+    "amenity": "fuel",
+    "brand": "BR",
+    "brand:wikidata": "Q4836468",
+    "brand:wikipedia": "pt:BR Distribuidora",
+    "name": "BR",
+    "operator": "Petrobrás"
+  }
+},
+{
+  "type": "node",
+  "id": 4525208690,
+  "lat": -7.1729520,
+  "lon": -34.8977944,
+  "tags": {
+    "amenity": "fuel",
+    "name": "Posto A Gauchinha",
+    "source": "Bing"
+  }
+},
+{
+  "type": "node",
+  "id": 4738303559,
+  "lat": -7.2139427,
+  "lon": -34.8404206,
+  "tags": {
+    "amenity": "fuel",
+    "name": "Posto Cruzeiro do Sul",
+    "operator": "Ipiranga"
+  }
+},
+{
+  "type": "node",
+  "id": 4738303560,
+  "lat": -7.1691297,
+  "lon": -34.8384518,
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes",
+    "name": "Posto Opção",
+    "operator": "Ipiranga"
+  }
+},
+{
+  "type": "node",
+  "id": 4738304370,
+  "lat": -7.1743170,
+  "lon": -34.8441677,
+  "tags": {
+    "amenity": "fuel",
+    "name": "Posto Extra Petróleo"
+  }
+},
+{
+  "type": "node",
+  "id": 4738304371,
+  "lat": -7.1777972,
+  "lon": -34.8408980,
+  "tags": {
+    "amenity": "fuel",
+    "name": "Posto BSB Mangabeira",
+    "operator": "Dislub"
+  }
+},
+{
+  "type": "node",
+  "id": 4738306420,
+  "lat": -7.1815442,
+  "lon": -34.8432208,
+  "tags": {
+    "amenity": "fuel",
+    "brand": "BR",
+    "brand:wikidata": "Q4836468",
+    "brand:wikipedia": "pt:Vibra Energia",
+    "name": "Auto Posto Mangabeira",
+    "operator": "Petrobras"
+  }
+},
+{
+  "type": "node",
+  "id": 4738306421,
+  "lat": -7.2061992,
+  "lon": -34.8465065,
+  "tags": {
+    "amenity": "fuel",
+    "name": "Posto Cowboy",
+    "operator": "Dislub"
+  }
+},
+{
+  "type": "node",
+  "id": 5812661112,
+  "lat": -7.1634076,
+  "lon": -34.9010512,
+  "tags": {
+    "amenity": "fuel",
+    "name": "Maxi Posto",
+    "source": "Bing;survey"
+  }
+},
+{
+  "type": "node",
+  "id": 5940709085,
+  "lat": -7.1677977,
+  "lon": -34.8965195,
+  "tags": {
+    "amenity": "fuel",
+    "name": "Posto Três Lagoas"
+  }
+},
+{
+  "type": "node",
+  "id": 6213466885,
+  "lat": -7.1193123,
+  "lon": -34.8372478,
+  "tags": {
+    "amenity": "fuel",
+    "name": "Posto 99"
+  }
+},
+{
+  "type": "node",
+  "id": 6257072263,
+  "lat": -7.1196148,
+  "lon": -34.8264685,
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Ale",
+    "name": "Ale"
+  }
+},
+{
+  "type": "node",
+  "id": 7275728776,
+  "lat": -7.1790320,
+  "lon": -34.8738938,
+  "tags": {
+    "amenity": "fuel",
+    "name": "Auto Posto Geisel"
+  }
+},
+{
+  "type": "node",
+  "id": 7277909522,
+  "lat": -7.1737338,
+  "lon": -34.8742130,
+  "tags": {
+    "amenity": "fuel",
+    "name": "Posto Estrela - Dislub"
+  }
+},
+{
+  "type": "node",
+  "id": 7332586512,
+  "lat": -7.0958515,
+  "lon": -34.8354712,
+  "tags": {
+    "amenity": "fuel",
+    "source": "Maxar Premium Imagery (Beta); survey"
+  }
+},
+{
+  "type": "node",
+  "id": 7332586513,
+  "lat": -7.0844594,
+  "lon": -34.8458648,
+  "tags": {
+    "addr:housenumber": "30",
+    "addr:postcode": "58036-460",
+    "addr:street": "R. Bacharel Irenaldo de Albuquerque Chaves",
+    "amenity": "fuel",
+    "check_date": "2026-10-17",
+    "name": "Auto Posto Ipiranga",
+    "source": "Maxar Premium Imagery (Beta)"
+  }
+},
+{
+  "type": "node",
+  "id": 7332586514,
+  "lat": -7.0847522,
+  "lon": -34.8419648,
+  "tags": {
+    "amenity": "fuel",
+    "source": "Maxar Premium Imagery (Beta)"
+  }
+},
+{
+  "type": "node",
+  "id": 7332586515,
+  "lat": -7.0891134,
+  "lon": -34.8354511,
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes",
+    "source": "Maxar Premium Imagery (Beta); survey"
+  }
+},
+{
+  "type": "node",
+  "id": 7332710174,
+  "lat": -7.1140875,
+  "lon": -34.8244111,
+  "tags": {
+    "amenity": "fuel",
+    "source": "Maxar Premium Imagery (Beta)"
+  }
+},
+{
+  "type": "node",
+  "id": 9964842855,
+  "lat": -7.1063626,
+  "lon": -34.8566496,
+  "tags": {
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "node",
+  "id": 9964842856,
+  "lat": -7.0981545,
+  "lon": -34.8589914,
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 9964842857,
+  "lat": -7.0997532,
+  "lon": -34.8602718,
+  "tags": {
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "node",
+  "id": 9964842858,
+  "lat": -7.1039999,
+  "lon": -34.8646467,
+  "tags": {
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "node",
+  "id": 9964842859,
+  "lat": -7.1137003,
+  "lon": -34.8554835,
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 9964842861,
+  "lat": -7.1000977,
+  "lon": -34.8602019,
+  "tags": {
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "way",
+  "id": 216815061,
+  "center": {
+    "lat": -7.1193160,
+    "lon": -34.8422451
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Presidente Epitácio Pessoa",
+    "amenity": "fuel",
+    "building": "yes",
+    "compressed_air": "yes",
+    "name": "Posto Pichilau"
+  }
+},
+{
+  "type": "way",
+  "id": 239198923,
+  "center": {
+    "lat": -7.1316998,
+    "lon": -34.8611099
+  },
+  "tags": {
+    "amenity": "fuel",
+    "building": "yes",
+    "name": "Posto Opção Santinha"
+  }
+},
+{
+  "type": "way",
+  "id": 257826399,
+  "center": {
+    "lat": -7.1504545,
+    "lon": -34.8519882
+  },
+  "tags": {
+    "amenity": "fuel",
+    "building": "yes",
+    "compressed_air": "yes",
+    "name": "Posto Opção"
+  }
+},
+{
+  "type": "way",
+  "id": 257934594,
+  "center": {
+    "lat": -7.0699465,
+    "lon": -34.8362401
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Presidente Afonso Pena",
+    "amenity": "fuel",
+    "building": "yes",
+    "compressed_air": "yes",
+    "name": "Posto Expressão"
+  }
+},
+{
+  "type": "way",
+  "id": 258128915,
+  "center": {
+    "lat": -7.0677353,
+    "lon": -34.8387560
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Presidente Afonso Pena",
+    "amenity": "fuel",
+    "brand": "Esso",
+    "brand:wikidata": "Q867662",
+    "brand:wikipedia": "en:Esso",
+    "building": "yes",
+    "name": "Posto Kennedy"
+  }
+},
+{
+  "type": "way",
+  "id": 260524927,
+  "center": {
+    "lat": -7.1240775,
+    "lon": -34.8591638
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Rui Barbosa",
+    "amenity": "fuel",
+    "building": "yes",
+    "name": "Posto Opção - Torre"
+  }
+},
+{
+  "type": "way",
+  "id": 262122418,
+  "center": {
+    "lat": -7.1700854,
+    "lon": -34.8694675
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Ipiranga",
+    "brand:wikidata": "Q2081136"
+  }
+},
+{
+  "type": "way",
+  "id": 262150714,
+  "center": {
+    "lat": -7.1264362,
+    "lon": -34.8788853
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Rua Américo Falcão",
+    "amenity": "fuel",
+    "brand": "BR",
+    "brand:wikidata": "Q4836468",
+    "building": "roof",
+    "fuel:octane_87": "yes",
+    "name": "BR",
+    "self_service": "no"
+  }
+},
+{
+  "type": "way",
+  "id": 262259928,
+  "center": {
+    "lat": -7.1722153,
+    "lon": -34.8631446
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Rua Doutor Manoel Lopes de Carvalho",
+    "amenity": "fuel",
+    "building": "yes"
+  }
+},
+{
+  "type": "way",
+  "id": 262296597,
+  "center": {
+    "lat": -7.1600379,
+    "lon": -34.8191909
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Messias Oliveira Guimarães",
+    "amenity": "fuel",
+    "brand": "Shell",
+    "brand:wikidata": "Q110716465",
+    "brand:wikipedia": "en:Royal Dutch Shell",
+    "building": "yes",
+    "name": "Shell"
+  }
+},
+{
+  "type": "way",
+  "id": 262487713,
+  "center": {
+    "lat": -7.0976469,
+    "lon": -34.8386436
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Governador Flávio Ribeiro Coutinho",
+    "amenity": "fuel",
+    "building": "yes",
+    "check_date:compressed_air": "2023-09-04",
+    "compressed_air": "yes",
+    "name": "Posto Quadramares",
+    "opening_hours": "PH,Mo-Su 06:00-04:00"
+  }
+},
+{
+  "type": "way",
+  "id": 262608966,
+  "center": {
+    "lat": -7.1197611,
+    "lon": -34.8409128
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Presidente Epitácio Pessoa",
+    "amenity": "fuel",
+    "brand": "BR",
+    "brand:wikidata": "Q4836468",
+    "brand:wikipedia": "pt:Petrobras Distribuidora",
+    "building": "roof",
+    "name": "BR"
+  }
+},
+{
+  "type": "way",
+  "id": 265700174,
+  "center": {
+    "lat": -7.1137649,
+    "lon": -34.8318041
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Senador Ruy Carneiro",
+    "amenity": "fuel",
+    "building": "yes",
+    "compressed_air": "yes",
+    "fuel:octane_92": "yes",
+    "name": "Posto Luiz XI",
+    "operator": "Petrobras",
+    "shop": "yes"
+  }
+},
+{
+  "type": "way",
+  "id": 297540499,
+  "center": {
+    "lat": -7.1279993,
+    "lon": -34.8691184
+  },
+  "tags": {
+    "addr:street": "Avenida Dom Pedro Segundo",
+    "amenity": "fuel",
+    "building": "yes",
+    "fuel:octane_87": "yes",
+    "self_service": "no"
+  }
+},
+{
+  "type": "way",
+  "id": 331465990,
+  "center": {
+    "lat": -7.1024931,
+    "lon": -34.8373166
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Monteiro da Franca",
+    "addr:suburb": "Manaira",
+    "amenity": "fuel",
+    "brand": "Ipiranga",
+    "building": "yes",
+    "fuel:ethanol": "yes",
+    "fuel:gasoline": "yes",
+    "name": "Posto Opção",
+    "operator": "Ipiranga",
+    "self_service": "no"
+  }
+},
+{
+  "type": "way",
+  "id": 341080883,
+  "center": {
+    "lat": -7.1126854,
+    "lon": -34.8288078
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Senador Ruy Carneiro",
+    "addr:suburb": "Tambaú",
+    "amenity": "fuel",
+    "building": "yes",
+    "compressed_air": "no",
+    "name": "Posto Expressão - Tambaú"
+  }
+},
+{
+  "type": "way",
+  "id": 343276515,
+  "center": {
+    "lat": -7.1184562,
+    "lon": -34.8592522
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Avenida Amazonas",
+    "addr:suburb": "Bairro dos Estados",
+    "amenity": "fuel",
+    "building": "yes",
+    "compressed_air": "yes",
+    "name": "Posto Extra",
+    "opening_hours": "Mo-Su,PH 06:00-22:00"
+  }
+},
+{
+  "type": "way",
+  "id": 475868772,
+  "center": {
+    "lat": -7.1772574,
+    "lon": -34.8798982
+  },
+  "tags": {
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "way",
+  "id": 484624869,
+  "center": {
+    "lat": -7.1809595,
+    "lon": -34.8607311
+  },
+  "tags": {
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "way",
+  "id": 484624870,
+  "center": {
+    "lat": -7.1763258,
+    "lon": -34.8636310
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Rua Doutor Manoel Lopes de Carvalho",
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "way",
+  "id": 488276864,
+  "center": {
+    "lat": -7.1645262,
+    "lon": -34.8512298
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Shell",
+    "brand:wikidata": "Q154950",
+    "brand:wikipedia": "en:Royal Dutch Shell",
+    "name": "Shell",
+    "operator": "Shell"
+  }
+},
+{
+  "type": "way",
+  "id": 488276866,
+  "center": {
+    "lat": -7.1648487,
+    "lon": -34.8496823
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Shell",
+    "brand:wikidata": "Q154950",
+    "brand:wikipedia": "en:Royal Dutch Shell",
+    "name": "Shell",
+    "operator": "Shell"
+  }
+},
+{
+  "type": "way",
+  "id": 505487452,
+  "center": {
+    "lat": -7.1736092,
+    "lon": -34.8980291
+  },
+  "tags": {
+    "amenity": "fuel",
+    "building": "yes",
+    "name": "Posto Fanmah",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 505771561,
+  "center": {
+    "lat": -7.1615533,
+    "lon": -34.8003490
+  },
+  "tags": {
+    "amenity": "fuel",
+    "building": "yes"
+  }
+},
+{
+  "type": "way",
+  "id": 539259093,
+  "center": {
+    "lat": -7.1193457,
+    "lon": -34.8407208
+  },
+  "tags": {
+    "amenity": "fuel"
+  }
+},
+{
+  "type": "way",
+  "id": 572692816,
+  "center": {
+    "lat": -7.1140989,
+    "lon": -34.8898194
+  },
+  "tags": {
+    "amenity": "fuel",
+    "building": "roof",
+    "fuel:octane_87": "yes",
+    "self_service": "no"
+  }
+},
+{
+  "type": "way",
+  "id": 719116280,
+  "center": {
+    "lat": -7.1072524,
+    "lon": -34.8286688
+  },
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes",
+    "name": "Posto JR"
+  }
+},
+{
+  "type": "way",
+  "id": 749962464,
+  "center": {
+    "lat": -7.1521753,
+    "lon": -34.8748921
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Shell",
+    "brand:wikidata": "Q154950",
+    "brand:wikipedia": "en:Royal Dutch Shell",
+    "name": "Posto Santa Ana"
+  }
+},
+{
+  "type": "way",
+  "id": 749962467,
+  "center": {
+    "lat": -7.1554517,
+    "lon": -34.8727024
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Petrobras",
+    "compressed_air": "yes",
+    "name": "Posto Tanque Cheio"
+  }
+},
+{
+  "type": "way",
+  "id": 749962470,
+  "center": {
+    "lat": -7.1607750,
+    "lon": -34.8705955
+  },
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes",
+    "name": "Posto Petrogás"
+  }
+},
+{
+  "type": "way",
+  "id": 749962472,
+  "center": {
+    "lat": -7.1651279,
+    "lon": -34.8672813
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Ipiranga",
+    "name": "Posto Opção Cristo"
+  }
+},
+{
+  "type": "way",
+  "id": 749962484,
+  "center": {
+    "lat": -7.1530503,
+    "lon": -34.8760271
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Ipiranga",
+    "brand:wikidata": "Q2081136",
+    "brand:wikipedia": "pt:Ipiranga (empresa)",
+    "name": "Auto Posto Cristo de Combustíveis"
+  }
+},
+{
+  "type": "way",
+  "id": 749962485,
+  "center": {
+    "lat": -7.1482076,
+    "lon": -34.8739525
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Petrobras",
+    "name": "Posto Cristo Redentor"
+  }
+},
+{
+  "type": "way",
+  "id": 749962486,
+  "center": {
+    "lat": -7.1462996,
+    "lon": -34.8738871
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Ipiranga",
+    "brand:wikidata": "Q2081136",
+    "brand:wikipedia": "pt:Ipiranga (empresa)",
+    "name": "Posto São Luiz"
+  }
+},
+{
+  "type": "way",
+  "id": 784868091,
+  "center": {
+    "lat": -7.1309249,
+    "lon": -34.8525972
+  },
+  "tags": {
+    "amenity": "fuel",
+    "source": "Maxar Premium Imagery (Beta); survey"
+  }
+},
+{
+  "type": "way",
+  "id": 784868092,
+  "center": {
+    "lat": -7.1304771,
+    "lon": -34.8452077
+  },
+  "tags": {
+    "amenity": "fuel",
+    "source": "Maxar Premium Imagery (Beta); survey"
+  }
+},
+{
+  "type": "way",
+  "id": 784868093,
+  "center": {
+    "lat": -7.1172262,
+    "lon": -34.8403800
+  },
+  "tags": {
+    "amenity": "fuel",
+    "source": "Maxar Premium Imagery (Beta); survey"
+  }
+},
+{
+  "type": "way",
+  "id": 922769357,
+  "center": {
+    "lat": -7.1956025,
+    "lon": -34.8843935
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Petrobras",
+    "name": "Psoto Colinas do Sul"
+  }
+},
+{
+  "type": "way",
+  "id": 1104034457,
+  "center": {
+    "lat": -7.1464392,
+    "lon": -34.8485858
+  },
+  "tags": {
+    "amenity": "fuel",
+    "compressed_air": "yes",
+    "layer": "1"
+  }
+},
+{
+  "type": "way",
+  "id": 1278659952,
+  "center": {
+    "lat": -7.1147326,
+    "lon": -34.8612587
+  },
+  "tags": {
+    "amenity": "fuel",
+    "name": "Posto Santa Catarina",
+    "self_service": "no"
+  }
+},
+{
+  "type": "way",
+  "id": 1278659959,
+  "center": {
+    "lat": -7.1186162,
+    "lon": -34.8697787
+  },
+  "tags": {
+    "amenity": "fuel",
+    "name": "Auto Posto Independência"
+  }
+},
+{
+  "type": "way",
+  "id": 1278659960,
+  "center": {
+    "lat": -7.1194492,
+    "lon": -34.8672864
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Shell",
+    "brand:wikidata": "Q110716465",
+    "name": "Posto Shell"
+  }
+},
+{
+  "type": "way",
+  "id": 1278967014,
+  "center": {
+    "lat": -7.1169681,
+    "lon": -34.8745938
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "BR",
+    "brand:wikidata": "Q4836468",
+    "name": "Posto Petrobras"
+  }
+},
+{
+  "type": "way",
+  "id": 1315416698,
+  "center": {
+    "lat": -7.2080562,
+    "lon": -34.8479495
+  },
+  "tags": {
+    "addr:city": "João Pessoa",
+    "addr:street": "Perimetral Sul",
+    "addr:suburb": "residencial vida nova 3",
+    "amenity": "fuel",
+    "brand": "BR",
+    "brand:wikidata": "Q4836468",
+    "fuel:diesel_s10": "yes",
+    "fuel:diesel_s500": "yes",
+    "fuel:e10": "yes",
+    "fuel:ethanol": "yes",
+    "name": "BR",
+    "self_service": "yes"
+  }
+},
+{
+  "type": "way",
+  "id": 1339078293,
+  "center": {
+    "lat": -7.1425525,
+    "lon": -34.8251078
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Ypiranga",
+    "fuel:diesel": "yes",
+    "fuel:etanol_comum": "yes",
+    "fuel:gasoline": "yes",
+    "name": "Posto Opção Altiplano",
+    "operator": "Opção"
+  }
+},
+{
+  "type": "way",
+  "id": 1421070338,
+  "center": {
+    "lat": -7.1104137,
+    "lon": -34.8559767
+  },
+  "tags": {
+    "amenity": "fuel",
+    "name": "Posto São Luiz VI"
+  }
+},
+{
+  "type": "relation",
+  "id": 8122820,
+  "center": {
+    "lat": -7.1293691,
+    "lon": -34.8384451
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "Petrobras",
+    "operator": "BR",
+    "type": "multipolygon"
+  }
+}
+
+  ]
+}

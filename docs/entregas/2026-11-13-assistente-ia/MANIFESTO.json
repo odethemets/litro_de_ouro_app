@@ -1,0 +1,66 @@
+[
+  {
+    "arquivo": "front_end/src/screens/Assistente/index.tsx",
+    "anterior": "a7507bad9b31d28ac7af0a8d512e139c091b1d732f442558cf3eb12b81aa59cf",
+    "recebido": "13eecb504f245e3de6baf1a06c389f8d6df02a53468025f31b5862a3c2030d6a",
+    "linhas": 203,
+    "final": "13eecb504f245e3de6baf1a06c389f8d6df02a53468025f31b5862a3c2030d6a",
+    "git_blob": "9953cbeb509dcb661b78dd2b1f26fb3b03d4611f"
+  },
+  {
+    "arquivo": "front_end/src/services/assistente.ts",
+    "anterior": "c1c910d6838848d74f12b1988b4dce539677042771c7bd389d221296db6d2e50",
+    "recebido": "5f62443e2fe7a30f299d701896671e98c29107c8b3d56a68021f8432524f5bfe",
+    "linhas": 102,
+    "final": "5f62443e2fe7a30f299d701896671e98c29107c8b3d56a68021f8432524f5bfe",
+    "git_blob": "7721f245c6e09ecec0f4c75c22efcde7cb594237"
+  },
+  {
+    "arquivo": "front_end/src/services/voz.web.ts",
+    "anterior": "9ffe6ca03bf4cde21efc0d135f8bc6fae9bc35b0ac81ad79fd3a28b5c99f4b8d",
+    "recebido": "9493e6ed616b1eac52c763d83466eef00fe92e1703135f217e4af6596cd63836",
+    "linhas": 93,
+    "final": "9493e6ed616b1eac52c763d83466eef00fe92e1703135f217e4af6596cd63836",
+    "git_blob": "9a5b156730519ea1fd7dd125cc1da35ccaa9fc93"
+  },
+  {
+    "arquivo": "back_end/scripts/verificar_assistente.py",
+    "anterior": null,
+    "recebido": "435c98035c00f25752f8841eb3b5c4ea3ed6e8cfaccf2cb73455aa0f24a9b4f6",
+    "linhas": 128,
+    "final": "435c98035c00f25752f8841eb3b5c4ea3ed6e8cfaccf2cb73455aa0f24a9b4f6",
+    "git_blob": "1898907fcae55c9325ec9fcd8b673d8ac404c448"
+  },
+  {
+    "arquivo": "back_end/tests/test_verificar_assistente.py",
+    "anterior": null,
+    "recebido": "a8538f680ce0472fcfb63dc6de6a688e6643a2a73a047851a474f8a96b45fe02",
+    "linhas": 98,
+    "final": "a8538f680ce0472fcfb63dc6de6a688e6643a2a73a047851a474f8a96b45fe02",
+    "git_blob": "3ab979346e5e970d8e8fbcfea442bdb739517b3e"
+  },
+  {
+    "arquivo": "front_end/tests/apoio-assistente.cjs",
+    "anterior": null,
+    "recebido": "37bc3756a5d6615b27e9e389ad9a70dcd12654dc6d20f07f0659bd8d2ab66288",
+    "linhas": 142,
+    "final": "37bc3756a5d6615b27e9e389ad9a70dcd12654dc6d20f07f0659bd8d2ab66288",
+    "git_blob": "feee5879e43cd2a2c4573e13c4362d0791dfd5f9"
+  },
+  {
+    "arquivo": "front_end/tests/assistente-sessao.test.cjs",
+    "anterior": null,
+    "recebido": "c0c2df00530886ee72ec95697ba76ab353c6441bf22ccbc391b0099c5913ff48",
+    "linhas": 106,
+    "final": "c0c2df00530886ee72ec95697ba76ab353c6441bf22ccbc391b0099c5913ff48",
+    "git_blob": "ac767dbc9cbe09fdc39a794bd328cfe575f9bf96"
+  },
+  {
+    "arquivo": "front_end/tests/voz-revisao.test.cjs",
+    "anterior": null,
+    "recebido": "62b40af7bca8d28d34907fc82eec57f8439861dfe73b7576473bf581c7df5b1c",
+    "linhas": 49,
+    "final": "62b40af7bca8d28d34907fc82eec57f8439861dfe73b7576473bf581c7df5b1c",
+    "git_blob": "9b8ed8e6fcde173219e14777103cbf9c8318170b"
+  }
+]

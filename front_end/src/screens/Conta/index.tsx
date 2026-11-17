@@ -1,488 +1,385 @@
-// src/screens/Conta/index.tsx
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import { isAxiosError } from "axios";
-import { useCallback, useContext, useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
-  Platform,
-  ScrollView,
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
-
-import { AuthContext } from "../../contexts/AuthContext";
-import { ThemeContext } from "../../contexts/ThemeContext";
+import {
+  AppButton,
+  Notice,
+  Page,
+  Surface,
+  useAppTheme,
+} from "../../components/design";
+import { useAuth } from "../../contexts/AuthContext";
+import { useConsultaConta } from "../../hooks/useConsultaConta";
+import type { ContaPilha } from "../../routes/app.routes";
 import { api } from "../../services/API";
+import { iniciaisNome } from "../../services/atividadeConta";
+import { validarPerfil } from "../../services/contratoAuth";
+import { design } from "../../theme/design";
 
-interface PerfilUsuario {
-  nome: string;
-  email: string;
-  plano: string;
-  karma: number;
-  membro_desde: string;
-}
+const carregarPerfil = async (signal: AbortSignal) =>
+  validarPerfil((await api.get("/auth/perfil", { signal })).data);
 
-export default function Conta() {
-  const { colors } = useContext(ThemeContext) as any;
-  const { signOut } = useContext(AuthContext);
-  const navigation = useNavigation();
+type Props = NativeStackScreenProps<ContaPilha, "MeuPerfil">;
+type Icone = React.ComponentProps<typeof Ionicons>["name"];
 
-  const [perfil, setPerfil] = useState<PerfilUsuario | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  useFocusEffect(
-    useCallback(() => {
-      let ativo = true;
-      const controller = new AbortController();
-
-      // Recarrega o perfil ao entrar ou voltar para a Conta.
-      // Depois da primeira carga, mantém os dados visíveis na atualização.
-      void api
-        .get<PerfilUsuario>("/auth/perfil", {
-          signal: controller.signal,
-        })
-        .then((response) => {
-          if (ativo) {
-            setPerfil(response.data);
-          }
-        })
-        .catch(async (error: unknown) => {
-          if (!ativo) return;
-
-          if (isAxiosError(error) && error.response?.status === 401) {
-            await signOut();
-            return;
-          }
-
-          console.error("Não foi possível atualizar o perfil.");
-        })
-        .finally(() => {
-          if (ativo) {
-            setIsLoading(false);
-          }
-        });
-
-      return () => {
-        ativo = false;
-        controller.abort();
-      };
-    }, [signOut]),
-  );
-
-  const handleLogout = async () => {
-    if (Platform.OS === "web") {
-      const confirmou = window.confirm("Tem a certeza de que deseja sair?");
-
-      if (confirmou) {
-        setIsLoggingOut(true);
-        await signOut();
-      }
-    } else {
-      Alert.alert("Terminar Sessão", "Tem a certeza de que deseja sair?", [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-        {
-          text: "Sair",
-          style: "destructive",
-          onPress: async () => {
-            setIsLoggingOut(true);
-            await signOut();
-          },
-        },
-      ]);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <View
-        style={[
-          styles.center,
-          {
-            backgroundColor: colors?.background || "#121212",
-          },
-        ]}
-      >
-        <ActivityIndicator size="large" color={colors?.primary || "#F59E0B"} />
-      </View>
-    );
-  }
-
-  if (!perfil) {
-    return (
-      <View
-        style={[
-          styles.center,
-          {
-            backgroundColor: colors?.background || "#121212",
-          },
-        ]}
-      >
-        <Text
-          style={{
-            color: colors?.textSecondary || "#A1A1AA",
-          }}
-        >
-          Não foi possível carregar o perfil.
-        </Text>
-
-        <TouchableOpacity style={{ marginTop: 16 }} onPress={handleLogout}>
-          <Text
-            style={{
-              color: colors?.primary || "#F59E0B",
-              fontWeight: "bold",
-            }}
-          >
-            Voltar ao Login
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const iniciais = perfil.nome
-    ? perfil.nome
-        .split(" ")
-        .slice(0, 2)
-        .map((nome) => nome[0])
-        .join("")
-        .toUpperCase()
-    : "U";
+function Acesso({
+  titulo,
+  detalhe,
+  icone,
+  onPress,
+}: {
+  titulo: string;
+  detalhe: string;
+  icone: Icone;
+  onPress(): void;
+}) {
+  const { colors } = useAppTheme();
+  const [foco, setFoco] = useState(false);
 
   return (
-    <ScrollView
-      style={[
-        styles.container,
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={titulo}
+      onPress={onPress}
+      onFocus={() => setFoco(true)}
+      onBlur={() => setFoco(false)}
+      style={({ pressed }) => [
+        styles.acesso,
         {
-          backgroundColor: colors?.background || "#121212",
+          backgroundColor: colors.surface,
+          borderColor: foco ? colors.focus : colors.border,
+          opacity: pressed ? 0.8 : 1,
         },
       ]}
     >
-      <View style={styles.header}>
+      <View style={[styles.icone, { backgroundColor: colors.selection }]}>
+        <Ionicons
+          name={icone}
+          size={26}
+          color={colors.textPrimary}
+          accessible={false}
+        />
+      </View>
+
+      <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
         <Text
-          style={[
-            styles.title,
-            {
-              color: colors?.textPrimary || "#FFFFFF",
-            },
-          ]}
+          style={{
+            color: colors.textPrimary,
+            fontSize: 18,
+            fontWeight: "700",
+          }}
         >
-          Meu Perfil
+          {titulo}
+        </Text>
+
+        <Text
+          style={{
+            color: colors.textSecondary,
+            fontSize: 14,
+            lineHeight: 21,
+          }}
+        >
+          {detalhe}
         </Text>
       </View>
 
+      <Ionicons
+        name="chevron-forward"
+        size={20}
+        color={colors.textSecondary}
+        accessible={false}
+      />
+    </Pressable>
+  );
+}
+
+export default function Conta({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const { signOut } = useAuth();
+  const { width, fontScale } = useWindowDimensions();
+  const consulta = useConsultaConta(carregarPerfil);
+
+  const [confirmar, setConfirmar] = useState(false);
+  const [saindo, setSaindo] = useState(false);
+  const pendente = useRef(false);
+
+  const perfil = consulta.dados;
+
+  const sair = async () => {
+    if (pendente.current) return;
+
+    pendente.current = true;
+    setSaindo(true);
+    await signOut();
+  };
+
+  return (
+    <Page title="Perfil" subtitle="Sua participação faz a diferença.">
+      {consulta.loading ? (
+        <View
+          accessibilityRole="progressbar"
+          accessibilityLabel="Atualizando perfil"
+          style={styles.carregando}
+        >
+          <ActivityIndicator color={colors.textSecondary} />
+          <Notice>Atualizando perfil...</Notice>
+        </View>
+      ) : null}
+
+      {consulta.erro ? (
+        <Surface>
+          <Notice error>
+            {perfil
+              ? "Não foi possível atualizar. Exibindo os últimos dados recebidos."
+              : "Não foi possível carregar o perfil."}
+          </Notice>
+
+          <AppButton
+            label="Tentar novamente"
+            disabled={consulta.loading}
+            onPress={consulta.atualizar}
+          />
+        </Surface>
+      ) : null}
+
       <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: colors?.surface || "#1E1E1E",
-            borderColor: colors?.border || "#333333",
-          },
-        ]}
+        style={{
+          flexDirection:
+            width >= design.desktop && fontScale <= 1.3 ? "row" : "column",
+          gap: 24,
+          alignItems: "flex-start",
+        }}
       >
-        <View style={styles.profileHeader}>
-          <View
-            style={[
-              styles.avatar,
-              {
-                backgroundColor: colors?.primary || "#F59E0B",
-              },
-            ]}
-          >
-            <Text style={styles.avatarText}>{iniciais}</Text>
-          </View>
+        <View
+          style={{
+            flex: 1,
+            width: "100%",
+            minWidth: 0,
+            gap: 16,
+          }}
+        >
+          {perfil ? (
+            <View style={styles.hero}>
+              <View style={styles.identidade}>
+                <View style={styles.avatar}>
+                  <Text style={styles.iniciais}>
+                    {iniciaisNome(perfil.nome)}
+                  </Text>
+                </View>
 
-          <View style={styles.profileInfo}>
-            <Text
-              style={[
-                styles.name,
-                {
-                  color: colors?.textPrimary || "#FFFFFF",
-                },
-              ]}
-            >
-              {perfil.nome}
-            </Text>
+                <View style={{ gap: 6, flex: 1, minWidth: 0 }}>
+                  <Text style={styles.nome}>{perfil.nome}</Text>
+                  <Text style={styles.email}>{perfil.email}</Text>
+                </View>
+              </View>
 
-            <Text
-              style={{
-                color: colors?.textSecondary || "#A1A1AA",
-              }}
-            >
-              {perfil.email}
-            </Text>
-          </View>
+              <View style={styles.selo}>
+                <Text style={styles.seloTexto}>
+                  {perfil.plano === "gratis"
+                    ? "Plano grátis"
+                    : "Plano: " + perfil.plano}
+                </Text>
+              </View>
+
+              <View style={styles.saldo}>
+                <Ionicons
+                  name="trophy-outline"
+                  size={30}
+                  color="#FFC400"
+                  accessible={false}
+                />
+
+                <Text style={styles.karma}>
+                  {perfil.karma.toLocaleString("pt-BR")}
+                </Text>
+
+                <Text style={styles.legenda}>de Karma</Text>
+              </View>
+
+              <Text style={styles.email}>
+                Membro desde {perfil.membro_desde}
+              </Text>
+            </View>
+          ) : null}
+
+          {perfil ? (
+            <Notice>
+              Seu Karma é atualizado a partir das contribuições confirmadas.
+            </Notice>
+          ) : null}
         </View>
 
-        <View style={styles.divider} />
+        <View
+          style={{
+            flex: 1.2,
+            width: "100%",
+            minWidth: 0,
+            gap: 12,
+          }}
+        >
+          <Acesso
+            titulo="Atividade pessoal"
+            detalhe="Seu histórico de preços e consultas"
+            icone="time-outline"
+            onPress={() => navigation.navigate("AtividadePessoal")}
+          />
+          <Acesso
+            titulo="Histórico de Karma"
+            detalhe="Veja a origem e a data dos seus pontos"
+            icone="trophy-outline"
+            onPress={() => navigation.navigate("HistoricoKarma")}
+          />
 
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text
-              style={[
-                styles.statValue,
-                {
-                  color: colors?.primary || "#F59E0B",
-                },
-              ]}
-            >
-              {perfil.karma}
-            </Text>
+          <Acesso
+            titulo="Ranking"
+            detalhe="Contribuições da comunidade"
+            icone="podium-outline"
+            onPress={() => navigation.navigate("Ranking")}
+          />
+          <Acesso
+            titulo="Favoritos"
+            detalhe="Seus postos salvos neste dispositivo"
+            icone="star-outline"
+            onPress={() => navigation.navigate("Favoritos")}
+          />
 
-            <Text
-              style={{
-                color: colors?.textSecondary || "#A1A1AA",
-                fontSize: 12,
-              }}
-            >
-              Karma 🏆
-            </Text>
-          </View>
+          <Acesso
+            titulo="Configurações"
+            detalhe="Senha, aparência e preferências"
+            icone="settings-outline"
+            onPress={() => navigation.navigate("Definicoes")}
+          />
 
-          <View style={styles.statItem}>
-            <Text
-              style={[
-                styles.statValue,
-                {
-                  color: colors?.textPrimary || "#FFFFFF",
-                },
-              ]}
-            >
-              {perfil.plano === "gratis" ? "Grátis" : "Premium"}
-            </Text>
+          <Acesso
+            titulo="Notificações"
+            detalhe="Consulte a disponibilidade dos alertas"
+            icone="notifications-outline"
+            onPress={() => navigation.navigate("Notificacoes")}
+          />
 
-            <Text
-              style={{
-                color: colors?.textSecondary || "#A1A1AA",
-                fontSize: 12,
-              }}
-            >
-              Plano
-            </Text>
-          </View>
+          {confirmar ? (
+            <Surface>
+              <Notice>Deseja sair desta conta neste dispositivo?</Notice>
 
-          <View style={styles.statItem}>
-            <Text
-              style={[
-                styles.statValue,
-                {
-                  color: colors?.textPrimary || "#FFFFFF",
-                  fontSize: 14,
-                  marginTop: 4,
-                },
-              ]}
-            >
-              {perfil.membro_desde}
-            </Text>
+              <AppButton
+                label="Confirmar saída"
+                busy={saindo}
+                onPress={() => {
+                  void sair();
+                }}
+              />
 
-            <Text
-              style={{
-                color: colors?.textSecondary || "#A1A1AA",
-                fontSize: 12,
-              }}
-            >
-              Membro desde
-            </Text>
-          </View>
+              <AppButton
+                label="Cancelar"
+                secondary
+                disabled={saindo}
+                onPress={() => setConfirmar(false)}
+              />
+            </Surface>
+          ) : (
+            <AppButton
+              label="Sair da conta"
+              secondary
+              onPress={() => setConfirmar(true)}
+            />
+          )}
         </View>
       </View>
-
-      <View style={styles.menuContainer}>
-        <TouchableOpacity
-          style={[
-            styles.menuItem,
-            {
-              borderBottomColor: colors?.border || "#333333",
-            },
-          ]}
-          onPress={() => navigation.navigate("Definicoes" as never)}
-        >
-          <Text
-            style={[
-              styles.menuText,
-              {
-                color: colors?.textPrimary || "#FFFFFF",
-              },
-            ]}
-          >
-            ⚙️ Definições da Conta
-          </Text>
-
-          <Text
-            style={{
-              color: colors?.textSecondary || "#A1A1AA",
-            }}
-          >
-            ›
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.menuItem,
-            {
-              borderBottomColor: colors?.border || "#333333",
-            },
-          ]}
-          onPress={() => navigation.navigate("Notificacoes" as never)}
-        >
-          <Text
-            style={[
-              styles.menuText,
-              {
-                color: colors?.textPrimary || "#FFFFFF",
-              },
-            ]}
-          >
-            🔔 Notificações
-          </Text>
-
-          <Text
-            style={{
-              color: colors?.textSecondary || "#A1A1AA",
-            }}
-          >
-            ›
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity
-        style={[
-          styles.btnLogout,
-          {
-            borderColor: colors?.border || "#333333",
-            opacity: isLoggingOut ? 0.6 : 1,
-          },
-        ]}
-        onPress={handleLogout}
-        disabled={isLoggingOut}
-      >
-        {isLoggingOut ? (
-          <ActivityIndicator color="#FF3B30" size="small" />
-        ) : (
-          <Text style={styles.btnLogoutText}>Terminar Sessão</Text>
-        )}
-      </TouchableOpacity>
-
-      <Text
-        style={[
-          styles.versionText,
-          {
-            color: colors?.border || "#333333",
-          },
-        ]}
-      >
-        Litro de Ouro v1.0
-      </Text>
-    </ScrollView>
+    </Page>
   );
 }
 
 const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-  },
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
-    marginBottom: 24,
-  },
-  profileHeader: {
+  carregando: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    gap: 12,
+  },
+  hero: {
+    width: "100%",
+    backgroundColor: "#171923",
+    borderRadius: 24,
+    padding: 24,
+    gap: 20,
+  },
+  identidade: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 16,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#FFC400",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
   },
-  avatarText: {
-    color: "#121212",
+  iniciais: {
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#171923",
+  },
+  nome: {
+    color: "#FFFFFF",
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: "800",
   },
-  profileInfo: {
-    flex: 1,
+  email: {
+    color: "#CBD1DD",
+    fontSize: 14,
+    lineHeight: 22,
+    flexShrink: 1,
   },
-  name: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 4,
+  selo: {
+    alignSelf: "flex-start",
+    backgroundColor: "#303746",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#333",
-    marginBottom: 20,
+  seloTexto: {
+    color: "#F3F4F6",
+    fontSize: 14,
   },
-  statsRow: {
+  saldo: {
+    borderTopWidth: 1,
+    borderColor: "#495363",
+    paddingTop: 20,
+    gap: 4,
+  },
+  karma: {
+    color: "#FFC400",
+    fontSize: 52,
+    fontWeight: "800",
+  },
+  legenda: {
+    color: "#F3F4F6",
+    fontSize: 18,
+  },
+  acesso: {
+    borderWidth: 2,
+    borderRadius: 20,
+    padding: 16,
+    minHeight: 96,
     flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  statItem: {
     alignItems: "center",
-    flex: 1,
+    gap: 12,
   },
-  statValue: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  menuContainer: {
-    marginBottom: 32,
-  },
-  menuItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  icone: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: "center",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  menuText: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  btnLogout: {
-    paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: "center",
-    backgroundColor: "#FF3B3015",
-  },
-  btnLogoutText: {
-    color: "#FF3B30",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  versionText: {
-    textAlign: "center",
-    marginTop: 24,
-    marginBottom: 40,
-    fontSize: 12,
+    justifyContent: "center",
   },
 });

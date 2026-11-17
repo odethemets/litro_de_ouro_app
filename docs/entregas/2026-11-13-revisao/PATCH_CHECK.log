@@ -1,0 +1,6 @@
+{
+  "comando": "git apply --reverse --check ALTERACOES_CODIGO.patch",
+  "exit": 0,
+  "stdout": "",
+  "stderr": ""
+}

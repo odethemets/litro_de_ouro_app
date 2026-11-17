@@ -1,110 +1,267 @@
-// src/routes/app.routes.tsx
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import type { NavigatorScreenParams } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useContext } from "react";
-import { Text, View } from "react-native";
+import { Text, TouchableOpacity, useWindowDimensions } from "react-native";
 
-import { ThemeContext } from "../contexts/ThemeContext";
-
-// Importação dos ecrãs reais
+import { AcessoRestrito } from "../components/acesso-restrito";
+import { useAppTheme } from "../components/design";
+import { Navegacao } from "../components/navegacao";
+import { FavoritosProvider } from "../contexts/FavoritosContext";
+import { FiltrosPostosProvider } from "../contexts/FiltrosPostosContext";
+import AdicionarPreco from "../screens/AdicionarPreco";
+import ApagarConta from "../screens/ApagarConta";
+import Aparencia from "../screens/Aparencia";
+import Assistente from "../screens/Assistente";
 import Atividade from "../screens/Atividade";
+import Configuracoes from "../screens/Configuracoes";
+import ConsultaPostos from "../screens/ConsultaPostos";
 import Conta from "../screens/Conta";
-import Inicio from "../screens/Inicio";
+import DadosPessoais from "../screens/DadosPessoais";
+import Favoritos from "../screens/Favoritos";
+import HistoricoKarma from "../screens/HistoricoKarma";
+import Notificacoes from "../screens/Notificacoes";
+import PreferenciasAlertas from "../screens/PreferenciaAlertas";
+import Ranking from "../screens/Raking";
+import RedefinirSenhaConta from "../screens/RedefinirSenhaConta";
+import type { Combustivel } from "../services/catalogoPostos";
+import { design } from "../theme/design";
+export type Abas = {
+  Feed: undefined;
+  Mapa: undefined;
+  Adicionar:
+    | {
+        postoId?: number;
+        combustivel?: Combustivel;
+        solicitacao?: number;
+      }
+    | undefined;
+  IA: undefined;
+  Perfil: NavigatorScreenParams<ContaPilha> | undefined;
+};
 
-const Tab = createBottomTabNavigator();
-const ContaStack = createNativeStackNavigator();
+export type ContaPilha = {
+  MeuPerfil: undefined;
+  AtividadePessoal: undefined;
+  HistoricoKarma: undefined;
+  Ranking: undefined;
+  Definicoes: undefined;
+  DadosPessoais: undefined;
+  ApagarConta: undefined;
+  Notificacoes: undefined;
+  PreferenciasAlertas: undefined;
+  Aparencia: undefined;
+  Favoritos: undefined;
+  RedefinirSenhaConta: undefined;
+};
+const Tab = createBottomTabNavigator<Abas>();
+const Stack = createNativeStackNavigator<ContaPilha>();
 
-// --- ECRÃS TEMPORÁRIOS (Placeholders) para as Definições e Notificações ---
-function DefinicoesScreen() {
-  const { colors } = useContext(ThemeContext) as any;
+function Feed() {
+  return <ConsultaPostos modo="lista" />;
+}
+
+function Adicionar() {
   return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: colors.background,
-      }}
-    >
-      <Text style={{ color: colors.textPrimary, fontSize: 18 }}>
-        Página de Definições
-      </Text>
-    </View>
+    <AcessoRestrito>
+      <AdicionarPreco />
+    </AcessoRestrito>
   );
 }
 
-function NotificacoesScreen() {
-  const { colors } = useContext(ThemeContext) as any;
+function IA() {
   return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: colors.background,
-      }}
-    >
-      <Text style={{ color: colors.textPrimary, fontSize: 18 }}>
-        Página de Notificações
-      </Text>
-    </View>
+    <AcessoRestrito>
+      <Assistente />
+    </AcessoRestrito>
   );
 }
 
-// --- PILHA DE NAVEGAÇÃO DO PERFIL ---
 function ContaRoutes() {
-  const { colors } = useContext(ThemeContext) as any;
+  const { colors } = useAppTheme();
 
   return (
-    <ContaStack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.primary,
-        headerTitleStyle: { fontWeight: "bold" },
-      }}
+    <Stack.Navigator
+      screenOptions={({ navigation }) => ({
+        headerLeft: () => (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Voltar"
+            onPress={() => {
+              if (navigation.canGoBack()) navigation.goBack();
+              else navigation.popTo("MeuPerfil");
+            }}
+            style={{
+              padding: 12,
+              minHeight: 48,
+              minWidth: 48,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <Ionicons
+              name="arrow-back"
+              size={22}
+              color={colors.textPrimary}
+              accessible={false}
+            />
+
+            <Text style={{ color: colors.textPrimary }}>Voltar</Text>
+          </TouchableOpacity>
+        ),
+        headerStyle: {
+          backgroundColor: colors.surface,
+        },
+        headerTintColor: colors.textPrimary,
+        contentStyle: {
+          backgroundColor: colors.background,
+        },
+      })}
     >
-      <ContaStack.Screen
+      <Stack.Screen
         name="MeuPerfil"
         component={Conta}
-        options={{ headerShown: false }}
+        options={{
+          title: "Perfil",
+          headerShown: false,
+        }}
       />
-      <ContaStack.Screen
+
+      <Stack.Screen
+        name="AtividadePessoal"
+        component={Atividade}
+        options={({ navigation }) => ({
+          title: "Atividade pessoal",
+          headerLeft: () => (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Voltar ao perfil"
+              onPress={() => navigation.popTo("MeuPerfil")}
+              style={{
+                padding: 12,
+                minHeight: 48,
+                minWidth: 48,
+                justifyContent: "center",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <Ionicons
+                name="arrow-back"
+                size={22}
+                color={colors.textPrimary}
+                accessible={false}
+              />
+
+              <Text style={{ color: colors.textPrimary }}>Voltar</Text>
+            </TouchableOpacity>
+          ),
+        })}
+      />
+
+      <Stack.Screen
         name="Definicoes"
-        component={DefinicoesScreen}
-        options={{ title: "Definições da Conta" }}
+        component={Configuracoes}
+        options={{ title: "Configurações" }}
       />
-      <ContaStack.Screen
+
+      <Stack.Screen
+        name="DadosPessoais"
+        component={DadosPessoais}
+        options={{ title: "Dados pessoais" }}
+      />
+
+      <Stack.Screen
+        name="ApagarConta"
+        component={ApagarConta}
+        options={{ title: "Apagar conta" }}
+      />
+
+      <Stack.Screen
+        name="Aparencia"
+        component={Aparencia}
+        options={{ title: "Aparência" }}
+      />
+
+      <Stack.Screen
+        name="Favoritos"
+        component={Favoritos}
+        options={{ title: "Favoritos" }}
+      />
+
+      <Stack.Screen
+        name="RedefinirSenhaConta"
+        component={RedefinirSenhaConta}
+        options={{ title: "Redefinir senha" }}
+      />
+
+      <Stack.Screen
         name="Notificacoes"
-        component={NotificacoesScreen}
-        options={{ title: "As minhas Notificações" }}
+        component={Notificacoes}
+        options={{ title: "Notificações" }}
       />
-    </ContaStack.Navigator>
+
+      <Stack.Screen
+        name="PreferenciasAlertas"
+        component={PreferenciasAlertas}
+        options={{ title: "Preferências de alertas" }}
+      />
+      <Stack.Screen
+        name="HistoricoKarma"
+        component={HistoricoKarma}
+        options={{ title: "Histórico de Karma" }}
+      />
+
+      <Stack.Screen
+        name="Ranking"
+        component={Ranking}
+        options={{ title: "Ranking" }}
+      />
+    </Stack.Navigator>
   );
 }
 
-// --- ROTAS PRINCIPAIS (ABAS) ---
-export function AppRoutes() {
-  const { colors } = useContext(ThemeContext) as any;
+function Perfil() {
+  return (
+    <AcessoRestrito>
+      <ContaRoutes />
+    </AcessoRestrito>
+  );
+}
+
+function AbasRoutes() {
+  const desktop = useWindowDimensions().width >= design.desktop;
+  const { colors } = useAppTheme();
 
   return (
     <Tab.Navigator
+      initialRouteName="Mapa"
+      tabBar={(props) => <Navegacao {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          height: 65,
-          paddingBottom: 10,
-          paddingTop: 10,
+        tabBarPosition: desktop ? "left" : "bottom",
+        sceneStyle: {
+          backgroundColor: colors.background,
         },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
       }}
     >
-      <Tab.Screen name="Início" component={Inicio} />
-      <Tab.Screen name="Atividade" component={Atividade} />
-      {/* Aqui a aba Conta agora chama a Pilha que criámos acima */}
-      <Tab.Screen name="Conta" component={ContaRoutes} />
+      <Tab.Screen name="Feed" component={Feed} />
+      <Tab.Screen name="Mapa" component={ConsultaPostos} />
+      <Tab.Screen name="Adicionar" component={Adicionar} />
+      <Tab.Screen name="IA" component={IA} />
+      <Tab.Screen name="Perfil" component={Perfil} />
     </Tab.Navigator>
+  );
+}
+
+export function AppRoutes() {
+  return (
+    <FavoritosProvider>
+      <FiltrosPostosProvider>
+        <AbasRoutes />
+      </FiltrosPostosProvider>
+    </FavoritosProvider>
   );
 }

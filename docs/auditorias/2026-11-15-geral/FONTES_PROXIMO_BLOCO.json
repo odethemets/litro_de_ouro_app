@@ -1,0 +1,92 @@
+[
+  {
+    "arquivo": "front_end/src/services/cadastroPreco.ts",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/front_end/src/services/cadastroPreco.ts",
+    "sha256": "5ddcd59d4784e8b72fba16915ef59ad7d1de6962945dc07ab236d10313994f04"
+  },
+  {
+    "arquivo": "front_end/src/screens/AdicionarPreco/index.tsx",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/front_end/src/screens/AdicionarPreco/index.tsx",
+    "sha256": "3fb01bbb8670316beb64f7ab065dbaf37bb31f30b1515e19bd8c68e62217c7d9"
+  },
+  {
+    "arquivo": "front_end/tests/cadastro-preco.test.cjs",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/front_end/tests/cadastro-preco.test.cjs",
+    "sha256": "4378429e28a572f05fc0ee5f7e3f0a4958c016cadd472cb40ce8a3e3f7a2739a"
+  },
+  {
+    "arquivo": "front_end/src/services/catalogoPostos.ts",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/front_end/src/services/catalogoPostos.ts",
+    "sha256": "99285365d989d0b3cd81b52d4355dc723b03b31ad69f4dcd9e7c68196463e1d7"
+  },
+  {
+    "arquivo": "front_end/src/utils/localizacao.ts",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/front_end/src/utils/localizacao.ts",
+    "sha256": "ee37abb81800a6e2c551e4d9f0d59f6b4ec917b5b6395e67bed8db5294114d47"
+  },
+  {
+    "arquivo": "front_end/src/services/API.ts",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/front_end/src/services/API.ts",
+    "sha256": "318820bc3836eb1036e3070af5f6e07c9ffc2a5a1c36230df422b2cdbece0e21"
+  },
+  {
+    "arquivo": "back_end/app/rotas/precos.py",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/back_end/app/rotas/precos.py",
+    "sha256": "d065b2010b102c0884ba94d115cdb132e5d6eedd3be422da7878e7bdcaad6086"
+  },
+  {
+    "arquivo": "back_end/app/rotas/ofertas.py",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/back_end/app/rotas/ofertas.py",
+    "sha256": "462d7be15e14a0540363430fe077d205bec61a3a93c0fbb43bd268b221600cdc"
+  },
+  {
+    "arquivo": "back_end/services/catalogo_postos.py",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/back_end/services/catalogo_postos.py",
+    "sha256": "315f4d2e846f1344f1ae2d332390b99ff9862ab1c5c09d09eb582d9d3f2795b0"
+  },
+  {
+    "arquivo": "back_end/services/atividade_alertas.py",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/back_end/services/atividade_alertas.py",
+    "sha256": "fcc7284775154febf1cca9d6cb2dbc0dad63f9211b3bea1061bfb95aa65eeb63"
+  },
+  {
+    "arquivo": "back_end/app/utils/geofence.py",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/back_end/app/utils/geofence.py",
+    "sha256": "7dc775fcc169c337a1db5ae12c99ad60b00e9717bd0a80628e4236edec7f0b0d"
+  },
+  {
+    "arquivo": "back_end/app/utils/decorator.py",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/back_end/app/utils/decorator.py",
+    "sha256": "98885e60f62757055ff2ddf16a55993e3917a6fe8662b994265b1a29fd7769d0"
+  },
+  {
+    "arquivo": "back_end/app/db.py",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/back_end/app/db.py",
+    "sha256": "49ef1fb864a22ee07c13dd5b166f608d9ad75aeda777dccca7df84574119a8b4"
+  },
+  {
+    "arquivo": "back_end/services/database.py",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/back_end/services/database.py",
+    "sha256": "7c40a93f6ab12c0241b67d040c7390951146eb78085b3a3efcd09fd283198579"
+  },
+  {
+    "arquivo": "back_end/tests/integracao_participacao.py",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/back_end/tests/integracao_participacao.py",
+    "sha256": "9caa4d86221141fc924c39ec6d2c8a4cf91c32bb34cebd973c23e338228516ed"
+  },
+  {
+    "arquivo": "back_end/docker/schema_base.sql",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/back_end/docker/schema_base.sql",
+    "sha256": "61650f4f0ba5d36d1c1f0f732f79d5091727ddd8336437fc5567e605f6507f66"
+  },
+  {
+    "arquivo": "back_end/migrations/001_catalogo_disponibilidade.sql",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/back_end/migrations/001_catalogo_disponibilidade.sql",
+    "sha256": "e8525dc3888354bc86b65749ffa551d1878bc6207dd91a7af09e94fdb394c70c"
+  },
+  {
+    "arquivo": "back_end/migrations/004_atividade_alertas.sql",
+    "copia": "docs/auditorias/2026-11-15-geral/fontes_proximo_bloco/back_end/migrations/004_atividade_alertas.sql",
+    "sha256": "d28b504c794ec9caab773da5270e7571f828fffd2be59b87ff0355456c27501e"
+  }
+]

@@ -5,6 +5,7 @@ from functools import wraps
 import jwt
 
 from flask import current_app, jsonify, request
+from app.db import get_db_connection
 
 
 def token_required(f):
@@ -54,7 +55,6 @@ def token_required(f):
 
             current_user_id = dados["usuario_id"]
 
-            # Evita encaminhar um identificador inválido às consultas.
             # bool é uma subclasse de int no Python, por isso é excluído.
             if (
                 isinstance(current_user_id, bool)
@@ -75,7 +75,46 @@ def token_required(f):
                 "error": "Token de segurança inválido."
             }), 401
 
-        # Mantém a assinatura das rotas protegidas existentes.
+        # JWT antigo é aceito apenas enquanto a versão da conta permanece zero.
+        versao = dados.get("ver", 0)
+
+        if isinstance(versao, bool) or not isinstance(versao, int) or versao < 0:
+            return jsonify(error="Token de segurança inválido."), 401
+
+        conn = None
+
+        try:
+            conn = get_db_connection()
+
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT versao_token FROM usuarios WHERE id=%s",
+                    (current_user_id,),
+                )
+                usuario = cursor.fetchone()
+
+            if not usuario:
+                return jsonify(
+                    error="Conta removida.",
+                    code="ACCOUNT_DELETED",
+                ), 401
+
+            if usuario["versao_token"] != versao:
+                return jsonify(
+                    error="Sua sessão foi encerrada. Entre novamente."
+                ), 401
+
+        except Exception:
+            current_app.logger.exception("Falha ao verificar a sessão")
+
+            return jsonify(
+                error="Não foi possível verificar sua sessão. Tente novamente."
+            ), 503
+
+        finally:
+            if conn is not None:
+                conn.close()
+
         return f(current_user_id, *args, **kwargs)
 
     return decorated

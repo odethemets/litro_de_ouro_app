@@ -1,0 +1,12 @@
+[
+  {
+    "status": 200,
+    "rota": "live",
+    "corpo": "{\"status\":\"ok\"}\n"
+  },
+  {
+    "status": 200,
+    "rota": "ready",
+    "corpo": "{\"status\":\"pronto\"}\n"
+  }
+]

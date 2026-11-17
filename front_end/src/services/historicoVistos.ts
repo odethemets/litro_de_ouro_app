@@ -1,50 +1,62 @@
-// src/services/historicoVistos.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { validarVistos, type VistoPessoal } from "./atividadeConta";
+import { API_URL } from "./configuracao";
 
-export interface PostoVisto {
-  id: number;
-  nome: string;
-  endereco: string;
-  dataVisualizacao: string;
+export type PostoVisto = VistoPessoal;
+
+export function chaveHistorico(usuarioId: number, apiUrl = API_URL) {
+  if (!Number.isSafeInteger(usuarioId) || usuarioId <= 0) {
+    throw new Error("Conta necessária para o histórico.");
+  }
+
+  return "ldo.vistos.v2." + encodeURIComponent(apiUrl) + ":" + usuarioId;
 }
 
-const STORAGE_KEY = "@LitroDeOuro:vistos";
+let fila: Promise<unknown> = Promise.resolve();
 
-export async function registrarPostoVisto(posto: {
-  id: number;
-  nome: string;
-  endereco: string;
-}) {
-  try {
-    const atualRaw = await AsyncStorage.getItem(STORAGE_KEY);
-    let lista: PostoVisto[] = atualRaw ? JSON.parse(atualRaw) : [];
-
-    // Remove duplicados anteriores
-    lista = lista.filter((item) => item.id !== posto.id);
-
-    // Adiciona o novo no início
-    lista.unshift({
-      id: posto.id,
-      nome: posto.nome,
-      endereco: posto.endereco,
-      dataVisualizacao: new Date().toLocaleDateString("pt-BR"),
-    });
-
-    // Mantém no máximo 20 postos recentemente vistos
-    if (lista.length > 20) lista = lista.slice(0, 20);
-
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(lista));
-  } catch (error) {
-    console.error("Erro ao guardar posto visto:", error);
-  }
+function serializar<T>(acao: () => Promise<T>): Promise<T> {
+  const pedido = fila.then(acao);
+  fila = pedido.catch(() => undefined);
+  return pedido;
 }
 
-export async function obterPostosVistos(): Promise<PostoVisto[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (error) {
-    console.error("Erro ao ler postos vistos:", error);
-    return [];
-  }
+export async function registrarPostoVisto(
+  posto: { id: number; nome: string; endereco: string },
+  usuarioId?: number,
+) {
+  if (!usuarioId) return;
+
+  const chave = chaveHistorico(usuarioId);
+
+  return serializar(async () => {
+    try {
+      const atuais = validarVistos(await AsyncStorage.getItem(chave));
+
+      const item = {
+        ...posto,
+        dataVisualizacao: new Date().toISOString(),
+      };
+
+      const atualizados = [
+        item,
+        ...atuais.filter((p) => p.id !== posto.id),
+      ].slice(0, 20);
+
+      await AsyncStorage.setItem(chave, JSON.stringify(atualizados));
+    } catch {
+      // Histórico opcional não bloqueia a consulta ao posto.
+    }
+  });
+}
+
+export function obterPostosVistos(usuarioId?: number): Promise<PostoVisto[]> {
+  if (!usuarioId) return Promise.resolve([]);
+
+  return serializar(async () =>
+    validarVistos(await AsyncStorage.getItem(chaveHistorico(usuarioId))),
+  );
+}
+
+export function limparPostosVistos(usuarioId: number) {
+  return serializar(() => AsyncStorage.removeItem(chaveHistorico(usuarioId)));
 }

@@ -1,0 +1,22 @@
+GEOFENCE_RAIO_M=50000.0 m: raio de DESENVOLVIMENTO ativo. Não use em produção.
+/usr/local/lib/python3.12/site-packages/dropbox/session.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+{
+  "status": "pendencias",
+  "chave_configurada": false,
+  "modelo_explicito": false,
+  "secret_key_valida": true,
+  "sdk_importavel": true,
+  "rotas_usam_sdk_atual": true,
+  "versao_sdk": "2.34.0",
+  "modulos_assistente_importaveis": true,
+  "modelo_corresponde_ambiente": false,
+  "comando_objetivo_validado": true,
+  "rota_consulta_registrada": true,
+  "catalogo_consultado": false,
+  "tentativa_provedor": false,
+  "pendencias": [
+    "GEMINI_API_KEY ausente: interpretação livre indisponível.",
+    "Defina GEMINI_MODEL com um modelo disponível na sua conta."
+  ]
+}

@@ -1,0 +1,74 @@
+[
+  {
+    "arquivo": "front_end/src/components/confirmar-oferta.tsx",
+    "sha256": "d70e7e4e26dcee95c6b7b4279b74ae0f7c24d06ca51510dcaca66db7ac31af9c"
+  },
+  {
+    "arquivo": "front_end/src/components/votar-preco.tsx",
+    "sha256": "93e8d47348c533e8f992c384a04b23b1e0a818123b295af4a570bb60b6e7a3a3"
+  },
+  {
+    "arquivo": "front_end/src/screens/ConsultaPostos/detalhes.tsx",
+    "sha256": "11dcdcf810d4a9184af3cd89034608d0c22a9af6b873d8e95e6f108c8c96dd8a"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/ALTERACOES.patch",
+    "sha256": "37dbe8cbef91d4118c9725427fc2faf0581acdeef623a07eb742a588748a7ac4"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/APLICACAO_SHA256.json",
+    "sha256": "6facafbcdd6484e96793153d0adc5cddaa69490a618e1bf2919629ccca808f7f"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/BASE_SHA256.json",
+    "sha256": "2378d18b2c742844647d189cbce4e772e289c384150c3d29942adb0c864f74b8"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/CODIGOS_RECEBIDOS.md",
+    "sha256": "ec667376dcdc17e8dae5ef9fc691455f42c2eb26e0fa37708c443f62ea5ac3b7"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/evidencias/LOGICA.json",
+    "sha256": "07ccf2fc7eeabf5585e62add868c25593476169f6e01051eb7f3772ab2252b0e"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/evidencias/verificar_controles.cjs",
+    "sha256": "4f58eb8d37f943158d07cf93a5c5528ebda1299733e053ff6a5f94d60601022e"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/EXPORT_WEB.log",
+    "sha256": "b7e7b2a8fa854fa3efb6e356f5c6b19b0242c4a11c1dffc2e95807c41416968a"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/INSTRUCOES_RECEBIDAS.md",
+    "sha256": "9104285c479c1e1e4050721a5cf7f50eecc28591ce26e0d18f6099fc8e592ba2"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/LINT.log",
+    "sha256": "1532e91205eea581aad742daa1fde8d6011b4b02cbd487e60c5abc93e2e45770"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/PARTICIPACAO.log",
+    "sha256": "f20de25126e9bd316e23914a88971ec8572748af6355cc5de2107887611509e0"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/PATCH_CHECK.log",
+    "sha256": "70f704c896ed9c9ee5cb2da3213724305f47f258a92b3d329900751b5a9a6f96"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/REFERENCIA.json",
+    "sha256": "67901010176e6532b88ac244dcdad8d8e323877f841702ce650c64d86fe6e6c8"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/RELATORIO_BLOCO.md",
+    "sha256": "8cc04ff8107f148c3d8396a07f0de0e10d3af8b33da9868abeaa77521c14726a"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/TESTES_FRONTEND.log",
+    "sha256": "d7448a1616ced913f4133612e2520be5f7bbcca1e9e5825dc4e81531081cf09d"
+  },
+  {
+    "arquivo": "docs/entregas/2026-11-13-controles-recebidos/TYPESCRIPT.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

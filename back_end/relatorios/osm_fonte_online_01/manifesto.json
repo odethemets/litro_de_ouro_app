@@ -1,0 +1,9 @@
+{
+  "status": "falha",
+  "sha256": {
+    "relatorio.json": "91beef6e80e5e9be9da1c6ca4beb89e4a6991b28e86f4a304d1fb2f90e8fb8aa"
+  },
+  "gravacao_habilitada": false,
+  "atribuicao": "© OpenStreetMap contributors — ODbL",
+  "licenca_url": "https://www.openstreetmap.org/copyright"
+}

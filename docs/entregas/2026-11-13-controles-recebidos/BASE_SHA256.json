@@ -1,0 +1,17 @@
+[
+  {
+    "arquivo": "front_end/src/components/confirmar-oferta.tsx",
+    "sha256Antes": "53b19c9b7078a02d44194a627d9f2d67ed8fd3250fd19d62240964479787cad2",
+    "sha256Recebido": "d70e7e4e26dcee95c6b7b4279b74ae0f7c24d06ca51510dcaca66db7ac31af9c"
+  },
+  {
+    "arquivo": "front_end/src/components/votar-preco.tsx",
+    "sha256Antes": "26b97c146ad46b70d576b1f37b84d80ff5b8a1e76b33982f26169e7e96ebce7d",
+    "sha256Recebido": "93e8d47348c533e8f992c384a04b23b1e0a818123b295af4a570bb60b6e7a3a3"
+  },
+  {
+    "arquivo": "front_end/src/screens/ConsultaPostos/detalhes.tsx",
+    "sha256Antes": "65e9fe5ad7061071766ba0855c9ea05b58dbc718148400301ab2859884ac7d16",
+    "sha256Recebido": "11dcdcf810d4a9184af3cd89034608d0c22a9af6b873d8e95e6f108c8c96dd8a"
+  }
+]

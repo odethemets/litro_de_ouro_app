@@ -1,0 +1,50 @@
+
+Executando test_catalogo_postos.py
+................./usr/local/lib/python3.12/site-packages/dropbox/session.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+........
+----------------------------------------------------------------------
+Ran 25 tests in 1.115s
+
+OK
+
+Executando test_completar_catalogo_osm.py
+.................................
+----------------------------------------------------------------------
+Ran 33 tests in 0.021s
+
+OK
+
+Executando test_geofence.py
+/usr/local/lib/python3.12/site-packages/dropbox/session.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+geofence: todos os testes passaram
+
+Executando test_ia.py
+ia.py: todos os testes passaram
+
+Executando test_infra_banco.py
+.......................
+----------------------------------------------------------------------
+Ran 23 tests in 0.161s
+
+OK
+
+Executando test_osm_batch.py
+.Overpass: etapa=conexao_leitura tipo=URLError causa=SSLCertVerificationError errno=1 tls_codigo=None
+..ERROR: Rotina interrompida: tipo=RuntimeError. Dados de conexão foram omitidos.
+.WARNING: Overpass indisponível; próxima tentativa 2/2 após 75s.
+....ERROR: Rotina interrompida: tipo=ValueError. Dados de conexão foram omitidos.
+............
+----------------------------------------------------------------------
+Ran 20 tests in 0.023s
+
+OK
+
+Executando test_transferencia_tidb.py
+...........................
+----------------------------------------------------------------------
+Ran 27 tests in 0.132s
+
+OK
+Todas as suítes offline passaram; provedores e banco não foram acessados.

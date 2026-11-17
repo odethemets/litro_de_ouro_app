@@ -13,6 +13,11 @@ from flask import Blueprint, jsonify, request
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from services.dropbox_services import upload_foto_totem
+from services.leitura_totem import (
+    FotoTotemInvalida,
+    preparar_imagem as preparar_imagem_totem,
+    normalizar_precos as normalizar_precos_totem,
+)
 from ..db import get_db_connection
 from ..utils.decorator import token_required
 from ..utils.geofence import GeofenceError, validar_proximidade
@@ -114,17 +119,11 @@ class _FotoInvalida(Exception):
 
 
 def _preparar_imagem(bruto):
-    """Valida que é imagem de verdade, corrige a rotação do celular (EXIF) e reduz o tamanho."""
+    """Prepara JPEG sem metadados e preserva a exceção já tratada pela rota."""
     try:
-        img = Image.open(io.BytesIO(bruto))
-        img.load()
-        img = ImageOps.exif_transpose(img).convert('RGB')
-    except (UnidentifiedImageError, OSError, Image.DecompressionBombError, ValueError):
-        raise _FotoInvalida()
-    img.thumbnail((LADO_MAX_PX, LADO_MAX_PX))
-    saida = io.BytesIO()
-    img.save(saida, 'JPEG', quality=88)
-    return saida.getvalue()
+        return preparar_imagem_totem(bruto, LADO_MAX_PX)
+    except FotoTotemInvalida as erro:
+        raise _FotoInvalida(str(erro)) from erro
 
 
 def _extrair_json(texto):
@@ -139,23 +138,8 @@ def _extrair_json(texto):
 
 
 def _normalizar_precos(bruto):
-    """Só chaves conhecidas, valores numéricos entre R$ 1,00 e R$ 25,00 (mesmo limite do /precos)."""
-    if not isinstance(bruto, dict):
-        return {}
-    precos = {}
-    for nome in COMBUSTIVEIS:
-        valor = bruto.get(nome)
-        if valor is None or isinstance(valor, bool):
-            continue
-        try:
-            if isinstance(valor, str):
-                valor = re.sub(r'[^0-9.,]', '', valor).replace(',', '.')
-            numero = float(valor)
-        except (TypeError, ValueError):
-            continue
-        if math.isfinite(numero) and 1.0 <= numero <= 25.0:
-            precos[nome] = round(numero, 2)
-    return precos
+    """Filtra sugestões do OCR sem fabricar números nem arredondar frações de centavo."""
+    return normalizar_precos_totem(bruto)
 
 
 def _carregar_posto(posto_id):
@@ -218,8 +202,8 @@ def ler_totem(current_user_id):
         return jsonify({"error": "Foto muito grande. O limite é de 8 MB."}), 413
     try:
         jpeg = _preparar_imagem(bruto)
-    except _FotoInvalida:
-        return jsonify({"error": "O ficheiro enviado não é uma imagem válida."}), 400
+    except _FotoInvalida as erro:
+        return jsonify({"error": str(erro)}), 400
 
     # 3. LIMITE DE USO (cada leitura custa dinheiro)
     if _excedeu_limite(current_user_id):
@@ -253,9 +237,11 @@ def ler_totem(current_user_id):
 
     # 5. PROVA NO COFRE: só depois de uma leitura bem-sucedida (não guarda foto inútil)
     foto_url = None
-    try:
-        foto_url = upload_foto_totem(io.BytesIO(jpeg), 'totem.jpg')
-    except Exception:
-        log.exception('Falha ao guardar a prova no Dropbox')
+    # A ausência de consentimento nunca inicia armazenamento externo.
+    if request.form.get('guardar_comprovante', '').strip().lower() == 'true':
+        try:
+            foto_url = upload_foto_totem(io.BytesIO(jpeg), 'totem.jpg')
+        except Exception:
+            log.exception('Falha ao guardar a prova no Dropbox')
 
     return jsonify({"sucesso": True, "precos": precos, "foto_url": foto_url}), 200

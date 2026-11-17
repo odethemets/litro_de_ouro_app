@@ -1,0 +1,6 @@
+exit=0
+warning: in the working copy of 'back_end/app/rotas/ia.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'back_end/app/rotas/precos.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'back_end/tests/test_ia.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'front_end/package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'front_end/package.json', LF will be replaced by CRLF the next time Git touches it

@@ -1,0 +1,58 @@
+[
+  {
+    "arquivo": "back_end/app/rotas/ofertas.py",
+    "sha256": "38345AF63059737314F81D3DD74193D8BA4ECEEA2751F7588213F289C8DB2BE2"
+  },
+  {
+    "arquivo": "back_end/app/rotas/votos.py",
+    "sha256": "0A59970D338F2D0E89A3E7B11E8F74737E5B5F7F445EF1EF0974934C68A9B490"
+  },
+  {
+    "arquivo": "back_end/app/rotas/precos.py",
+    "sha256": "2EBA05581FFEC6378870E7AC5548D2471614A5B6A7E54E2AD5DBB8DDEDE90C9C"
+  },
+  {
+    "arquivo": "back_end/services/atividade_alertas.py",
+    "sha256": "1373B637D96E8D5B0A4B5992020100444025CDF09A38EB344283CE737786A9ED"
+  },
+  {
+    "arquivo": "back_end/services/catalogo_postos.py",
+    "sha256": "62046F62B982A76F890D8DE9D8EED056F8AE6F534F870F59465AD678B1001EFE"
+  },
+  {
+    "arquivo": "back_end/scripts/processar_alertas.py",
+    "sha256": "DCF72EFABE297D3F87E806AAC961F0CD761DD951132BFA5F0DE6957D1DCCA069"
+  },
+  {
+    "arquivo": "back_end/scripts/verificar_sdk_ia.py",
+    "sha256": "FDFBEC4B13B329D33A3E218C699AAFC13A0599B085E0F1FCE73E9CD8EAEDBF3A"
+  },
+  {
+    "arquivo": "front_end/src/services/ofertas.ts",
+    "sha256": "51D3155610ADDF0F4F8C8AD3819F32E423803AC56C675314C9ADBCFA61959DD5"
+  },
+  {
+    "arquivo": "front_end/src/services/votos.ts",
+    "sha256": "B7C8479FA55AA24797BD3C87965369A6F7449D9BD13B544EEB15892B2C211BCA"
+  },
+  {
+    "arquivo": "front_end/src/services/catalogoPostos.ts",
+    "sha256": "275AFAD0E0C8BC9F732A1466FFEA31E8EB751839895D22ED360571049752F77B"
+  },
+  {
+    "arquivo": "front_end/src/components/confirmar-oferta.tsx",
+    "sha256": "7D2B7779BB4AFFB1AA0281E060D712D56C9ACC5186FD00598C3121BCEAC64C1A"
+  },
+  {
+    "arquivo": "front_end/src/components/votar-preco.tsx",
+    "sha256": "E7C9058DA583A712296B8C53EDF7FA6D00D77A71831A65B820790F894B8F6B22"
+  },
+  {
+    "arquivo": "front_end/src/screens/ConsultaPostos/detalhes.tsx",
+    "sha256": "BD99BC3D21BE201BED58C45B977326574BC0E24FED4813FA7258DF43871DA75F"
+  },
+  {
+    "arquivo": "front_end/src/screens/ConsultaPostos/index.tsx",
+    "sha256": "022E23EDEA3D672416C047AF9E9FF557C0AE3080E757BCC2725DA8A45F18ADA7"
+  }
+]

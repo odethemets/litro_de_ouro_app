@@ -1,0 +1,30 @@
+{
+  "status": "ok",
+  "modo": "aplicar",
+  "banco": "litro_de_ouro",
+  "versao_servidor": "8.0.11-TiDB-v8.5.3-serverless",
+  "banco_vazio_confirmado": true,
+  "sha256_base": "67919a2878e4c82822b30dd4ba16235cbf93703564a2092827cf351ff446d0cd",
+  "tabelas_planejadas": [
+    "postos",
+    "usuarios",
+    "registos_preco",
+    "votos_registos"
+  ],
+  "tabelas_criadas": [
+    "postos",
+    "usuarios",
+    "registos_preco",
+    "votos_registos"
+  ],
+  "dados_ficticios_incluidos": false,
+  "migracoes_aplicadas": false,
+  "ddl_tem_commit_implicito": true,
+  "base_vazia_criada": true,
+  "migracoes_posteriores": [
+    "001_catalogo_disponibilidade",
+    "002_marcas_postos",
+    "003_gestao_conta",
+    "004_atividade_alertas"
+  ]
+}

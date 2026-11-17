@@ -1,0 +1,10 @@
+{
+  "status": "falha_fonte",
+  "fonte": "OpenStreetMap",
+  "atribuicao": "© OpenStreetMap contributors — ODbL",
+  "licenca_url": "https://www.openstreetmap.org/copyright",
+  "iniciado_em_utc": "2026-11-11T03:01:08.935093+00:00",
+  "erro": "Tempo limite ao conectar ou receber dados da Overpass.",
+  "status_http": null,
+  "finalizado_em_utc": "2026-11-11T03:01:54.729741+00:00"
+}

@@ -1,0 +1,16 @@
+✔ confirmacao explicita envia apenas oferta e GPS, sem preco ou Karma (0.807ms)
+✔ oferta recusa GPS antigo, impreciso, simulado ou invalido (0.3526ms)
+✔ oferta exige resposta do mesmo posto e produto (0.2065ms)
+✔ confirmacao idempotente conserva origem OSM (0.1028ms)
+✔ pontuacao inicial nao fabrica confirmacoes nem libera voto proprio (0.1555ms)
+✔ avaliacao identifica registro exato (0.1194ms)
+✔ avaliacao recusa contagens e tipos invalidos (0.2184ms)
+✔ voto negativo e pontuacao negativa sao dados validos (0.1178ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7.2364

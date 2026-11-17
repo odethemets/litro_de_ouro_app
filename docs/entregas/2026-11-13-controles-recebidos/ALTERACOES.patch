@@ -1,0 +1,927 @@
+diff --git a/front_end/src/components/confirmar-oferta.tsx b/front_end/src/components/confirmar-oferta.tsx
+index 4f35fbc..3dced80 100644
+--- a/front_end/src/components/confirmar-oferta.tsx
++++ b/front_end/src/components/confirmar-oferta.tsx
+@@ -8,64 +8,128 @@ import { payloadOferta, validarConfirmacaoOferta } from "../services/ofertas";
+ import { obterPosicao } from "../utils/localizacao";
+ import { AppButton, Notice } from "./design";
+ 
+-// Reinicia o controle ao mudar a sessão, evitando reaproveitar estado de outra conta.
+-export function ConfirmarOferta({ postoId, codigo, nome, onAtualizar }: {
+-  postoId: number; codigo: Combustivel; nome: string; onAtualizar(): void;
+-}) {
+-  const { token } = useAuth();
+-  return <ControlesOferta key={token ?? "visitante"} postoId={postoId} codigo={codigo} nome={nome} onAtualizar={onAtualizar} />;
++interface Props {
++  postoId: number;
++  codigo: Combustivel;
++  nome: string;
++  onAtualizar(): void;
+ }
+ 
+-// Exibe revisão, envio e feedback da oferta; não cadastra preço nem concede pontos.
+-function ControlesOferta({ postoId, codigo, nome, onAtualizar }: {
+-  postoId: number; codigo: Combustivel; nome: string; onAtualizar(): void;
+-}) {
++type Etapa = "inicio" | "revisao" | "confirmada" | "incerta";
++
++// Isola a revisão por conta, posto e produto, mesmo se o pai reutilizar o componente.
++export function ConfirmarOferta(props: Props) {
++  const { token, status } = useAuth();
++  return (
++    <ControlesOferta
++      key={JSON.stringify([token, status, props.postoId, props.codigo])}
++      {...props}
++    />
++  );
++}
++
++// Confirma somente disponibilidade; sucesso da escrita e recarga são independentes.
++function ControlesOferta({ postoId, codigo, nome, onAtualizar }: Props) {
+   const { token, status, openAuth } = useAuth();
+-  const atual = useRef(token);
+-  const ocupado = useRef(false);
++  const pedido = useRef<AbortController | null>(null);
++  const [etapa, setEtapa] = useState<Etapa>("inicio");
+   const [busy, setBusy] = useState(false);
+-  const [revisando, setRevisando] = useState(false);
+   const [mensagem, setMensagem] = useState("");
+-  useEffect(() => {
+-    atual.current = token;
+-    return () => { atual.current = null; };
+-  }, [token]);
++  const [erro, setErro] = useState("");
++
++  useEffect(() => () => pedido.current?.abort(), []);
++
++  // Solicita a recarga sem transformar falha de interface em falha da confirmação.
++  function atualizar() {
++    try {
++      onAtualizar();
++    } catch {
++      setErro("Não foi possível iniciar a atualização do catálogo. Tente atualizar novamente.");
++    }
++  }
+ 
+-  // Obtém GPS atual, envia com a sessão capturada e recarrega após confirmação válida.
++  // GPS ocorre após a revisão; uma resposta perdida nunca autoriza reenvio automático.
+   async function confirmar() {
+-    if (!token || ocupado.current) return;
+-    const sessao = token;
+-    ocupado.current = true;
++    if (!token || status !== "AUTHENTICATED" || pedido.current) return;
++    const controller = new AbortController();
++    pedido.current = controller;
+     setBusy(true);
++    setErro("");
+     setMensagem("");
++    let enviou = false;
++
+     try {
+       const payload = payloadOferta(await obterPosicao("registro"));
+-      if (atual.current !== sessao) return;
+-      const r = await api.post(`/postos/${postoId}/ofertas/${codigo}/confirmar`, payload,
+-        { headers: { Authorization: "Bearer " + sessao } });
+-      if (atual.current !== sessao) return;
+-      validarConfirmacaoOferta(r.data, postoId, codigo);
+-      onAtualizar();
+-      setRevisando(false);
+-      setMensagem("Oferta confirmada. Atualizando o catálogo.");
+-    } catch (e) {
+-      if (atual.current !== sessao) return;
+-      const resposta = (e as { response?: { data?: { error?: string } } }).response;
+-      setMensagem(resposta?.data?.error ?? (e instanceof Error && !resposta
+-        ? e.message : "A confirmação não chegou. Atualize o catálogo antes de repetir."));
++      if (controller.signal.aborted) return;
++      enviou = true;
++      const resposta = await api.post(
++        `/postos/${postoId}/ofertas/${codigo}/confirmar`,
++        payload,
++        { headers: { Authorization: "Bearer " + token }, signal: controller.signal },
++      );
++      if (controller.signal.aborted) return;
++      validarConfirmacaoOferta(resposta.data, postoId, codigo);
++      setEtapa("confirmada");
++      setMensagem("Oferta confirmada. Atualizando os combustíveis deste posto.");
++      atualizar();
++    } catch (falha) {
++      if (controller.signal.aborted) return;
++      if (!enviou) {
++        setErro(falha instanceof Error ? falha.message : "Não foi possível verificar sua localização.");
++        return;
++      }
++      const resposta = (falha as {
++        response?: { status?: number; data?: { error?: unknown } };
++      } | null)?.response;
++      const statusHttp = resposta?.status ?? 0;
++      if (statusHttp >= 400 && statusHttp < 500 && statusHttp !== 408) {
++        setErro(typeof resposta?.data?.error === "string"
++          ? resposta.data.error : "A confirmação foi recusada. Confira os dados antes de tentar novamente.");
++      } else {
++        setEtapa("incerta");
++        setErro("A confirmação não chegou. A oferta pode ter sido confirmada. Atualize o catálogo antes de tentar novamente.");
++      }
+     } finally {
+-      ocupado.current = false;
+-      if (atual.current === sessao) setBusy(false);
++      if (pedido.current === controller) pedido.current = null;
++      if (!controller.signal.aborted) setBusy(false);
+     }
+   }
+ 
+-  return <View style={{ gap: 8 }}>
+-    {revisando ? <>
+-      <Notice>Confirme somente se verificou neste local a oferta de {nome}. A localização atual será usada para verificar a proximidade.</Notice>
+-      <AppButton label={"Verifiquei: este local oferece " + nome} busy={busy} onPress={() => void confirmar()} />
+-      <AppButton label="Cancelar confirmação" secondary disabled={busy} onPress={() => setRevisando(false)} />
+-    </> : <AppButton label={status === "AUTHENTICATED" ? "Confirmar oferta de " + nome : "Entrar para confirmar oferta"}
+-      secondary onPress={() => status === "AUTHENTICATED" ? setRevisando(true) : openAuth("Login")} />}
+-    {mensagem ? <Notice>{mensagem}</Notice> : null}
+-  </View>;
++  return (
++    <View style={{ gap: 10 }}>
++      {etapa === "inicio" ? (
++        <AppButton
++          label={status === "AUTHENTICATED" ? "Confirmar disponibilidade" : "Entrar para confirmar oferta"}
++          secondary
++          onPress={() => {
++            setErro("");
++            if (status === "AUTHENTICATED") setEtapa("revisao");
++            else openAuth("Login");
++          }}
++        />
++      ) : null}
++
++      {etapa === "revisao" ? (
++        <>
++          <Notice>
++            Você verificou que este local oferece {nome}? Usaremos sua localização
++            atual para conferir a proximidade. Isso não cadastra um preço.
++          </Notice>
++          <AppButton label="Sim, verifiquei neste local" busy={busy} onPress={() => void confirmar()} />
++          <AppButton label="Cancelar" secondary disabled={busy} onPress={() => {
++            setEtapa("inicio");
++            setErro("");
++          }} />
++        </>
++      ) : null}
++
++      {busy ? <Notice>Verificando localização e enviando confirmação...</Notice> : null}
++      {mensagem ? <View accessibilityLiveRegion="polite"><Notice>{mensagem}</Notice></View> : null}
++      {erro ? <Notice error>{erro}</Notice> : null}
++
++      {etapa === "confirmada" || etapa === "incerta" ? (
++        <AppButton label="Atualizar catálogo" secondary onPress={atualizar} />
++      ) : null}
++    </View>
++  );
+ }
+diff --git a/front_end/src/components/votar-preco.tsx b/front_end/src/components/votar-preco.tsx
+index 77c16bb..de106a4 100644
+--- a/front_end/src/components/votar-preco.tsx
++++ b/front_end/src/components/votar-preco.tsx
+@@ -6,65 +6,113 @@ import { api } from "../services/API";
+ import { lerAvaliacao, type AvaliacaoPreco, type Voto } from "../services/votos";
+ import { AppButton, Notice, useAppTheme } from "./design";
+ 
+-// Isola o estado por sessão; o componente pai fornece a chave do registro de preço.
+-export function VotarPreco({ registoId, nome }: { registoId: number; nome: string }) {
+-  const { token } = useAuth();
+-  return <ControlesVoto key={token ?? "visitante"} registoId={registoId} nome={nome} />;
++interface Props {
++  registoId: number;
++  nome: string;
+ }
+ 
+-// Mostra avaliações sob demanda e ações permitidas para a conta atual.
+-function ControlesVoto({ registoId, nome }: { registoId: number; nome: string }) {
++// Vincula o estado à sessão e ao registro exato, sem depender da chave do pai.
++export function VotarPreco(props: Props) {
++  const { token, status } = useAuth();
++  return <ControlesVoto key={JSON.stringify([token, status, props.registoId])} {...props} />;
++}
++
++// Carrega sob demanda e exige nova consulta quando uma gravação fica incerta.
++function ControlesVoto({ registoId, nome }: Props) {
+   const { token, status, openAuth } = useAuth();
+   const { colors } = useAppTheme();
+   const [avaliacao, setAvaliacao] = useState<AvaliacaoPreco | null>(null);
+-  const [busy, setBusy] = useState(false);
++  const [acao, setAcao] = useState<"consulta" | Voto | null>(null);
+   const [erro, setErro] = useState("");
+-  const atual = useRef(token);
+-  const ocupado = useRef(false);
+-  useEffect(() => {
+-    atual.current = token;
+-    return () => { atual.current = null; };
+-  }, [token]);
++  const [mensagem, setMensagem] = useState("");
++  const pedido = useRef<AbortController | null>(null);
++
++  useEffect(() => () => pedido.current?.abort(), []);
+ 
+-  // Sem argumento consulta; com voto grava e reconcilia a resposta do registro exato.
++  // Aplica somente a resposta do registro atual; abortar não desfaz escrita no servidor.
+   async function consultar(voto?: Voto) {
+-    if (!token || ocupado.current) return;
+-    const sessao = token;
+-    ocupado.current = true;
+-    setBusy(true);
++    if (!token || status !== "AUTHENTICATED" || pedido.current) return;
++    if (voto && (!avaliacao?.pode_votar || avaliacao.meu_voto === voto)) return;
++    const controller = new AbortController();
++    pedido.current = controller;
++    setAcao(voto ?? "consulta");
+     setErro("");
++    setMensagem("");
++
+     try {
+-      const config = { headers: { Authorization: "Bearer " + sessao } };
+-      const r = voto
++      const config = {
++        headers: { Authorization: "Bearer " + token },
++        signal: controller.signal,
++      };
++      const resposta = voto
+         ? await api.post(`/precos/${registoId}/votar`, { voto }, config)
+         : await api.get(`/precos/${registoId}/votos`, config);
+-      if (atual.current === sessao) setAvaliacao(lerAvaliacao(r.data, registoId));
++      if (controller.signal.aborted) return;
++      setAvaliacao(lerAvaliacao(resposta.data, registoId));
++      if (voto) setMensagem("Seu voto foi registrado para este preço.");
+     } catch {
+-      if (atual.current === sessao) {
+-        setAvaliacao(null);
+-        setErro("Não recebemos a confirmação. Consulte as avaliações antes de repetir o voto.");
+-      }
++      if (controller.signal.aborted) return;
++      setAvaliacao(null);
++      setErro(voto
++        ? "A confirmação do voto não chegou. Consulte as avaliações antes de votar novamente."
++        : "Não foi possível consultar as avaliações. Tente novamente.");
+     } finally {
+-      ocupado.current = false;
+-      if (atual.current === sessao) setBusy(false);
++      if (pedido.current === controller) pedido.current = null;
++      if (!controller.signal.aborted) setAcao(null);
+     }
+   }
+ 
+-  return <View style={{ gap: 8 }}>
+-    <AppButton label={status === "AUTHENTICATED" ? "Consultar avaliações de " + nome : "Entrar para avaliar preço"}
+-      secondary busy={busy} onPress={() => status === "AUTHENTICATED" ? void consultar() : openAuth("Login")} />
+-    {avaliacao ? <>
+-      <Text style={{ color: colors.textSecondary }}>
+-        {avaliacao.positivos} confirmações · {avaliacao.negativos} contestações · Pontuação {avaliacao.confianca_score}.
+-        {" A pontuação começa em 1; não representa um selo de validação."}
+-      </Text>
+-      {avaliacao.pode_votar ? <>
+-        <AppButton label="Confirmar este preço" secondary busy={busy} selected={avaliacao.meu_voto === "positivo"}
+-          onPress={() => void consultar("positivo")} />
+-        <AppButton label="Contestar este preço" secondary busy={busy} selected={avaliacao.meu_voto === "negativo"}
+-          onPress={() => void consultar("negativo")} />
+-      </> : <Notice>Você é o autor deste preço e não pode votar nele.</Notice>}
+-    </> : null}
+-    {erro ? <Notice error>{erro}</Notice> : null}
+-  </View>;
++  const busy = acao !== null;
++  return (
++    <View style={{ gap: 10 }}>
++      <AppButton
++        label={status !== "AUTHENTICATED" ? "Entrar para avaliar preço"
++          : avaliacao ? "Atualizar avaliações" : "Consultar avaliações"}
++        secondary
++        busy={acao === "consulta"}
++        disabled={busy}
++        onPress={() => status === "AUTHENTICATED" ? void consultar() : openAuth("Login")}
++      />
++
++      {avaliacao ? (
++        <>
++          <Text style={{ color: colors.textSecondary, lineHeight: 22 }}>
++            {avaliacao.positivos} confirmações · {avaliacao.negativos} contestações
++          </Text>
++          <Notice>
++            Pontuação: {avaliacao.confianca_score}. Começa em 1 e não representa um selo de validação.
++          </Notice>
++          {avaliacao.pode_votar ? (
++            <>
++              <Notice>O valor de {nome} confere com o que você encontrou?</Notice>
++              <AppButton
++                label="Preço confere"
++                secondary
++                busy={acao === "positivo"}
++                disabled={busy || avaliacao.meu_voto === "positivo"}
++                selected={avaliacao.meu_voto === "positivo"}
++                onPress={() => void consultar("positivo")}
++              />
++              <AppButton
++                label="Preço está diferente"
++                secondary
++                busy={acao === "negativo"}
++                disabled={busy || avaliacao.meu_voto === "negativo"}
++                selected={avaliacao.meu_voto === "negativo"}
++                onPress={() => void consultar("negativo")}
++              />
++              {avaliacao.meu_voto ? (
++                <Notice>{avaliacao.meu_voto === "positivo"
++                  ? "Seu voto atual confirma este preço."
++                  : "Seu voto atual contesta este preço."} Você pode trocar o voto.</Notice>
++              ) : null}
++            </>
++          ) : <Notice>Você é o autor deste preço e não pode votar nele.</Notice>}
++        </>
++      ) : null}
++
++      {mensagem ? <View accessibilityLiveRegion="polite"><Notice>{mensagem}</Notice></View> : null}
++      {erro ? <Notice error>{erro}</Notice> : null}
++    </View>
++  );
+ }
+diff --git a/front_end/src/screens/ConsultaPostos/detalhes.tsx b/front_end/src/screens/ConsultaPostos/detalhes.tsx
+index 92f3f29..dae1875 100644
+--- a/front_end/src/screens/ConsultaPostos/detalhes.tsx
++++ b/front_end/src/screens/ConsultaPostos/detalhes.tsx
+@@ -1,10 +1,8 @@
+-import { Linking, Text, View } from "react-native";
++import Ionicons from "@expo/vector-icons/Ionicons";
++import { useState } from "react";
++import { Linking, Pressable, Text, View } from "react-native";
+ 
+-import {
+-  AppButton,
+-  Notice,
+-  useAppTheme,
+-} from "../../components/design";
++import { AppButton, Notice, useAppTheme } from "../../components/design";
+ import { BotaoFavorito } from "../../components/favoritos";
+ import { ConfirmarOferta } from "../../components/confirmar-oferta";
+ import { VotarPreco } from "../../components/votar-preco";
+@@ -30,181 +28,148 @@ interface Props {
+   onAtualizar(): void;
+ }
+ 
+-// Reúne rota, ofertas, preços e avaliações do posto; ações de gravação ficam nos controles.
++// Mantém a referência em destaque, com os demais combustíveis disponíveis para expansão.
+ export function DetalhesPostoConsulta({
+-  posto,
+-  referencia,
+-  usuario,
+-  erroRota,
+-  onErroRota,
+-  onRegistrar,
+-  onVoltar,
+-  onAtualizar,
++  posto, referencia, usuario, erroRota, onErroRota, onRegistrar, onVoltar, onAtualizar,
+ }: Props) {
+   const { colors } = useAppTheme();
+-  const produtosPermitidos = produtosCadastro(posto);
++  const permitidos = produtosCadastro(posto);
++  const ofertas = [...posto.combustiveis].sort(
++    (a, b) => Number(b.codigo === referencia) - Number(a.codigo === referencia),
++  );
++
++  // Abre a navegação externa usando a posição pessoal somente quando ela existe.
++  function tracarRota() {
++    onErroRota("");
++    const origem = usuario
++      ? "&origin=" + encodeURIComponent(usuario.lat + "," + usuario.lon) : "";
++    const destino = encodeURIComponent(posto.latitude + "," + posto.longitude);
++    void Linking.openURL(
++      "https://www.google.com/maps/dir/?api=1&destination=" + destino + origem + "&travelmode=driving",
++    ).catch(() => onErroRota("Não foi possível abrir o aplicativo de mapas."));
++  }
+ 
+   return (
+-    <View style={{ padding: 20, gap: 16 }}>
+-      <Text
+-        accessibilityRole="header"
+-        style={[
+-          styles.titulo,
+-          { color: colors.textPrimary },
+-        ]}
+-      >
++    <View style={{ padding: 20, gap: 16, minWidth: 0 }}>
++      <Text accessibilityRole="header" style={[styles.titulo, { color: colors.textPrimary }]}>
+         {posto.nome}
+       </Text>
+-
+-      <BotaoFavorito
+-        postoId={posto.id}
+-        nome={posto.nome}
+-      />
+-
+-      <Text style={{ color: colors.textSecondary }}>
+-        {posto.marca ?? "Marca não informada"}
+-        {" · "}
+-        {posto.endereco}
+-      </Text>
+-
+-      {posto.bairro ? (
+-        <Text style={{ color: colors.textSecondary }}>
+-          {posto.bairro}
+-        </Text>
+-      ) : null}
+-
+-      <Text style={{ color: colors.textPrimary }}>
+-        Referência: {produto(referencia).nome}
++      <BotaoFavorito postoId={posto.id} nome={posto.nome} />
++      <Text style={{ color: colors.textSecondary, lineHeight: 22 }}>
++        {posto.marca ?? "Marca não informada"}{" · "}{posto.endereco}
+       </Text>
++      {posto.bairro ? <Text style={{ color: colors.textSecondary }}>{posto.bairro}</Text> : null}
+ 
+-      <AppButton
+-        label="Traçar rota"
+-        secondary
+-        onPress={() => {
+-          const origem = usuario
+-            ? "&origin=" +
+-              encodeURIComponent(
+-                usuario.lat + "," + usuario.lon,
+-              )
+-            : "";
++      <AppButton label="Traçar rota" secondary onPress={tracarRota} />
++      {erroRota ? <Notice error>{erroRota}</Notice> : null}
+ 
+-          const destino = encodeURIComponent(
+-            posto.latitude + "," + posto.longitude,
+-          );
++      <View style={{ gap: 6 }}>
++        <Text accessibilityRole="header" style={{ color: colors.textPrimary, fontSize: 19, fontWeight: "700" }}>
++          Combustíveis e preços
++        </Text>
++        <Notice>Referência do mapa: {produto(referencia).nome}. Cada valor mantém sua própria unidade.</Notice>
++      </View>
++
++      {ofertas.map((oferta) => (
++        <CartaoCombustivel
++          key={JSON.stringify([posto.id, oferta.codigo, oferta.codigo === referencia])}
++          postoId={posto.id}
++          oferta={oferta}
++          referencia={oferta.codigo === referencia}
++          podeRegistrar={permitidos.some((item) => item.codigo === oferta.codigo)}
++          onAtualizar={onAtualizar}
++          onRegistrar={() => onRegistrar(oferta.codigo)}
++        />
++      ))}
++
++      <AppButton label="Voltar à lista de postos" secondary onPress={onVoltar} />
++    </View>
++  );
++}
+ 
+-          const url =
+-            "https://www.google.com/maps/dir/?api=1&destination=" +
+-            destino +
+-            origem +
+-            "&travelmode=driving";
++interface PropsCartao {
++  postoId: number;
++  oferta: PostoCatalogo["combustiveis"][number];
++  referencia: boolean;
++  podeRegistrar: boolean;
++  onAtualizar(): void;
++  onRegistrar(): void;
++}
+ 
+-          void Linking.openURL(url).catch(() =>
+-            onErroRota(
+-              "Não foi possível abrir o aplicativo de mapas.",
+-            ),
+-          );
+-        }}
+-      />
++// A faixa identifica o combustível; os controles secundários só montam ao expandir.
++function CartaoCombustivel({ postoId, oferta, referencia, podeRegistrar, onAtualizar, onRegistrar }: PropsCartao) {
++  const { colors } = useAppTheme();
++  const [aberto, setAberto] = useState(referencia);
++  const [focado, setFocado] = useState(false);
++  const info = produto(oferta.codigo);
++  const disponibilidade = oferta.disponivel === null ? "Oferta não confirmada"
++    : oferta.disponivel ? "Disponibilidade confirmada" : "Não disponível";
+ 
+-      {erroRota ? (
+-        <Notice error>{erroRota}</Notice>
++  return (
++    <View style={[styles.cartao, {
++      backgroundColor: colors.surface,
++      borderColor: colors.border,
++      gap: 12,
++      minWidth: 0,
++    }]}>
++      <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
++        <View accessible={false} style={{ width: 6, height: 32, borderRadius: 3, backgroundColor: info.cor }} />
++        <Text style={[styles.nome, { color: colors.textPrimary, flex: 1 }]}>
++          {oferta.codigo === "recarga_eletrica" ? "⚡ " : ""}{info.nome}
++        </Text>
++      </View>
++      {referencia ? <Text style={{ color: colors.textSecondary, fontWeight: "700" }}>Referência do mapa</Text> : null}
++      <Text style={[styles.preco, { color: colors.textPrimary }]}>
++        {oferta.preco === null ? "Sem preço informado" : precoFormatado(oferta.preco) + " / " + info.unidade}
++      </Text>
++      <Text style={{ color: colors.textSecondary }}>{disponibilidade}</Text>
++      {oferta.preco !== null ? (
++        <Text style={{ color: colors.textSecondary, lineHeight: 22 }}>
++          {oferta.autor_nome ? "Informado por " + oferta.autor_nome + " · " : ""}
++          {dataPublicacao(oferta.atualizado_em)}
++        </Text>
+       ) : null}
+ 
+-      <AppButton
+-        label="Registrar novo preço"
+-        onPress={() => onRegistrar(referencia)}
+-      />
+-
+-      {posto.combustiveis.map((oferta) => {
+-        const info = produto(oferta.codigo);
+-
+-        const podeRegistrar = produtosPermitidos.some(
+-          (item) => item.codigo === oferta.codigo,
+-        );
+-
+-        return (
+-          <View
+-            key={oferta.codigo}
+-            style={[
+-              styles.cartao,
+-              {
+-                backgroundColor: colors.surface,
+-                borderColor: colors.border,
+-                gap: 6,
+-              },
+-            ]}
+-          >
+-            <Text
+-              style={[
+-                styles.nome,
+-                { color: colors.textPrimary },
+-              ]}
+-            >
+-              {oferta.codigo === "recarga_eletrica"
+-                ? "⚡ "
+-                : ""}
+-              {info.nome}
+-            </Text>
+-
+-            <Text style={{ color: colors.textSecondary }}>
+-              Oferta:{" "}
+-              {oferta.disponivel === null
+-                ? "não confirmada"
+-                : oferta.disponivel
+-                  ? "confirmada"
+-                  : "não disponível"}
+-              {oferta.origem ? " · " + oferta.origem : ""}
+-            </Text>
+-
+-            <Text
+-              style={[
+-                styles.preco,
+-                { color: colors.textPrimary },
+-              ]}
+-            >
+-              {oferta.preco === null
+-                ? "Sem preço informado"
+-                : precoFormatado(oferta.preco) +
+-                  " / " +
+-                  info.unidade}
+-            </Text>
+-
+-            {oferta.preco !== null ? (
+-              <Text style={{ color: colors.textSecondary }}>
+-                {dataPublicacao(oferta.atualizado_em)}
+-                {oferta.autor_nome
+-                  ? " · " + oferta.autor_nome
+-                  : ""}
+-              </Text>
+-            ) : null}
+-
+-            {oferta.preco !== null && oferta.registo_id ? (
+-              <VotarPreco key={oferta.registo_id} registoId={oferta.registo_id} nome={info.nome} />
+-            ) : null}
+-
+-            {podeRegistrar && oferta.disponivel === null ? (
+-              <ConfirmarOferta key={posto.id + oferta.codigo} postoId={posto.id} codigo={oferta.codigo}
+-                nome={info.nome} onAtualizar={onAtualizar} />
+-            ) : null}
+-
+-            {podeRegistrar ? (
+-              <AppButton
+-                label={"Informar preço de " + info.nome}
+-                secondary
+-                onPress={() =>
+-                  onRegistrar(oferta.codigo)
+-                }
+-              />
+-            ) : null}
+-          </View>
+-        );
+-      })}
+-
+-      <AppButton
+-        label="Voltar à lista de postos"
+-        secondary
+-        onPress={onVoltar}
+-      />
++      <Pressable
++        accessibilityRole="button"
++        accessibilityLabel={(aberto ? "Ocultar" : "Ver") + " detalhes de " + info.nome}
++        accessibilityState={{ expanded: aberto }}
++        onPress={() => setAberto((valor) => !valor)}
++        onFocus={() => setFocado(true)}
++        onBlur={() => setFocado(false)}
++        style={({ pressed }) => ({
++          minHeight: 48,
++          borderWidth: 1,
++          borderColor: focado ? colors.textPrimary : colors.border,
++          borderRadius: 14,
++          padding: 12,
++          flexDirection: "row",
++          alignItems: "center",
++          justifyContent: "space-between",
++          gap: 8,
++          backgroundColor: colors.surface,
++          opacity: pressed ? 0.75 : 1,
++        })}
++      >
++        <Text style={{ color: colors.textPrimary, fontWeight: "600", flexShrink: 1 }}>
++          {aberto ? "Ocultar detalhes" : "Ver detalhes e contribuir"}
++        </Text>
++        <Ionicons name={aberto ? "chevron-up" : "chevron-down"} size={20} color={colors.textPrimary} accessible={false} />
++      </Pressable>
++
++      {aberto ? (
++        <View style={{ gap: 12 }}>
++          {podeRegistrar ? (
++            <AppButton label="Informar novo preço" secondary={!referencia} onPress={onRegistrar} />
++          ) : null}
++          {podeRegistrar && oferta.disponivel === null ? (
++            <ConfirmarOferta postoId={postoId} codigo={oferta.codigo} nome={info.nome} onAtualizar={onAtualizar} />
++          ) : null}
++          {oferta.preco !== null && oferta.registo_id ? (
++            <VotarPreco registoId={oferta.registo_id} nome={info.nome} />
++          ) : null}
++        </View>
++      ) : null}
+     </View>
+   );
+ }
+diff --git a/docs/entregas/2026-11-13-controles-recebidos/evidencias/verificar_controles.cjs b/docs/entregas/2026-11-13-controles-recebidos/evidencias/verificar_controles.cjs
+new file mode 100644
+index 0000000..2b96459
+--- /dev/null
++++ b/docs/entregas/2026-11-13-controles-recebidos/evidencias/verificar_controles.cjs
+@@ -0,0 +1,253 @@
++/* Verificação lógica dos TSX com hooks/API/GPS simulados; não renderiza React real. */
++const fs = require("node:fs");
++const path = require("node:path");
++const vm = require("node:vm");
++const assert = require("node:assert/strict");
++const front = path.resolve(process.argv[2] || "front_end");
++const ts = require(path.join(front, "node_modules/typescript"));
++let corrente = null;
++const resultados = [];
++
++// Simula somente os hooks usados nestes controles, mantendo efeitos e desmontagem.
++const hooks = {
++  useState(inicial) {
++    const dono = corrente, i = dono.indice++;
++    if (!(i in dono.slots)) dono.slots[i] = typeof inicial === "function" ? inicial() : inicial;
++    return [dono.slots[i], (valor) => {
++      if (!dono.montado) dono.atualizacoesAposSaida++;
++      dono.slots[i] = typeof valor === "function" ? valor(dono.slots[i]) : valor;
++    }];
++  },
++  useRef(inicial) {
++    const dono = corrente, i = dono.indice++;
++    if (!(i in dono.slots)) dono.slots[i] = { current: inicial };
++    return dono.slots[i];
++  },
++  useEffect(efeito, deps) {
++    const dono = corrente, i = dono.indice++, antes = dono.slots[i];
++    if (!antes || !deps || deps.some((v, j) => !Object.is(v, antes.deps[j]))) {
++      dono.efeitos.push(() => {
++        antes?.cleanup?.();
++        dono.slots[i] = { deps, cleanup: efeito() };
++      });
++    }
++  },
++};
++
++// Representa JSX como objetos para inspecionar props, textos e handlers.
++const jsx = (type, props, key) => ({ type, props: props || {}, key });
++function ambiente() {
++  const chamadas = [], gps = [];
++  const auth = { token: "sessao-sintetica", status: "AUTHENTICATED", openAuth: (destino) => chamadas.push({ login: destino }) };
++  const env = { auth, chamadas, gps, gpsImpl: async () => ({ latitude: -7.11, longitude: -34.86,
++    precisaoM: 10, obtidaEm: Date.now(), simulada: false }),
++  getImpl: async () => ({ data: resumo() }), postImpl: async () => ({ data: resumo() }) };
++  const cache = new Map();
++  function carregar(relativo) {
++    const arquivo = path.join(front, relativo);
++    if (cache.has(arquivo)) return cache.get(arquivo);
++    let codigo = fs.readFileSync(arquivo, "utf8");
++    if (relativo.endsWith("confirmar-oferta.tsx")) codigo += "\nexport { ControlesOferta };";
++    if (relativo.endsWith("votar-preco.tsx")) codigo += "\nexport { ControlesVoto };";
++    if (relativo.endsWith("detalhes.tsx")) codigo += "\nexport { CartaoCombustivel };";
++    const js = ts.transpileModule(codigo, { compilerOptions: {
++      target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
++      jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true,
++    } }).outputText;
++    const modulo = { exports: {} };
++    const importar = (nome) => {
++      if (nome === "react") return hooks;
++      if (nome === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
++      if (nome === "react-native") return { View: "View", Text: "Text", Pressable: "Pressable",
++        Linking: { openURL: async (url) => chamadas.push({ rota: url }) } };
++      if (nome === "@expo/vector-icons/Ionicons") return { __esModule: true, default: "Ionicons" };
++      if (nome.endsWith("/AuthContext")) return { useAuth: () => auth };
++      if (nome.endsWith("/API")) return { api: {
++        get: async (url, config) => { chamadas.push({ metodo: "GET", url, config }); return env.getImpl(url, config); },
++        post: async (url, body, config) => { chamadas.push({ metodo: "POST", url, body, config }); return env.postImpl(url, body, config); },
++      } };
++      if (nome.endsWith("/localizacao")) return { obterPosicao: async (perfil) => { gps.push(perfil); return env.gpsImpl(); } };
++      if (nome.endsWith("/design")) return { AppButton: "AppButton", Notice: "Notice", useAppTheme: () => ({ colors: {
++        textPrimary: "#111", textSecondary: "#555", border: "#ddd", surface: "#fff",
++      } }) };
++      if (nome.endsWith("/favoritos")) return { BotaoFavorito: "BotaoFavorito" };
++      if (nome === "./layout") return { styles: {} };
++      const destino = path.resolve(path.dirname(arquivo), nome);
++      const extensao = [".ts", ".tsx"].find((e) => fs.existsSync(destino + e));
++      if (!extensao) throw new Error("Import não simulado: " + nome);
++      return carregar(path.relative(front, destino + extensao));
++    };
++    vm.runInNewContext("(function(require,module,exports){" + js + "\n})", { AbortController, Error, Date })(importar, modulo, modulo.exports);
++    cache.set(arquivo, modulo.exports);
++    return modulo.exports;
++  }
++  env.oferta = carregar("src/components/confirmar-oferta.tsx");
++  env.voto = carregar("src/components/votar-preco.tsx");
++  env.detalhes = carregar("src/screens/ConsultaPostos/detalhes.tsx");
++  return env;
++}
++
++// Mantém o estado de uma instância entre ações; as chaves são verificadas à parte.
++function montar(funcao, props) {
++  const dono = { slots: [], indice: 0, efeitos: [], montado: true, atualizacoesAposSaida: 0,
++    render() {
++      this.indice = 0; this.efeitos = []; corrente = this;
++      try { this.arvore = funcao(props); } finally { corrente = null; }
++      for (const efeito of this.efeitos) efeito();
++      return this.arvore;
++    },
++    sair() { this.montado = false; for (const slot of this.slots) slot?.cleanup?.(); },
++  };
++  dono.render(); return dono;
++}
++function todos(no, filtro, itens = []) {
++  if (Array.isArray(no)) no.forEach((n) => todos(n, filtro, itens));
++  else if (no && typeof no === "object") {
++    if (filtro(no)) itens.push(no);
++    todos(no.props?.children, filtro, itens);
++  }
++  return itens;
++}
++const botoes = (dono) => todos(dono.arvore, (n) => n.type === "AppButton");
++const botao = (dono, nome) => {
++  const b = botoes(dono).find((n) => n.props.label === nome);
++  assert.ok(b, "Botão ausente: " + nome); return b;
++};
++const texto = (no) => Array.isArray(no) ? no.map(texto).join(" ") : no && typeof no === "object" ? texto(no.props?.children) : String(no ?? "");
++const turno = () => new Promise((resolve) => setImmediate(resolve));
++const pendente = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
++const propsOferta = (extra = {}) => ({ postoId: 12, codigo: "gnv", nome: "GNV", onAtualizar() {}, ...extra });
++const propsVoto = (extra = {}) => ({ registoId: 30, nome: "GNV", ...extra });
++const resumo = (extra = {}) => ({ registo_id: 30, positivos: 0, negativos: 0, confianca_score: 1, meu_voto: null, pode_votar: true, ...extra });
++function revisar(env, props = propsOferta()) {
++  const dono = montar(env.oferta.ControlesOferta, props);
++  botao(dono, "Confirmar disponibilidade").props.onPress(); dono.render(); return dono;
++}
++async function confirmar(dono) { botao(dono, "Sim, verifiquei neste local").props.onPress(); await turno(); dono.render(); }
++async function consultar(dono) { botao(dono, "Consultar avaliações").props.onPress(); await turno(); dono.render(); }
++async function caso(nome, fn) {
++  try { await fn(); resultados.push({ nome, resultado: "aprovado" }); }
++  catch (erro) { resultados.push({ nome, resultado: "falhou", erro: erro.message }); }
++}
++
++(async () => {
++  await caso("Oferta visitante abre login sem GPS", () => {
++    const e = ambiente(); e.auth.token = null; e.auth.status = "GUEST";
++    const d = montar(e.oferta.ControlesOferta, propsOferta());
++    botao(d, "Entrar para confirmar oferta").props.onPress();
++    assert.equal(e.chamadas[0].login, "Login"); assert.equal(e.gps.length, 0);
++  });
++  await caso("Cancelar revisão não solicita GPS", () => {
++    const e = ambiente(), d = revisar(e);
++    botao(d, "Cancelar").props.onPress(); d.render();
++    botao(d, "Confirmar disponibilidade"); assert.equal(e.gps.length, 0);
++  });
++  await caso("GPS negado permite nova tentativa sem POST", async () => {
++    const e = ambiente(); e.gpsImpl = async () => { throw new Error("GPS negado"); };
++    const d = revisar(e); await confirmar(d);
++    assert.match(texto(d.arvore), /GPS negado/); botao(d, "Sim, verifiquei neste local");
++    assert.equal(e.chamadas.length, 0);
++  });
++  await caso("Confirmação válida mantém sucesso mesmo se recarga lançar erro", async () => {
++    const e = ambiente(); e.postImpl = async () => ({ data: { posto_id: 12, codigo: "gnv", disponivel: true, origem: "manual" } });
++    const d = revisar(e, propsOferta({ onAtualizar() { throw new Error("falha de recarga"); } })); await confirmar(d);
++    assert.match(texto(d.arvore), /Oferta confirmada/); assert.match(texto(d.arvore), /Não foi possível iniciar/);
++    botao(d, "Atualizar catálogo"); assert.ok(!botoes(d).some((b) => b.props.label === "Sim, verifiquei neste local"));
++  });
++  await caso("Resposta inválida da oferta fica incerta", async () => {
++    const e = ambiente(), d = revisar(e); await confirmar(d);
++    assert.match(texto(d.arvore), /pode ter sido confirmada/); botao(d, "Atualizar catálogo");
++    assert.ok(!botoes(d).some((b) => b.props.label === "Sim, verifiquei neste local"));
++  });
++  for (const status of [408, 503]) await caso("Oferta HTTP " + status + " exige reconciliação", async () => {
++    const e = ambiente(); e.postImpl = async () => { throw { response: { status } }; };
++    const d = revisar(e); await confirmar(d); assert.match(texto(d.arvore), /pode ter sido confirmada/);
++  });
++  await caso("Recusa 409 mantém revisão e explica a negativa", async () => {
++    const e = ambiente(); e.postImpl = async () => { throw { response: { status: 409, data: { error: "Oferta indisponível" } } }; };
++    const d = revisar(e); await confirmar(d); assert.match(texto(d.arvore), /Oferta indisponível/);
++    botao(d, "Sim, verifiquei neste local");
++  });
++  await caso("Duplo clique de oferta envia um único POST", async () => {
++    const e = ambiente(), espera = pendente(); e.postImpl = () => espera.promise;
++    const d = revisar(e), acao = botao(d, "Sim, verifiquei neste local").props.onPress;
++    acao(); acao(); await turno(); assert.equal(e.chamadas.length, 1);
++    d.sair(); espera.reject(new Error("cancelado")); await turno();
++    assert.equal(d.atualizacoesAposSaida, 0);
++  });
++  await caso("Desmontagem durante GPS impede envio", async () => {
++    const e = ambiente(), espera = pendente(); e.gpsImpl = () => espera.promise;
++    const d = revisar(e); botao(d, "Sim, verifiquei neste local").props.onPress(); d.sair();
++    espera.resolve({ latitude: -7.11, longitude: -34.86, precisaoM: 10, obtidaEm: Date.now(), simulada: false }); await turno();
++    assert.equal(e.chamadas.length, 0); assert.equal(d.atualizacoesAposSaida, 0);
++  });
++  await caso("Chaves da oferta mudam por conta/status/posto/produto", () => {
++    const e = ambiente(), inicial = e.oferta.ConfirmarOferta(propsOferta()).key;
++    for (const props of [propsOferta({ postoId: 13 }), propsOferta({ codigo: "etanol" })]) assert.notEqual(e.oferta.ConfirmarOferta(props).key, inicial);
++    e.auth.status = "GUEST"; assert.notEqual(e.oferta.ConfirmarOferta(propsOferta()).key, inicial);
++    e.auth.status = "AUTHENTICATED"; e.auth.token = "outra-sessao-sintetica";
++    assert.notEqual(e.oferta.ConfirmarOferta(propsOferta()).key, inicial);
++  });
++  await caso("Voto não consulta ao montar e visitante abre login", () => {
++    const e = ambiente(); e.auth.status = "GUEST"; e.auth.token = null;
++    const d = montar(e.voto.ControlesVoto, propsVoto()); assert.equal(e.chamadas.length, 0);
++    botao(d, "Entrar para avaliar preço").props.onPress(); assert.equal(e.chamadas[0].login, "Login");
++  });
++  await caso("Autor consulta contagens mas não recebe ações de voto", async () => {
++    const e = ambiente(); e.getImpl = async () => ({ data: resumo({ pode_votar: false }) });
++    const d = montar(e.voto.ControlesVoto, propsVoto()); await consultar(d);
++    assert.match(texto(d.arvore), /autor deste preço/); assert.equal(botoes(d).length, 1);
++  });
++  await caso("Voto selecionado fica bloqueado e troca é permitida", async () => {
++    const e = ambiente(); e.getImpl = async () => ({ data: resumo({ positivos: 1, confianca_score: 2, meu_voto: "positivo" }) });
++    e.postImpl = async () => ({ data: resumo({ negativos: 1, confianca_score: 0, meu_voto: "negativo" }) });
++    const d = montar(e.voto.ControlesVoto, propsVoto()); await consultar(d);
++    const positivo = botao(d, "Preço confere"); assert.equal(positivo.props.disabled, true);
++    positivo.props.onPress(); await turno(); assert.equal(e.chamadas.length, 1);
++    botao(d, "Preço está diferente").props.onPress(); await turno(); d.render();
++    assert.equal(e.chamadas[1].url, "/precos/30/votar"); assert.equal(e.chamadas[1].body.voto, "negativo");
++    assert.match(texto(d.arvore), /Seu voto foi registrado/); assert.equal(botao(d, "Preço está diferente").props.selected, true);
++  });
++  await caso("Falha de voto elimina resumo e exige GET", async () => {
++    const e = ambiente(); e.postImpl = async () => { throw new Error("rede"); };
++    const d = montar(e.voto.ControlesVoto, propsVoto()); await consultar(d);
++    botao(d, "Preço confere").props.onPress(); await turno(); d.render();
++    assert.match(texto(d.arvore), /Consulte as avaliações antes/); botao(d, "Consultar avaliações");
++    assert.ok(!botoes(d).some((b) => b.props.label === "Preço confere"));
++  });
++  await caso("Resumo de outro ID é recusado", async () => {
++    const e = ambiente(); e.getImpl = async () => ({ data: resumo({ registo_id: 31 }) });
++    const d = montar(e.voto.ControlesVoto, propsVoto()); await consultar(d);
++    assert.match(texto(d.arvore), /Não foi possível consultar/); assert.equal(botoes(d).length, 1);
++  });
++  await caso("Desmontagem aborta GET e ignora sua resposta", async () => {
++    const e = ambiente(), espera = pendente(); e.getImpl = () => espera.promise;
++    const d = montar(e.voto.ControlesVoto, propsVoto()); botao(d, "Consultar avaliações").props.onPress();
++    d.sair(); assert.equal(e.chamadas[0].config.signal.aborted, true);
++    espera.resolve({ data: resumo() }); await turno(); assert.equal(d.atualizacoesAposSaida, 0);
++  });
++  await caso("Novo preço e nova sessão mudam chave do voto", () => {
++    const e = ambiente(), chave = e.voto.VotarPreco(propsVoto()).key;
++    assert.notEqual(e.voto.VotarPreco(propsVoto({ registoId: 31 })).key, chave);
++    e.auth.token = "outra-sessao-sintetica"; assert.notEqual(e.voto.VotarPreco(propsVoto()).key, chave);
++  });
++  await caso("Detalhes ordenam referência sem alterar a lista original", () => {
++    const e = ambiente(), combustiveis = ["gnv", "etanol"].map((codigo) => ({ codigo, disponivel: null, preco: null }));
++    const posto = { id: 12, nome: "Posto sintético", tipo_posto: "Convencional", combustiveis, latitude: -7.11, longitude: -34.86 };
++    const d = montar(e.detalhes.DetalhesPostoConsulta, { posto, referencia: "etanol", usuario: null, erroRota: "", onErroRota() {}, onRegistrar() {}, onVoltar() {}, onAtualizar() {} });
++    const cartoes = todos(d.arvore, (n) => n.type?.name === "CartaoCombustivel");
++    assert.equal(cartoes[0].props.oferta.codigo, "etanol"); assert.equal(combustiveis[0].codigo, "gnv");
++  });
++  await caso("Cartão não referência só monta controles ao expandir", () => {
++    const e = ambiente(), d = montar(e.detalhes.CartaoCombustivel, { postoId: 12, oferta: { codigo: "gnv", disponivel: null, preco: 3.5, registo_id: 30, autor_nome: "Autor sintético", atualizado_em: null }, referencia: false, podeRegistrar: true, onAtualizar() {}, onRegistrar() {} });
++    assert.match(texto(d.arvore), /Autor sintético/);
++    assert.equal(todos(d.arvore, (n) => n.type?.name === "VotarPreco").length, 0);
++    todos(d.arvore, (n) => n.type === "Pressable")[0].props.onPress(); d.render();
++    assert.equal(todos(d.arvore, (n) => n.type?.name === "VotarPreco").length, 1);
++    assert.equal(todos(d.arvore, (n) => n.type === "Pressable")[0].props.accessibilityState.expanded, true);
++  });
++  const falhas = resultados.filter((r) => r.resultado === "falhou");
++  fs.writeFileSync(path.join(__dirname, "LOGICA.json"), JSON.stringify({ tipo: "Hooks, JSX, API e GPS simulados; sem React/React Native reais", cenarios: resultados.length, aprovados: resultados.length - falhas.length, resultados }, null, 2));
++  console.log(JSON.stringify({ cenarios: resultados.length, aprovados: resultados.length - falhas.length, falhas }, null, 2));
++  if (falhas.length) process.exitCode = 1;
++})().catch((erro) => { console.error(erro); process.exitCode = 1; });

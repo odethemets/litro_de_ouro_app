@@ -1,0 +1,15 @@
+GEOFENCE_RAIO_M=50000.0 m: raio de DESENVOLVIMENTO ativo. Não use em produção.
+/usr/local/lib/python3.12/site-packages/dropbox/session.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+{
+  "status": "ok",
+  "python": "3.12.16",
+  "sdk": "google-genai",
+  "versao_declarada": "2.34.0",
+  "versao_instalada": "2.34.0",
+  "import_google_genai": true,
+  "rotas_usam_mesmo_sdk": true,
+  "tipos_foto_texto": true,
+  "cliente_criado": false,
+  "chamada_provedor": false
+}

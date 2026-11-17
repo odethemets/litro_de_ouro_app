@@ -1,0 +1,4 @@
+-r requirements.txt
+cryptography==46.0.3
+# Dropbox 11.36.2 importa pkg_resources, removido em setuptools 81.
+setuptools==80.9.0

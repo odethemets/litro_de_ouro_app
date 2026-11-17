@@ -10,6 +10,7 @@ from ..utils.geofence import (
 from .precos import registrar_preco_validado
 
 from services.grid_postos import delta_graus
+from services.catalogo_postos import consultar_catalogo, validar_filtros
 from services.osm_service import (
     ATRIBUICAO,
     LICENCA_URL,
@@ -25,42 +26,6 @@ RAIO_PADRAO_KM = 25.0
 RAIO_MAX_KM = 50.0
 
 LIMITE_SEM_COORDENADAS = 500
-
-COMBUSTIVEL_PADRAO = "Gasolina Comum"
-COMBUSTIVEL_ELETRICO = "Recarga Elétrica (kWh)"
-
-
-# Preço e data pertencem à mesma publicação.
-# O trecho {where} recebe somente SQL fixo definido neste arquivo.
-SQL_POSTOS = """
-    SELECT
-        p.id,
-        p.nome,
-        p.bairro,
-        p.endereco,
-        p.latitude,
-        p.longitude,
-        p.horario_funcionamento,
-        p.tipo_posto,
-        rp.preco AS preco_gasolina,
-        rp.data_registro AS data_atualizacao
-    FROM postos p
-    LEFT JOIN registos_preco rp ON rp.id = (
-        SELECT r2.id
-        FROM registos_preco r2
-        WHERE r2.posto_id = p.id
-          AND r2.tipo_combustivel = CASE
-              WHEN p.tipo_posto = 'Eletroposto' THEN %s
-              ELSE %s
-          END
-        ORDER BY r2.data_registro DESC, r2.id DESC
-        LIMIT 1
-    )
-    {where}
-    ORDER BY p.id
-    LIMIT %s
-"""
-
 
 def _erro_coordenadas(erro: GeofenceError):
     corpo, _ = erro.para_resposta()
@@ -101,92 +66,17 @@ def listar_postos():
 
         raio_km = _ler_raio_km()
 
-    # A listagem pública consulta somente o MySQL.
-    # A importação OSM é executada pelo script administrativo.
-    conn = None
-
     try:
-        if centro:
-            dlat, dlon = delta_graus(centro[0], raio_km)
+        filtros = validar_filtros(request.args)
+    except ValueError as erro:
+        return jsonify({"error": str(erro)}), 400
 
-            where = (
-                "WHERE p.latitude BETWEEN %s AND %s "
-                "AND p.longitude BETWEEN %s AND %s"
-            )
-
-            filtros = [
-                centro[0] - dlat,
-                centro[0] + dlat,
-                centro[1] - dlon,
-                centro[1] + dlon,
-            ]
-
-            limite = LIMITE_SEM_COORDENADAS
-
-        else:
-            where = ""
-            filtros = []
-            limite = LIMITE_SEM_COORDENADAS
-
+    conn = None
+    try:
         conn = get_db_connection()
-
-        with conn.cursor() as cursor:
-            cursor.execute(
-                SQL_POSTOS.format(where=where),
-                [
-                    COMBUSTIVEL_ELETRICO,
-                    COMBUSTIVEL_PADRAO,
-                    *filtros,
-                    limite,
-                ],
-            )
-
-            postos_db = cursor.fetchall()
-
-        resultado = []
-
-        for posto in postos_db:
-            posto["preco_gasolina"] = (
-                float(posto["preco_gasolina"])
-                if posto["preco_gasolina"]
-                else 0.00
-            )
-
-            posto["latitude"] = float(posto["latitude"])
-            posto["longitude"] = float(posto["longitude"])
-
-            if not posto.get("horario_funcionamento"):
-                posto["horario_funcionamento"] = (
-                    "Horário não informado"
-                )
-
-            data = posto.get("data_atualizacao")
-
-            posto["data_atualizacao"] = (
-                data.isoformat() if data else None
-            )
-
-            if centro:
-                distancia = haversine_m(
-                    centro[0],
-                    centro[1],
-                    posto["latitude"],
-                    posto["longitude"],
-                )
-
-                # A caixa SQL é refinada para o raio circular.
-                if distancia > raio_km * 1000:
-                    continue
-
-                posto["distancia_m"] = round(distancia)
-
-            resultado.append(posto)
-
-        if centro:
-            resultado.sort(
-                key=lambda posto: posto["distancia_m"]
-            )
-
+        resultado = consultar_catalogo(
+            conn, centro, raio_km, LIMITE_SEM_COORDENADAS, filtros, haversine_m
+        )
         return jsonify(resultado), 200
 
     except Exception:

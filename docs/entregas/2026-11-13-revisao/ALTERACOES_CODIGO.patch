@@ -1,0 +1,95 @@
+diff --git a/back_end/requirements.txt b/back_end/requirements.txt
+index 5b9d4b3b805af42f6a82ad463bc1db865dcb24e7..1b33c982e969d49fc3f576c5f513a8cecee26e55 100644
+GIT binary patch
+literal 172
+zcmW-aO%K8#5Jd0%7dAkR@v<kA9*j+DH1XUIf{lc&Kvn*|i`SVqZ(2X3Ct?E%8qt@o
+zTrX!t4H}eaYbTEs6XK2m&A{n?Lo{&UdM)`uLC%zIc-KuO+!mIJVqnN{pu{-EvgRt#
+p{1EMHvnjLCKvO>)k@HqM8;0c{@{yP$ts{Ne$(ubG(J$W9=LgaCGHd_<
+
+literal 378
+zcmYk2OAEp<5QOI}_){u<h<NcNcn}3e!E<Xv3@vS~_4Vh~*(6pe+XQC!o7ucy3zSH4
+zL4g^+1S5p31Vaq4!4qrN4qL3O9#NADt^S)0Fh`A+9HERoCF&_l9I&@qOl{f|8qzzQ
+zI9nk=&a;E!{nool8pqMNQZYDMr^?fWCp|7vMztlgA?KS!^16Lmvd^R_=Ine{nNR+9
+y(xlhWd=<q++NM!trkpU$rFb)zEv~YOW9RIt>6`KY@adiNggvo;2}5qljypc1BR8!8
+
+diff --git a/back_end/tests/integracao_participacao.py b/back_end/tests/integracao_participacao.py
+index 4285cc5..79a69db 100644
+--- a/back_end/tests/integracao_participacao.py
++++ b/back_end/tests/integracao_participacao.py
+@@ -166,6 +166,17 @@ class IntegracaoParticipacao(unittest.TestCase):
+         self.assertEqual(self.voto(2147483647, "positivo").status_code, 404)
+         self.assertEqual(self.client.get(f"/precos/{registo}/votos").status_code, 401)
+ 
++    def test_novo_preco_nao_herda_avaliacoes(self):
++        anterior = self.registrar()
++        self.assertEqual(self.voto(anterior, "positivo").status_code, 200)
++        novo = self.registrar("5.79")
++        produto = next(p for p in self.client.get("/postos").get_json() if p["id"] == self.posto)["combustiveis"][0]
++        self.assertEqual(produto["registo_id"], novo)
++        novo_resumo = self.client.get(f"/precos/{novo}/votos", headers=self.headers(1)).get_json()
++        anterior_resumo = self.client.get(f"/precos/{anterior}/votos", headers=self.headers(1)).get_json()
++        self.assertEqual((novo_resumo["positivos"], novo_resumo["negativos"], novo_resumo["meu_voto"], novo_resumo["confianca_score"]), (0, 0, None, 1))
++        self.assertEqual((anterior_resumo["positivos"], anterior_resumo["meu_voto"]), (1, "positivo"))
++
+     def test_voto_falha_reverte_pontos_score_e_voto(self):
+         registo = self.registrar()
+         with patch("app.rotas.votos.registrar_karma", side_effect=RuntimeError("falha simulada")):
+diff --git a/back_end/scripts/verificar_sdk_ia.py b/back_end/scripts/verificar_sdk_ia.py
+new file mode 100644
+index 0000000..ad6a7dd
+--- /dev/null
++++ b/back_end/scripts/verificar_sdk_ia.py
+@@ -0,0 +1,53 @@
++"""Verifica o SDK/configurações reais sem chave, cliente ou chamada ao Gemini."""
++import json
++import platform
++import sys
++from importlib.metadata import version
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT))
++
++
++def verificar():
++    from google import genai
++    from google.genai import types
++    from app.rotas import ia
++
++    declarada = next(
++        linha.split("==", 1)[1].strip()
++        for linha in (ROOT / "requirements.txt").read_text().splitlines()
++        if linha.startswith("google-genai==")
++    )
++    instalada = version("google-genai")
++    if instalada != declarada or ia.genai is not genai or ia.types is not types:
++        raise RuntimeError("SDK instalado/importado difere do requisito declarado")
++
++    # Mesmos tipos e atributos usados por foto e interpretação de texto.
++    http = types.HttpOptions(timeout=45000)
++    config = types.GenerateContentConfig(
++        response_mime_type="application/json",
++        thinking_config=types.ThinkingConfig(thinking_level="low"),
++    )
++    config.http_options = types.HttpOptions(timeout=12000)
++    config.max_output_tokens = 2048
++    part = types.Part.from_bytes(data=b"imagem-sintetica-nao-enviada", mime_type="image/jpeg")
++    if http.timeout != 45000 or config.http_options.timeout != 12000 or not part.inline_data:
++        raise RuntimeError("Tipos de configuração incompatíveis")
++
++    return {
++        "status": "ok",
++        "python": platform.python_version(),
++        "sdk": "google-genai",
++        "versao_declarada": declarada,
++        "versao_instalada": instalada,
++        "import_google_genai": True,
++        "rotas_usam_mesmo_sdk": True,
++        "tipos_foto_texto": True,
++        "cliente_criado": False,
++        "chamada_provedor": False,
++    }
++
++
++if __name__ == "__main__":
++    print(json.dumps(verificar(), ensure_ascii=False, indent=2))

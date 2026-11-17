@@ -1,0 +1,157 @@
+[
+  {
+    "arquivo": "back_end/app/__init__.py",
+    "sha256": "972B034831D83C2A37C636775DA9E1AF0EE56CB7A939338271D39F6C3AFC59C0",
+    "linhas": 74
+  },
+  {
+    "arquivo": "back_end/app/rotas/ofertas.py",
+    "sha256": "38345AF63059737314F81D3DD74193D8BA4ECEEA2751F7588213F289C8DB2BE2",
+    "linhas": 72
+  },
+  {
+    "arquivo": "back_end/app/rotas/votos.py",
+    "sha256": "0A59970D338F2D0E89A3E7B11E8F74737E5B5F7F445EF1EF0974934C68A9B490",
+    "linhas": 84
+  },
+  {
+    "arquivo": "back_end/app/rotas/precos.py",
+    "sha256": "2EBA05581FFEC6378870E7AC5548D2471614A5B6A7E54E2AD5DBB8DDEDE90C9C",
+    "linhas": 406
+  },
+  {
+    "arquivo": "back_end/services/atividade_alertas.py",
+    "sha256": "1373B637D96E8D5B0A4B5992020100444025CDF09A38EB344283CE737786A9ED",
+    "linhas": 67
+  },
+  {
+    "arquivo": "back_end/services/catalogo_postos.py",
+    "sha256": "62046F62B982A76F890D8DE9D8EED056F8AE6F534F870F59465AD678B1001EFE",
+    "linhas": 174
+  },
+  {
+    "arquivo": "back_end/scripts/processar_alertas.py",
+    "sha256": "DCF72EFABE297D3F87E806AAC961F0CD761DD951132BFA5F0DE6957D1DCCA069",
+    "linhas": 32
+  },
+  {
+    "arquivo": "back_end/scripts/testar_offline.py",
+    "sha256": "2BFB62C10A98271CE53AD8670FCD62BA72E2351AC1E94C3240418232CA1F0335",
+    "linhas": 27
+  },
+  {
+    "arquivo": "back_end/tests/integracao_participacao.py",
+    "sha256": "106F63CD11E02A17B8B501503FD3CF249B4A8DBA0515A90A9830FDEDC1034F89",
+    "linhas": 271
+  },
+  {
+    "arquivo": "back_end/tests/test_infra_banco.py",
+    "sha256": "9E04940C05E822868BFEC71884B9D43E4F855F62CD15F30E1642706876A8A0D8",
+    "linhas": 378
+  },
+  {
+    "arquivo": "back_end/tests/test_transferencia_tidb.py",
+    "sha256": "C3D22134662C899770EAD4B665D0716056270C36203835183864B17F9B7AE453",
+    "linhas": 1037
+  },
+  {
+    "arquivo": "back_end/requirements.txt",
+    "sha256": "2434914F53162AC96C6C6AEF313FD78BCFB5BEC9A2EE3AF9F883F6191092C74D",
+    "linhas": 11
+  },
+  {
+    "arquivo": "back_end/requirements-docker.txt",
+    "sha256": "475BF34041ED35370D86841ABBD544AFD58C7C3D2D912EC84EDF267DBD8DFDA2",
+    "linhas": 4
+  },
+  {
+    "arquivo": "back_end/Dockerfile",
+    "sha256": "42C6264FB3E35650B937905BCBB47EC824C365E5D41FE7957034FDC2FEB76860",
+    "linhas": 20
+  },
+  {
+    "arquivo": "back_end/app/rotas/ia.py",
+    "sha256": "74C23E46C5F916078D924061D0ACF861E6B8C3AF9A73D090876F4F763B377B05",
+    "linhas": 261
+  },
+  {
+    "arquivo": "back_end/app/rotas/assistente.py",
+    "sha256": "5F790F9E4EFC6D68504EDEE8C018352C3E14DB5346EDC2EFDC180C38D08E9C6D",
+    "linhas": 243
+  },
+  {
+    "arquivo": "back_end/app/rotas/conta.py",
+    "sha256": "FDF0A0B752E444D54344393AC6BAC6AF3068F26E367AE658CCD1D179E9552FB2",
+    "linhas": 466
+  },
+  {
+    "arquivo": "back_end/app/rotas/participacao.py",
+    "sha256": "AEB348E71EE27640A74B66D067AC4121D95A154E9E9A71A452A00CB9BBB9A2A0",
+    "linhas": 420
+  },
+  {
+    "arquivo": "back_end/services/database.py",
+    "sha256": "7C40A93F6AB12C0241B67D040C7390951146EB78085B3A3EFCD09FD283198579",
+    "linhas": 195
+  },
+  {
+    "arquivo": "back_end/app/utils/decorator.py",
+    "sha256": "98885E60F62757055FF2DDF16A55993E3917A6FE8662B994265B1A29FD7769D0",
+    "linhas": 120
+  },
+  {
+    "arquivo": "back_end/migrations/001_catalogo_disponibilidade.sql",
+    "sha256": "E8525DC3888354BC86B65749FFA551D1878BC6207DD91A7AF09E94FDB394C70C",
+    "linhas": 39
+  },
+  {
+    "arquivo": "back_end/migrations/004_atividade_alertas.sql",
+    "sha256": "D28B504C794EC9CAAB773DA5270E7571F828FFFD2BE59B87FF0355456C27501E",
+    "linhas": 58
+  },
+  {
+    "arquivo": "front_end/src/services/catalogoPostos.ts",
+    "sha256": "275AFAD0E0C8BC9F732A1466FFEA31E8EB751839895D22ED360571049752F77B",
+    "linhas": 253
+  },
+  {
+    "arquivo": "front_end/src/services/ofertas.ts",
+    "sha256": "51D3155610ADDF0F4F8C8AD3819F32E423803AC56C675314C9ADBCFA61959DD5",
+    "linhas": 24
+  },
+  {
+    "arquivo": "front_end/src/services/votos.ts",
+    "sha256": "B7C8479FA55AA24797BD3C87965369A6F7449D9BD13B544EEB15892B2C211BCA",
+    "linhas": 20
+  },
+  {
+    "arquivo": "front_end/src/components/confirmar-oferta.tsx",
+    "sha256": "7D2B7779BB4AFFB1AA0281E060D712D56C9ACC5186FD00598C3121BCEAC64C1A",
+    "linhas": 68
+  },
+  {
+    "arquivo": "front_end/src/components/votar-preco.tsx",
+    "sha256": "E7C9058DA583A712296B8C53EDF7FA6D00D77A71831A65B820790F894B8F6B22",
+    "linhas": 67
+  },
+  {
+    "arquivo": "front_end/src/screens/ConsultaPostos/detalhes.tsx",
+    "sha256": "BD99BC3D21BE201BED58C45B977326574BC0E24FED4813FA7258DF43871DA75F",
+    "linhas": 209
+  },
+  {
+    "arquivo": "front_end/src/screens/ConsultaPostos/index.tsx",
+    "sha256": "022E23EDEA3D672416C047AF9E9FF557C0AE3080E757BCC2725DA8A45F18ADA7",
+    "linhas": 491
+  },
+  {
+    "arquivo": "front_end/tests/participacao.test.cjs",
+    "sha256": "425AD8C7D17073A4039E3AD0ACB7CDF407187391AC9668162899A4BA39BEF78D",
+    "linhas": 68
+  },
+  {
+    "arquivo": "RELATORIO_CONTINUIDADE.md",
+    "sha256": "9AD6E217A4F157C1999CFB0B8066B7E5AE4E0A9046159F4606FD53B44626C225",
+    "linhas": 93
+  }
+]

@@ -1,0 +1,428 @@
+{
+  "python": "3.12.16",
+  "factory": "/app/app/__init__.py",
+  "assinatura_processador": "(conn, limite=100)",
+  "pacotes": {
+    "Flask": "3.0.3",
+    "PyMySQL": "1.1.0",
+    "google-genai": "2.34.0",
+    "Pillow": "13.0.0",
+    "gunicorn": "22.0.0",
+    "Flask-Cors": "4.0.1"
+  },
+  "config_presenca": {
+    "GEMINI_API_KEY": false,
+    "GEMINI_MODEL": false,
+    "DROPBOX_TOKEN": false,
+    "MAPBOX_TOKEN": false,
+    "RESEND_API_KEY": false,
+    "SECRET_KEY": true,
+    "APP_ENV": false,
+    "CORS_ORIGINS": false,
+    "DATABASE_URL": false,
+    "DB_HOST": true,
+    "DB_NAME": true,
+    "DB_SSL_CA": true,
+    "OSM_SYNC_ENABLED": true,
+    "OSM_SYNC_APPLY": false
+  },
+  "destino_local_esperado": true,
+  "hashes": {
+    "app/__init__.py": "8e7eb189c59eb0be15f152b57eb276075cecd367840670e8da377a857b91d0db",
+    "services/infra_web.py": "b6213a8f1b6bcf5bc3a09685f6ce0acf92781cd4dd950a6ebf83595f26769bdb",
+    "services/atividade_alertas.py": "fcc7284775154febf1cca9d6cb2dbc0dad63f9211b3bea1061bfb95aa65eeb63",
+    "services/executor_alertas.py": "8b4f0596cea0709a747918ba78fd0590c2f7f90ba149424090d4444ab5e5589f",
+    "scripts/executar_alertas.py": "1ef71b10646a000107da0ac01c7b32e51fd84a913a05dd76ae4d6e868f72133b",
+    "app/rotas/ia.py": "2e9a32c0a5bb4d0d4b2565d7442db937ecfc8357a0b26ec275d4440af68214e7",
+    "requirements.txt": "2427f600b011b260f2128e5b9200ba8ca46d211d8b9d99d3f5ef05fc6bf2b1ec"
+  },
+  "rotas": [
+    {
+      "rota": "/static/<path:filename>",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "static"
+    },
+    {
+      "rota": "/health/live",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "ldo_live"
+    },
+    {
+      "rota": "/health/ready",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "ldo_ready"
+    },
+    {
+      "rota": "/",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "index"
+    },
+    {
+      "rota": "/favicon.ico",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "favicon"
+    },
+    {
+      "rota": "/auth/login",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "auth.login"
+    },
+    {
+      "rota": "/auth/confirmar-email",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "auth.confirmar_email"
+    },
+    {
+      "rota": "/auth/recuperar-senha",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "auth.recuperar_senha"
+    },
+    {
+      "rota": "/auth/redefinir-senha",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "auth.redefinir_senha"
+    },
+    {
+      "rota": "/auth/perfil",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "auth.obter_perfil"
+    },
+    {
+      "rota": "/auth/cadastro",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "auth.cadastro"
+    },
+    {
+      "rota": "/auth/reenviar-codigo",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "auth.reenviar_codigo"
+    },
+    {
+      "rota": "/postos",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "postos.listar_postos"
+    },
+    {
+      "rota": "/postos/descoberta",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "postos.previa_descoberta"
+    },
+    {
+      "rota": "/postos/<int:posto_id>/historico",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "postos.historico_precos"
+    },
+    {
+      "rota": "/postos/<int:posto_id>/precos",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "postos.precos_atuais_posto"
+    },
+    {
+      "rota": "/postos/<int:posto_id>/precos",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "postos.cadastrar_preco"
+    },
+    {
+      "rota": "/precos",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "precos.registrar_preco"
+    },
+    {
+      "rota": "/ia/ler-totem",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "ia.ler_totem"
+    },
+    {
+      "rota": "/atividade/meus-registos",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "atividade.meus_registos"
+    },
+    {
+      "rota": "/conta/nome",
+      "metodos": [
+        "OPTIONS",
+        "PATCH"
+      ],
+      "endpoint": "conta.alterar_nome"
+    },
+    {
+      "rota": "/conta/email/solicitar",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "conta.solicitar_email"
+    },
+    {
+      "rota": "/conta/email/confirmar",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "conta.confirmar_email"
+    },
+    {
+      "rota": "/conta",
+      "metodos": [
+        "DELETE",
+        "OPTIONS"
+      ],
+      "endpoint": "conta.apagar_conta"
+    },
+    {
+      "rota": "/favoritos",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "participacao.favoritos"
+    },
+    {
+      "rota": "/favoritos/postos/<int:posto_id>",
+      "metodos": [
+        "DELETE",
+        "OPTIONS",
+        "PUT"
+      ],
+      "endpoint": "participacao.favoritar_posto"
+    },
+    {
+      "rota": "/favoritos/preferencias",
+      "metodos": [
+        "OPTIONS",
+        "PUT"
+      ],
+      "endpoint": "participacao.preferencias"
+    },
+    {
+      "rota": "/notificacoes",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "participacao.notificacoes"
+    },
+    {
+      "rota": "/notificacoes/<int:notificacao_id>/lida",
+      "metodos": [
+        "OPTIONS",
+        "PUT"
+      ],
+      "endpoint": "participacao.marcar_lida"
+    },
+    {
+      "rota": "/atividade/karma",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "participacao.karma"
+    },
+    {
+      "rota": "/ranking",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "participacao.ranking"
+    },
+    {
+      "rota": "/ia/consultar",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "assistente.consultar"
+    },
+    {
+      "rota": "/postos/<int:posto_id>/ofertas/<codigo>/confirmar",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "ofertas.confirmar_oferta"
+    },
+    {
+      "rota": "/precos/<int:registo_id>/votar",
+      "metodos": [
+        "OPTIONS",
+        "POST"
+      ],
+      "endpoint": "votos.votos"
+    },
+    {
+      "rota": "/precos/<int:registo_id>/votos",
+      "metodos": [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "endpoint": "votos.votos"
+    }
+  ],
+  "banco": {
+    "destino": [
+      {
+        "banco": "litro_de_ouro_dev",
+        "versao": "8.4.13"
+      }
+    ],
+    "catalogo": [
+      {
+        "total": 59,
+        "osm": "55",
+        "teste": "4"
+      }
+    ],
+    "fila": [
+      {
+        "pendentes": 1,
+        "mais_antigo": "2026-11-14 01:08:45"
+      }
+    ],
+    "migracoes": [
+      {
+        "versao": "001_catalogo_disponibilidade",
+        "sha256": "5dac305e16046565a158ec60a250d042ca4c6be90b9ac79bd36b2b83843b9227",
+        "estado": "aplicada"
+      },
+      {
+        "versao": "002_marcas_postos",
+        "sha256": "84079120156253a52d07dfa3e9b6b5dc89593d259d2f3acd464ef939169915f7",
+        "estado": "aplicada"
+      },
+      {
+        "versao": "003_gestao_conta",
+        "sha256": "22ec2feb47090ae90290b707331163caf51f526817df69bbeaa6fa6215dd70e1",
+        "estado": "aplicada"
+      },
+      {
+        "versao": "004_atividade_alertas",
+        "sha256": "1b83ea5eed82149c17fee3e360175b398ebfd15ef57aafea578d0783d56148b4",
+        "estado": "aplicada"
+      }
+    ],
+    "tabelas": [
+      {
+        "Tables_in_litro_de_ouro_dev": "combustiveis"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "eventos_preco"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "favoritos_combustiveis"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "favoritos_postos"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "historico_karma"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "ldo_docker_local"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "notificacoes"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "postos"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "postos_combustiveis"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "preferencias_alertas"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "registos_preco"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "schema_migrations"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "trocas_email"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "usuarios"
+      },
+      {
+        "Tables_in_litro_de_ouro_dev": "votos_registos"
+      }
+    ]
+  }
+}

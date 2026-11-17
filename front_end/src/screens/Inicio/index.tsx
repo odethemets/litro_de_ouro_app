@@ -1,7 +1,4 @@
-// src/screens/Inicio/index.tsx
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Location from "expo-location";
 import {
   useCallback,
   useContext,
@@ -15,6 +12,7 @@ import {
   Linking,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -30,6 +28,7 @@ import type {
   PosicaoUsuario,
   PostoNoMapa,
 } from "../../components/mapa/tipos";
+import { useAuth } from "../../contexts/AuthContext";
 import { ThemeContext } from "../../contexts/ThemeContext";
 import { api } from "../../services/API";
 import { registrarPostoVisto } from "../../services/historicoVistos";
@@ -37,6 +36,7 @@ import {
   falhaCadastroPreco,
   type MensagemAcao,
 } from "../../utils/feedbackPostos";
+import { CENTRO_PADRAO, obterPosicao } from "../../utils/localizacao";
 
 interface PostoDetalhado extends PostoNoMapa {
   nome: string;
@@ -59,8 +59,9 @@ const CONSUMO_MEDIO_KM_L = 10;
 function normalizarPrecoCadastro(texto: string): number | null {
   const limpo = texto.trim();
 
-  // Aceita vírgula ou ponto e até duas casas decimais.
-  if (!/^\d+(?:[.,]\d{1,2})?$/.test(limpo)) return null;
+  if (!/^\d+(?:[.,]\d{1,2})?$/.test(limpo)) {
+    return null;
+  }
 
   const numero = Number(limpo.replace(",", "."));
 
@@ -69,72 +70,57 @@ function normalizarPrecoCadastro(texto: string): number | null {
     : null;
 }
 
-async function obterLocalizacaoParaCadastro() {
-  const { status } = await Location.requestForegroundPermissionsAsync();
+export default function Inicio({
+  modo = "mapa",
+}: {
+  modo?: "mapa" | "lista" | "adicionar";
+}) {
+  const { userToken, status, openAuth } = useAuth();
 
-  if (status !== "granted") {
-    throw new Error("Permita o acesso à localização para registrar um preço.");
-  }
-
-  let temporizador: ReturnType<typeof setTimeout> | undefined;
-
-  try {
-    return await Promise.race([
-      Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      }),
-      new Promise<never>((_, rejeitar) => {
-        temporizador = setTimeout(() => {
-          rejeitar(
-            new Error(
-              "A localização demorou a responder. Ative o GPS e tente novamente.",
-            ),
-          );
-        }, 20000);
-      }),
-    ]);
-  } finally {
-    if (temporizador !== undefined) {
-      clearTimeout(temporizador);
-    }
-  }
-}
-
-export default function Inicio() {
   const { colors } = useContext(ThemeContext);
 
   const mapaRef = useRef<MapaLeafletHandle>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
+
   const snapPoints = useMemo(() => ["15%", "45%", "85%"], []);
 
   const [feedback, setFeedback] = useState<MensagemAcao | null>(null);
+
   const [feedbackFormulario, setFeedbackFormulario] =
     useState<MensagemAcao | null>(null);
+
   const [isLoadingPostos, setIsLoadingPostos] = useState(true);
+
   const [erroPostos, setErroPostos] = useState("");
   const [erroPrecos, setErroPrecos] = useState("");
 
   const buscaEmAndamento = useRef(false);
   const envioEmAndamento = useRef(false);
+
   const postoSelecionadoId = useRef<number | null>(null);
+
   const requisicaoPrecos = useRef(0);
 
-  // Estados da lista e localização.
   const [postos, setPostos] = useState<PostoDetalhado[]>([]);
-  const [usuario, setUsuario] = useState<PosicaoUsuario | null>(null);
-  const [isLoadingLocalizacao, setIsLoadingLocalizacao] = useState(false);
 
-  // Estados dos detalhes.
+  const [usuario, setUsuario] = useState<PosicaoUsuario | null>(null);
+
+  const [isLoadingLocalizacao, setIsLoadingLocalizacao] = useState(true);
+
   const [postoSelecionado, setPostoSelecionado] =
     useState<PostoDetalhado | null>(null);
+
   const [precosDetalhe, setPrecosDetalhe] = useState<any[]>([]);
+
   const [isLoadingPrecos, setIsLoadingPrecos] = useState(false);
 
-  // Estados do formulário.
   const [modalVisivel, setModalVisivel] = useState(false);
+
   const [combustivelSelecionado, setCombustivelSelecionado] =
     useState("Gasolina Comum");
+
   const [novoPrecoInput, setNovoPrecoInput] = useState("");
+
   const [isEnviandoPreco, setIsEnviandoPreco] = useState(false);
 
   const combustiveisDoPosto =
@@ -155,14 +141,19 @@ export default function Inicio() {
         lat: posto.latitude,
         lon: posto.longitude,
         nome: posto.nome,
+
         endereco: posto.bairro
           ? `${posto.endereco}\n${posto.bairro}`
           : posto.endereco,
+
         combustivel: eletrico ? "Recarga Elétrica (kWh)" : "Gasolina Comum",
+
         cor: eletrico ? "#3B82F6" : temPreco ? "#10B981" : "#9CA3AF",
+
         rotulo: temPreco
           ? posto.preco_gasolina.toFixed(2).replace(".", ",")
           : "---",
+
         distancia_m: posto.distancia_m,
       };
     });
@@ -174,26 +165,22 @@ export default function Inicio() {
 
       buscaEmAndamento.current = true;
 
-      // Esta operação obtém dados sem alterar estados React.
       const obterDados = async () => {
         let posicao: PosicaoUsuario | null = null;
 
+        let erroGps = "";
+
         try {
-          const { status } = await Location.requestForegroundPermissionsAsync();
+          const local = await obterPosicao("mapa");
 
-          if (status === "granted") {
-            const localizacao = await Location.getCurrentPositionAsync({
-              accuracy: Location.Accuracy.Balanced,
-            });
-
-            posicao = {
-              lat: localizacao.coords.latitude,
-              lon: localizacao.coords.longitude,
-              precisaoM: localizacao.coords.accuracy,
-            };
-          }
-        } catch {
-          posicao = null;
+          posicao = {
+            lat: local.latitude,
+            lon: local.longitude,
+            precisaoM: local.precisaoM,
+          };
+        } catch (erro: unknown) {
+          erroGps =
+            erro instanceof Error ? erro.message : "Localização indisponível.";
         }
 
         const endpoint = posicao
@@ -204,42 +191,69 @@ export default function Inicio() {
 
         return {
           posicao,
-          resultado: mapearDadosDoBanco(response.data),
+          erroGps,
+
+          resultado: mapearDadosDoBanco(response.data).map((p) =>
+            posicao
+              ? p
+              : {
+                  ...p,
+                  distancia_m: undefined,
+                },
+          ),
         };
       };
 
-      // Atualizações de estado acontecem após a resposta assíncrona.
       return obterDados()
-        .then(({ posicao, resultado }) => {
+        .then(({ posicao, resultado, erroGps }) => {
           if (!telaAtiva.current) return;
 
           setUsuario(posicao);
           setPostos(resultado);
           setErroPostos("");
 
-          if (forcarRequisicao && posicao) {
-            mapaRef.current?.centralizar(posicao.lat, posicao.lon, 14);
+          if (forcarRequisicao) {
+            const centro = posicao ?? CENTRO_PADRAO;
+
+            mapaRef.current?.centralizar(centro.lat, centro.lon, 14);
           }
 
           setFeedback(
             posicao
               ? {
-                  tipo: "sucesso",
+                  tipo: (posicao.precisaoM ?? 0) > 150 ? "aviso" : "sucesso",
+
                   titulo: "Postos atualizados",
+
                   mensagem: resultado.length
-                    ? `${resultado.length} postos encontrados na sua região.`
+                    ? resultado.length +
+                      " postos encontrados. Precisão aproximada: ±" +
+                      Math.round(posicao.precisaoM ?? 0) +
+                      " m."
                     : "Nenhum posto encontrado nesta região.",
                 }
               : {
                   tipo: "aviso",
+
                   titulo: "Localização indisponível",
+
                   mensagem:
-                    "A lista foi carregada, mas as distâncias dependem da localização. Permita o acesso e atualize pelo botão de localização.",
+                    erroGps +
+                    " O mapa usa João Pessoa como referência, sem marcar sua posição ou calcular distâncias pessoais.",
                 },
           );
         })
         .catch(() => {
           if (!telaAtiva.current) return;
+
+          setUsuario(null);
+
+          setPostos((atuais) =>
+            atuais.map((p) => ({
+              ...p,
+              distancia_m: undefined,
+            })),
+          );
 
           setErroPostos(
             "Não foi possível atualizar os postos. Os dados já carregados foram mantidos.",
@@ -264,7 +278,6 @@ export default function Inicio() {
     [mapearDadosDoBanco],
   );
 
-  // Os botões iniciam os indicadores de carregamento.
   const atualizarPostos = () => {
     if (buscaEmAndamento.current) return;
 
@@ -284,6 +297,7 @@ export default function Inicio() {
       telaAtiva.current = false;
     };
   }, [buscarLocalizacaoEPostos]);
+
   const carregarPrecos = async (postoId: number, aposCadastro = false) => {
     const pedido = ++requisicaoPrecos.current;
 
@@ -322,11 +336,13 @@ export default function Inicio() {
 
   const focarNoPosto = (posto: PostoDetalhado) => {
     postoSelecionadoId.current = posto.id;
+
     setPostoSelecionado(posto);
     setPrecosDetalhe([]);
     setErroPrecos("");
 
     mapaRef.current?.centralizar(posto.lat, posto.lon, 16);
+
     bottomSheetRef.current?.snapToIndex(1);
 
     void registrarPostoVisto({
@@ -391,6 +407,7 @@ export default function Inicio() {
         titulo: "Nenhum posto disponível",
         mensagem: "Atualize a lista antes de buscar o posto mais próximo.",
       });
+
       return;
     }
 
@@ -403,6 +420,7 @@ export default function Inicio() {
         mensagem:
           "Permita o acesso à localização e atualize a lista para encontrar o posto mais próximo.",
       });
+
       return;
     }
 
@@ -420,23 +438,22 @@ export default function Inicio() {
   };
 
   const abrirModalPreco = async () => {
-    if (envioEmAndamento.current || !postoSelecionado) return;
+    if (envioEmAndamento.current || !postoSelecionado) {
+      return;
+    }
 
     try {
-      const token = await AsyncStorage.getItem("@LitroDeOuro:token");
+      const token = status === "AUTHENTICATED" ? userToken : null;
 
       if (!token) {
-        setFeedback({
-          tipo: "aviso",
-          titulo: "Faça login para cadastrar",
-          mensagem:
-            "Sua sessão não está disponível. Entre novamente para registrar um preço.",
-        });
+        openAuth("Login");
         return;
       }
 
       setNovoPrecoInput("");
+
       setCombustivelSelecionado(postoSelecionado.combustivel);
+
       setFeedbackFormulario(null);
       setFeedback(null);
       setModalVisivel(true);
@@ -453,6 +470,7 @@ export default function Inicio() {
     if (envioEmAndamento.current) return;
 
     const posto = postoSelecionado;
+
     if (!posto) return;
 
     const valor = normalizarPrecoCadastro(novoPrecoInput);
@@ -464,17 +482,19 @@ export default function Inicio() {
         mensagem:
           "Informe um valor entre R$ 0,01 e R$ 25,00, com até duas casas decimais. Exemplo: 5,89.",
       });
+
       return;
     }
 
     const combustivel = combustivelSelecionado;
 
     envioEmAndamento.current = true;
+
     setIsEnviandoPreco(true);
     setFeedbackFormulario(null);
 
     try {
-      const token = await AsyncStorage.getItem("@LitroDeOuro:token");
+      const token = status === "AUTHENTICATED" ? userToken : null;
 
       if (!token) {
         setFeedbackFormulario({
@@ -482,11 +502,11 @@ export default function Inicio() {
           titulo: "Sessão indisponível",
           mensagem: "Entre novamente para cadastrar este preço.",
         });
+
         return;
       }
 
-      // Solicita uma posição nova no momento do cadastro.
-      const localizacao = await obterLocalizacaoParaCadastro().catch(
+      const localizacao = await obterPosicao("registro").catch(
         (erro: unknown) => {
           setFeedbackFormulario({
             tipo: "aviso",
@@ -503,9 +523,12 @@ export default function Inicio() {
 
       if (!localizacao) return;
 
-      const { latitude, longitude, accuracy } = localizacao.coords;
-
-      const simulada = "mocked" in localizacao && localizacao.mocked === true;
+      const {
+        latitude,
+        longitude,
+        precisaoM: accuracy,
+        simulada,
+      } = localizacao;
 
       setUsuario({
         lat: latitude,
@@ -530,7 +553,6 @@ export default function Inicio() {
         },
       );
 
-      // Exibe sucesso somente depois da confirmação da API.
       const formatado = valor.toFixed(2).replace(".", ",");
 
       setModalVisivel(false);
@@ -567,7 +589,6 @@ export default function Inicio() {
           },
         ]);
 
-        // Falha na leitura posterior não desfaz o cadastro confirmado.
         void carregarPrecos(posto.id, true);
       }
     } catch (erro: unknown) {
@@ -590,7 +611,9 @@ export default function Inicio() {
 
         if (precoItem && precoItem.preco > 0) {
           const distanciaKm = postoSelecionado.distancia_m / 1000;
+
           const litrosNecessarios = distanciaKm / CONSUMO_MEDIO_KM_L;
+
           const custo = litrosNecessarios * precoItem.preco;
 
           custoDaViagemFormatado = `Custo aprox. p/ chegar: R$ ${custo.toFixed(2).replace(".", ",")}`;
@@ -615,7 +638,12 @@ export default function Inicio() {
           </TouchableOpacity>
 
           <Text
-            style={[styles.postoSelecionadoNome, { color: colors.textPrimary }]}
+            style={[
+              styles.postoSelecionadoNome,
+              {
+                color: colors.textPrimary,
+              },
+            ]}
           >
             {postoSelecionado.nome}
           </Text>
@@ -684,12 +712,23 @@ export default function Inicio() {
             </View>
           </TouchableOpacity>
 
-          <Text style={[styles.secaoTitulo, { color: colors.textPrimary }]}>
+          <Text
+            style={[
+              styles.secaoTitulo,
+              {
+                color: colors.textPrimary,
+              },
+            ]}
+          >
             Preços Cadastrados
           </Text>
 
           {erroPrecos ? (
-            <View style={{ marginBottom: 12 }}>
+            <View
+              style={{
+                marginBottom: 12,
+              }}
+            >
               <FeedbackAcao
                 feedback={{
                   tipo: "aviso",
@@ -710,7 +749,9 @@ export default function Inicio() {
             <ActivityIndicator
               size="large"
               color={colors.primary}
-              style={{ marginVertical: 20 }}
+              style={{
+                marginVertical: 20,
+              }}
             />
           ) : precosDetalhe.length === 0 && !erroPrecos ? (
             <Text
@@ -741,7 +782,9 @@ export default function Inicio() {
                     <Text
                       style={[
                         styles.combustivelDetalheText,
-                        { color: colors.textPrimary },
+                        {
+                          color: colors.textPrimary,
+                        },
                       ]}
                     >
                       {item.tipo_combustivel}
@@ -765,6 +808,7 @@ export default function Inicio() {
                         borderColor: isMainFuel
                           ? postoSelecionado.cor
                           : colors.border,
+
                         backgroundColor: isMainFuel
                           ? "#121212"
                           : colors.surface,
@@ -792,7 +836,9 @@ export default function Inicio() {
           <TouchableOpacity
             style={[
               styles.btnAtualizarPreco,
-              { backgroundColor: colors.primary },
+              {
+                backgroundColor: colors.primary,
+              },
             ]}
             onPress={abrirModalPreco}
           >
@@ -805,11 +851,27 @@ export default function Inicio() {
     return (
       <View style={styles.sheetContent}>
         <View style={styles.sheetHeader}>
-          <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>
-            Postos na Região
+          <Text
+            style={[
+              styles.sheetTitle,
+              {
+                color: colors.textPrimary,
+              },
+            ]}
+          >
+            {modo === "adicionar"
+              ? "Escolha um posto para registrar o preço"
+              : "Postos na Região"}
           </Text>
 
-          <Text style={[styles.sheetSubtitle, { color: colors.textSecondary }]}>
+          <Text
+            style={[
+              styles.sheetSubtitle,
+              {
+                color: colors.textSecondary,
+              },
+            ]}
+          >
             {isLoadingPostos
               ? "Buscando postos…"
               : `${postos.length} postos encontrados.`}
@@ -819,7 +881,9 @@ export default function Inicio() {
         {isLoadingPostos && (
           <ActivityIndicator
             color={colors.primary}
-            style={{ marginVertical: 16 }}
+            style={{
+              marginVertical: 16,
+            }}
           />
         )}
 
@@ -851,18 +915,32 @@ export default function Inicio() {
         {postos.map((posto) => (
           <TouchableOpacity
             key={posto.id}
-            style={[styles.postoCard, { borderBottomColor: colors.border }]}
+            style={[
+              styles.postoCard,
+              {
+                borderBottomColor: colors.border,
+              },
+            ]}
             onPress={() => focarNoPosto(posto)}
           >
             <View style={styles.postoInfo}>
-              <Text style={[styles.postoNome, { color: colors.textPrimary }]}>
+              <Text
+                style={[
+                  styles.postoNome,
+                  {
+                    color: colors.textPrimary,
+                  },
+                ]}
+              >
                 {posto.nome}
               </Text>
 
               <Text
                 style={[
                   styles.combustivelText,
-                  { color: colors.textSecondary },
+                  {
+                    color: colors.textSecondary,
+                  },
                 ]}
               >
                 ⛽ {posto.combustivel}
@@ -878,12 +956,20 @@ export default function Inicio() {
                 {posto.distancia_m
                   ? `📍 ${(posto.distancia_m / 1000).toFixed(1)} km - `
                   : "📍 "}
+
                 {posto.endereco}
               </Text>
             </View>
 
             <View style={styles.precoContainerLista}>
-              <Text style={[styles.precoTextLista, { color: posto.cor }]}>
+              <Text
+                style={[
+                  styles.precoTextLista,
+                  {
+                    color: posto.cor,
+                  },
+                ]}
+              >
                 R$ {posto.rotulo}
               </Text>
             </View>
@@ -895,69 +981,115 @@ export default function Inicio() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <MapaLeaflet
-        ref={mapaRef}
-        postos={postos}
-        usuario={usuario}
-        onSelecionarPosto={handlePinoClicado}
-      />
+      {modo === "mapa" ? (
+        <>
+          <MapaLeaflet
+            ref={mapaRef}
+            postos={postos}
+            usuario={usuario}
+            onSelecionarPosto={handlePinoClicado}
+          />
 
-      <View style={styles.fabContainer}>
-        <TouchableOpacity
-          style={[
-            styles.fab,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              marginBottom: 12,
-            },
-          ]}
-          onPress={atualizarPostos}
-          disabled={isLoadingLocalizacao || isLoadingPostos}
+          <View style={styles.fabContainer}>
+            <TouchableOpacity
+              style={[
+                styles.fab,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  marginBottom: 12,
+                },
+              ]}
+              onPress={atualizarPostos}
+              disabled={isLoadingLocalizacao || isLoadingPostos}
+            >
+              {isLoadingLocalizacao || isLoadingPostos ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 20,
+                  }}
+                >
+                  📍
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.fab,
+                {
+                  backgroundColor: "#EF4444",
+                  borderColor: "#B91C1C",
+                },
+              ]}
+              onPress={handleEmergencia}
+            >
+              <Text
+                style={{
+                  fontSize: 20,
+                }}
+              >
+                ⛽
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <BottomSheet
+            ref={bottomSheetRef}
+            index={0}
+            snapPoints={snapPoints}
+            enableDynamicSizing={false}
+            backgroundStyle={{
+              backgroundColor: colors.background,
+            }}
+            handleIndicatorStyle={{
+              backgroundColor: colors.textSecondary,
+            }}
+            style={
+              Platform.OS === "web"
+                ? {
+                    width: "100%",
+                    maxWidth: 480,
+                    alignSelf: "center",
+                  }
+                : {}
+            }
+          >
+            <BottomSheetScrollView>
+              {renderConteudoGaveta()}
+            </BottomSheetScrollView>
+          </BottomSheet>
+        </>
+      ) : (
+        <ScrollView
+          contentContainerStyle={{
+            paddingTop: 24,
+            paddingBottom: 24,
+          }}
         >
-          {isLoadingLocalizacao || isLoadingPostos ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Text style={{ fontSize: 20 }}>📍</Text>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={atualizarPostos}
+            disabled={isLoadingPostos}
+            style={{
+              padding: 16,
+              alignSelf: "flex-end",
+            }}
+          >
+            <Text
+              style={{
+                color: colors.textPrimary,
+              }}
+            >
+              Atualizar localização e postos
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.fab,
-            {
-              backgroundColor: "#EF4444",
-              borderColor: "#B91C1C",
-            },
-          ]}
-          onPress={handleEmergencia}
-        >
-          <Text style={{ fontSize: 20 }}>⛽</Text>
-        </TouchableOpacity>
-      </View>
-
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={0}
-        snapPoints={snapPoints}
-        backgroundStyle={{
-          backgroundColor: colors.background,
-        }}
-        handleIndicatorStyle={{
-          backgroundColor: colors.textSecondary,
-        }}
-        style={
-          Platform.OS === "web"
-            ? {
-                width: "100%",
-                maxWidth: 480,
-                alignSelf: "center",
-              }
-            : {}
-        }
-      >
-        <BottomSheetScrollView>{renderConteudoGaveta()}</BottomSheetScrollView>
-      </BottomSheet>
+          {renderConteudoGaveta()}
+        </ScrollView>
+      )}
 
       {!modalVisivel && feedback && (
         <View style={styles.feedbackOverlay}>
@@ -985,7 +1117,14 @@ export default function Inicio() {
               },
             ]}
           >
-            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+            <Text
+              style={[
+                styles.modalTitle,
+                {
+                  color: colors.textPrimary,
+                },
+              ]}
+            >
               Registrar Preço
             </Text>
 
@@ -999,7 +1138,11 @@ export default function Inicio() {
             </Text>
 
             {feedbackFormulario && (
-              <View style={{ marginBottom: 16 }}>
+              <View
+                style={{
+                  marginBottom: 16,
+                }}
+              >
                 <FeedbackAcao
                   feedback={feedbackFormulario}
                   onClose={() => setFeedbackFormulario(null)}
@@ -1007,7 +1150,14 @@ export default function Inicio() {
               </View>
             )}
 
-            <Text style={[styles.labelInput, { color: colors.textPrimary }]}>
+            <Text
+              style={[
+                styles.labelInput,
+                {
+                  color: colors.textPrimary,
+                },
+              ]}
+            >
               Combustível:
             </Text>
 
@@ -1019,6 +1169,7 @@ export default function Inicio() {
                     styles.chipOption,
                     {
                       borderColor: colors.border,
+
                       backgroundColor:
                         combustivelSelecionado === item
                           ? colors.primary
@@ -1075,7 +1226,12 @@ export default function Inicio() {
 
             <View style={styles.modalButtonsContainer}>
               <TouchableOpacity
-                style={[styles.btnCancel, { borderColor: colors.border }]}
+                style={[
+                  styles.btnCancel,
+                  {
+                    borderColor: colors.border,
+                  },
+                ]}
                 onPress={() => {
                   if (!envioEmAndamento.current) {
                     setModalVisivel(false);
@@ -1094,7 +1250,12 @@ export default function Inicio() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.btnSave, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.btnSave,
+                  {
+                    backgroundColor: colors.primary,
+                  },
+                ]}
                 onPress={handleSalvarPreco}
                 disabled={isEnviandoPreco}
               >
@@ -1107,6 +1268,7 @@ export default function Inicio() {
                     }}
                   >
                     <ActivityIndicator color="#121212" size="small" />
+
                     <Text
                       style={{
                         color: "#121212",
@@ -1136,7 +1298,10 @@ export default function Inicio() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+    minHeight: 0,
+  },
   feedbackOverlay: {
     position: "absolute",
     top: 16,
@@ -1159,7 +1324,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
@@ -1171,13 +1339,17 @@ const styles = StyleSheet.create({
     maxWidth: 600,
     alignSelf: "center",
   },
-  sheetHeader: { marginBottom: 16 },
+  sheetHeader: {
+    marginBottom: 16,
+  },
   sheetTitle: {
     fontSize: 22,
     fontWeight: "bold",
     marginBottom: 2,
   },
-  sheetSubtitle: { fontSize: 14 },
+  sheetSubtitle: {
+    fontSize: 14,
+  },
   postoCard: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1185,7 +1357,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: 1,
   },
-  postoInfo: { flex: 1, paddingRight: 12 },
+  postoInfo: {
+    flex: 1,
+    paddingRight: 12,
+  },
   postoNome: {
     fontSize: 16,
     fontWeight: "bold",
@@ -1204,8 +1379,14 @@ const styles = StyleSheet.create({
     minWidth: 85,
     alignItems: "center",
   },
-  precoTextLista: { fontSize: 16, fontWeight: "bold" },
-  btnVoltar: { paddingVertical: 12, marginBottom: 8 },
+  precoTextLista: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  btnVoltar: {
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
   postoSelecionadoNome: {
     fontSize: 24,
     fontWeight: "bold",
