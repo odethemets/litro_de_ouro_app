@@ -2,6 +2,14 @@ name: Fonte OSM - Joao Pessoa - sem banco
 
 on:
   workflow_dispatch:
+  workflow_call:
+    outputs:
+      sha256_fonte:
+        description: SHA256 dos bytes validados da fonte municipal
+        value: ${{ jobs.fonte.outputs.sha256_fonte }}
+      artefato_fonte:
+        description: Nome do artefato com a fonte municipal
+        value: ${{ jobs.fonte.outputs.artefato_fonte }}
 
 permissions: {}
 
@@ -13,9 +21,13 @@ jobs:
   fonte:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    outputs:
+      sha256_fonte: ${{ steps.captura.outputs.sha256_fonte }}
+      artefato_fonte: ${{ format('osm-fonte-{0}-{1}', github.run_id, github.run_attempt) }}
 
     steps:
       - name: Consultar e validar a fonte municipal
+        id: captura
         shell: python
         run: |
           import hashlib
@@ -144,6 +156,10 @@ jobs:
                   data_base_fonte_utc=data.astimezone(timezone.utc).isoformat(),
                   sha256_fonte=sha256,
               )
+              saida_github = os.environ.get("GITHUB_OUTPUT")
+              if saida_github:
+                  with Path(saida_github).open("a", encoding="utf-8") as arquivo:
+                      arquivo.write("sha256_fonte=" + sha256 + "\n")
               codigo = 0
           except Exception as erro:
               relatorio.update(

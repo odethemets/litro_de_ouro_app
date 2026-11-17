@@ -1,5 +1,0 @@
-# Aplicar explicitamente sobre compose.yaml somente no Docker local.
-services:
-  backend:
-    environment:
-      GEOFENCE_RAIO_M: "50000"

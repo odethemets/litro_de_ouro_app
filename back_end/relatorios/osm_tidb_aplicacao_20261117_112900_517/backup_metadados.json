@@ -1,0 +1,603 @@
+{
+  "banco": "litro_de_ouro",
+  "fonte_sha256": "3155f9dffb4c82a448e895f71cb6d3f52a3a7def619d43065221e0cf1007e36d",
+  "postos": [
+    {
+      "id": 1,
+      "mapbox_id": "osm:node:2789543097",
+      "nome": "Posto Santa Júlia",
+      "latitude": "-7.11995670",
+      "longitude": "-34.86216140",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 2,
+      "mapbox_id": "osm:node:2793876544",
+      "nome": "BR",
+      "latitude": "-7.15943540",
+      "longitude": "-34.83817500",
+      "tipo_posto": "Convencional",
+      "marca": "Petrobras",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 3,
+      "mapbox_id": "osm:node:2793877773",
+      "nome": "Posto BR",
+      "latitude": "-7.15817140",
+      "longitude": "-34.83860780",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 4,
+      "mapbox_id": "osm:node:2793879356",
+      "nome": "Posto Shell",
+      "latitude": "-7.15527570",
+      "longitude": "-34.83841420",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 5,
+      "mapbox_id": "osm:node:2793885200",
+      "nome": "Posto ello",
+      "latitude": "-7.14797510",
+      "longitude": "-34.84485240",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 6,
+      "mapbox_id": "osm:node:2797085773",
+      "nome": "Posto Expressão - Torre",
+      "latitude": "-7.12377630",
+      "longitude": "-34.86959940",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 7,
+      "mapbox_id": "osm:node:2885375678",
+      "nome": "BR",
+      "latitude": "-7.12775780",
+      "longitude": "-34.86147960",
+      "tipo_posto": "Convencional",
+      "marca": "Petrobras",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 8,
+      "mapbox_id": "osm:node:2984979186",
+      "nome": "Shell",
+      "latitude": "-7.16614900",
+      "longitude": "-34.88800210",
+      "tipo_posto": "Convencional",
+      "marca": "Shell",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 9,
+      "mapbox_id": "osm:node:3167015861",
+      "nome": "Texaco",
+      "latitude": "-7.16695010",
+      "longitude": "-34.85982800",
+      "tipo_posto": "Convencional",
+      "marca": "Texaco",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 10,
+      "mapbox_id": "osm:node:3297525208",
+      "nome": "Litoral Sul",
+      "latitude": "-7.21932480",
+      "longitude": "-34.83515080",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 11,
+      "mapbox_id": "osm:node:4474393295",
+      "nome": "BR",
+      "latitude": "-7.16822960",
+      "longitude": "-34.85346820",
+      "tipo_posto": "Convencional",
+      "marca": "Petrobras",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 12,
+      "mapbox_id": "osm:node:4738303559",
+      "nome": "Posto Cruzeiro do Sul",
+      "latitude": "-7.21394270",
+      "longitude": "-34.84042060",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 13,
+      "mapbox_id": "osm:node:4738303560",
+      "nome": "Posto Opção",
+      "latitude": "-7.16912970",
+      "longitude": "-34.83845180",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 14,
+      "mapbox_id": "osm:node:4738304370",
+      "nome": "Posto Extra Petróleo",
+      "latitude": "-7.17431700",
+      "longitude": "-34.84416770",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 15,
+      "mapbox_id": "osm:node:4738304371",
+      "nome": "Posto BSB Mangabeira",
+      "latitude": "-7.17779720",
+      "longitude": "-34.84089800",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 16,
+      "mapbox_id": "osm:node:4738306420",
+      "nome": "Auto Posto Mangabeira",
+      "latitude": "-7.18154420",
+      "longitude": "-34.84322080",
+      "tipo_posto": "Convencional",
+      "marca": "Petrobras",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 17,
+      "mapbox_id": "osm:node:4738306421",
+      "nome": "Posto Cowboy",
+      "latitude": "-7.20619920",
+      "longitude": "-34.84650650",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 18,
+      "mapbox_id": "osm:node:5812661112",
+      "nome": "Maxi Posto",
+      "latitude": "-7.16340760",
+      "longitude": "-34.90105120",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 19,
+      "mapbox_id": "osm:node:5940709085",
+      "nome": "Posto Três Lagoas",
+      "latitude": "-7.16779770",
+      "longitude": "-34.89651950",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 20,
+      "mapbox_id": "osm:node:6213466885",
+      "nome": "Posto 99",
+      "latitude": "-7.11931230",
+      "longitude": "-34.83724780",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 21,
+      "mapbox_id": "osm:node:6257072263",
+      "nome": "Ale",
+      "latitude": "-7.11961480",
+      "longitude": "-34.82646850",
+      "tipo_posto": "Convencional",
+      "marca": "Ale",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 22,
+      "mapbox_id": "osm:node:7275728776",
+      "nome": "Auto Posto Geisel",
+      "latitude": "-7.17903200",
+      "longitude": "-34.87389380",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 23,
+      "mapbox_id": "osm:node:7277909522",
+      "nome": "Posto Estrela - Dislub",
+      "latitude": "-7.17373380",
+      "longitude": "-34.87421300",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 24,
+      "mapbox_id": "osm:node:7332586513",
+      "nome": "Auto Posto Ipiranga",
+      "latitude": "-7.08445940",
+      "longitude": "-34.84586480",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 25,
+      "mapbox_id": "osm:way:216815061",
+      "nome": "Posto Pichilau",
+      "latitude": "-7.11931600",
+      "longitude": "-34.84224510",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 26,
+      "mapbox_id": "osm:way:239198923",
+      "nome": "Posto Opção Santinha",
+      "latitude": "-7.13169980",
+      "longitude": "-34.86110990",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 27,
+      "mapbox_id": "osm:way:257826399",
+      "nome": "Posto Opção",
+      "latitude": "-7.15045450",
+      "longitude": "-34.85198820",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 28,
+      "mapbox_id": "osm:way:257934594",
+      "nome": "Posto Expressão",
+      "latitude": "-7.06994650",
+      "longitude": "-34.83624010",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 29,
+      "mapbox_id": "osm:way:258128915",
+      "nome": "Posto Kennedy",
+      "latitude": "-7.06773530",
+      "longitude": "-34.83875600",
+      "tipo_posto": "Convencional",
+      "marca": "Esso",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 30,
+      "mapbox_id": "osm:way:260524927",
+      "nome": "Posto Opção - Torre",
+      "latitude": "-7.12407750",
+      "longitude": "-34.85916380",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 31,
+      "mapbox_id": "osm:way:262150714",
+      "nome": "BR",
+      "latitude": "-7.12643620",
+      "longitude": "-34.87888530",
+      "tipo_posto": "Convencional",
+      "marca": "Petrobras",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 32,
+      "mapbox_id": "osm:way:262296597",
+      "nome": "Shell",
+      "latitude": "-7.16003790",
+      "longitude": "-34.81919090",
+      "tipo_posto": "Convencional",
+      "marca": "Shell",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 33,
+      "mapbox_id": "osm:way:262487713",
+      "nome": "Posto Quadramares",
+      "latitude": "-7.09764690",
+      "longitude": "-34.83864360",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 34,
+      "mapbox_id": "osm:way:265700174",
+      "nome": "Posto Luiz XI",
+      "latitude": "-7.11376490",
+      "longitude": "-34.83180410",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 35,
+      "mapbox_id": "osm:way:331465990",
+      "nome": "Posto Opção",
+      "latitude": "-7.10249310",
+      "longitude": "-34.83731660",
+      "tipo_posto": "Convencional",
+      "marca": "Ipiranga",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 36,
+      "mapbox_id": "osm:way:341080883",
+      "nome": "Posto Expressão - Tambaú",
+      "latitude": "-7.11268540",
+      "longitude": "-34.82880780",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 37,
+      "mapbox_id": "osm:way:343276515",
+      "nome": "Posto Extra",
+      "latitude": "-7.11845620",
+      "longitude": "-34.85925220",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 38,
+      "mapbox_id": "osm:way:488276864",
+      "nome": "Shell",
+      "latitude": "-7.16452620",
+      "longitude": "-34.85122980",
+      "tipo_posto": "Convencional",
+      "marca": "Shell",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 39,
+      "mapbox_id": "osm:way:488276866",
+      "nome": "Shell",
+      "latitude": "-7.16484870",
+      "longitude": "-34.84968230",
+      "tipo_posto": "Convencional",
+      "marca": "Shell",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 40,
+      "mapbox_id": "osm:way:719116280",
+      "nome": "Posto JR",
+      "latitude": "-7.10725240",
+      "longitude": "-34.82866880",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 41,
+      "mapbox_id": "osm:way:749962464",
+      "nome": "Posto Santa Ana",
+      "latitude": "-7.15217530",
+      "longitude": "-34.87489210",
+      "tipo_posto": "Convencional",
+      "marca": "Shell",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 42,
+      "mapbox_id": "osm:way:749962467",
+      "nome": "Posto Tanque Cheio",
+      "latitude": "-7.15545170",
+      "longitude": "-34.87270240",
+      "tipo_posto": "Convencional",
+      "marca": "Petrobras",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 43,
+      "mapbox_id": "osm:way:749962470",
+      "nome": "Posto Petrogás",
+      "latitude": "-7.16077500",
+      "longitude": "-34.87059550",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 44,
+      "mapbox_id": "osm:way:749962472",
+      "nome": "Posto Opção Cristo",
+      "latitude": "-7.16512790",
+      "longitude": "-34.86728130",
+      "tipo_posto": "Convencional",
+      "marca": "Ipiranga",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 45,
+      "mapbox_id": "osm:way:749962484",
+      "nome": "Auto Posto Cristo de Combustíveis",
+      "latitude": "-7.15305030",
+      "longitude": "-34.87602710",
+      "tipo_posto": "Convencional",
+      "marca": "Ipiranga",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 46,
+      "mapbox_id": "osm:way:749962485",
+      "nome": "Posto Cristo Redentor",
+      "latitude": "-7.14820760",
+      "longitude": "-34.87395250",
+      "tipo_posto": "Convencional",
+      "marca": "Petrobras",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 47,
+      "mapbox_id": "osm:way:749962486",
+      "nome": "Posto São Luiz",
+      "latitude": "-7.14629960",
+      "longitude": "-34.87388710",
+      "tipo_posto": "Convencional",
+      "marca": "Ipiranga",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 48,
+      "mapbox_id": "osm:way:922769357",
+      "nome": "Psoto Colinas do Sul",
+      "latitude": "-7.19560250",
+      "longitude": "-34.88439350",
+      "tipo_posto": "Convencional",
+      "marca": "Petrobras",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 49,
+      "mapbox_id": "osm:way:1278659952",
+      "nome": "Posto Santa Catarina",
+      "latitude": "-7.11473260",
+      "longitude": "-34.86125870",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 50,
+      "mapbox_id": "osm:way:1278659959",
+      "nome": "Auto Posto Independência",
+      "latitude": "-7.11861620",
+      "longitude": "-34.86977870",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    },
+    {
+      "id": 51,
+      "mapbox_id": "osm:way:1278659960",
+      "nome": "Posto Shell",
+      "latitude": "-7.11944920",
+      "longitude": "-34.86728640",
+      "tipo_posto": "Convencional",
+      "marca": "Shell",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 52,
+      "mapbox_id": "osm:way:1278967014",
+      "nome": "Posto Petrobras",
+      "latitude": "-7.11696810",
+      "longitude": "-34.87459380",
+      "tipo_posto": "Convencional",
+      "marca": "Petrobras",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 53,
+      "mapbox_id": "osm:way:1315416698",
+      "nome": "BR",
+      "latitude": "-7.20805620",
+      "longitude": "-34.84794950",
+      "tipo_posto": "Convencional",
+      "marca": "Petrobras",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 54,
+      "mapbox_id": "osm:way:1339078293",
+      "nome": "Posto Opção Altiplano",
+      "latitude": "-7.14255250",
+      "longitude": "-34.82510780",
+      "tipo_posto": "Convencional",
+      "marca": "Ipiranga",
+      "marca_origem": "osm"
+    },
+    {
+      "id": 55,
+      "mapbox_id": "osm:way:1421070338",
+      "nome": "Posto São Luiz VI",
+      "latitude": "-7.11041370",
+      "longitude": "-34.85597670",
+      "tipo_posto": "Convencional",
+      "marca": null,
+      "marca_origem": null
+    }
+  ],
+  "ofertas": [
+    {
+      "posto_id": 35,
+      "combustivel_codigo": "etanol",
+      "disponivel_osm": 1,
+      "osm_verificado_em": "2026-11-11T03:05:04",
+      "disponivel_manual": null,
+      "manual_atualizado_em": null,
+      "manual_atualizado_por": null
+    },
+    {
+      "posto_id": 53,
+      "combustivel_codigo": "diesel",
+      "disponivel_osm": 1,
+      "osm_verificado_em": "2026-11-11T03:05:04",
+      "disponivel_manual": null,
+      "manual_atualizado_em": null,
+      "manual_atualizado_por": null
+    },
+    {
+      "posto_id": 53,
+      "combustivel_codigo": "etanol",
+      "disponivel_osm": 1,
+      "osm_verificado_em": "2026-11-11T03:05:04",
+      "disponivel_manual": null,
+      "manual_atualizado_em": null,
+      "manual_atualizado_por": null
+    },
+    {
+      "posto_id": 54,
+      "combustivel_codigo": "diesel",
+      "disponivel_osm": 1,
+      "osm_verificado_em": "2026-11-11T03:05:04",
+      "disponivel_manual": null,
+      "manual_atualizado_em": null,
+      "manual_atualizado_por": null
+    },
+    {
+      "posto_id": 54,
+      "combustivel_codigo": "etanol",
+      "disponivel_osm": 1,
+      "osm_verificado_em": "2026-11-11T03:05:04",
+      "disponivel_manual": null,
+      "manual_atualizado_em": null,
+      "manual_atualizado_por": null
+    }
+  ]
+}

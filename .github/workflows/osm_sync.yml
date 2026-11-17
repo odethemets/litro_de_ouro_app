@@ -4,36 +4,41 @@ on:
   workflow_dispatch:
     inputs:
       comparar_banco:
-        description: Comparar com o banco configurado, somente leitura?
+        description: Comparar com o TiDB, somente leitura?
         type: boolean
         default: false
         required: true
-
   schedule:
-    # Segunda-feira, 06:17 em João Pessoa.
-    # A execução depende da variável OSM_PREVIA_AGENDADA.
+    # Segunda-feira, 06:17 em Fortaleza/João Pessoa.
+    # Depende de OSM_PREVIA_AGENDADA=true nas variáveis do repositório.
     - cron: '17 9 * * 1'
 
 permissions:
   contents: read
 
 concurrency:
-  group: osm-sync-joao-pessoa
+  group: osm-previa-online
   cancel-in-progress: false
 
 jobs:
-  previa:
+  fonte:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'schedule' && vars.OSM_PREVIA_AGENDADA == 'true')
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && vars.OSM_PREVIA_AGENDADA == 'true'))
+    uses: ./.github/workflows/osm_fonte.yml
 
-    runs-on: ubuntu-latest
+  comparar:
+    needs: fonte
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.comparar_banco) ||
+      (github.event_name == 'schedule' && vars.OSM_PREVIA_COM_BANCO == 'true')
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     defaults:
       run:
         working-directory: back_end
-        shell: bash
 
     steps:
       - uses: actions/checkout@v4
@@ -49,45 +54,51 @@ jobs:
       - name: Instalar dependencias OSM
         run: python -m pip install -r requirements-osm.txt
 
-      - name: Testar previa e executor sem rede ou banco
+      - name: Testar sincronizador e isolamento da configuracao
         run: |
-          python -B -m unittest discover -s tests -p 'test_revisar_osm.py'
-          python -B -m unittest discover -s tests -p 'test_executar_job_osm.py'
+          python -B -m unittest discover -s tests -p 'test_osm_online.py'
+          python -B -m unittest discover -s tests -p 'test_prever_osm_github.py'
 
-      - name: Executar previa municipal
+      - name: Baixar a mesma fonte validada
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.fonte.outputs.artefato_fonte }}
+          path: ${{ runner.temp }}/osm-fonte-validada
+
+      - name: Comparar com o TiDB sem aplicar alteracoes
         env:
-          COMPARAR_BANCO: ${{ (github.event_name == 'workflow_dispatch' && inputs.comparar_banco) || (github.event_name == 'schedule' && vars.OSM_PREVIA_COM_BANCO == 'true') }}
+          OSM_FONTE_ARQUIVO: ${{ runner.temp }}/osm-fonte-validada/fonte.json
+          OSM_FONTE_SHA256: ${{ needs.fonte.outputs.sha256_fonte }}
           OSM_BANCO_ESPERADO: ${{ vars.OSM_BANCO_ESPERADO }}
-
           DB_HOST: ${{ secrets.OSM_DB_HOST }}
           DB_PORT: ${{ secrets.OSM_DB_PORT }}
           DB_USER: ${{ secrets.OSM_DB_USER }}
           DB_PASSWORD: ${{ secrets.OSM_DB_PASSWORD }}
           DB_NAME: ${{ secrets.OSM_DB_NAME }}
           OSM_DB_CA_PEM: ${{ secrets.OSM_DB_CA_PEM }}
-
-          OSM_OVERPASS_URLS: ${{ vars.OSM_OVERPASS_URLS }}
-          OSM_USER_AGENT: 'LitroDeOuro/1.1 (contact: litrodeourooficial@gmail.com)'
-
+        shell: python
         run: |
-          argumentosOsm=(--saida "$GITHUB_WORKSPACE/back_end/relatorios/osm-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}")
+          import os
+          import subprocess
+          import sys
 
-          if [ "$COMPARAR_BANCO" = 'true' ]; then
-            argumentosOsm+=(--banco "$OSM_BANCO_ESPERADO")
-          fi
+          comando = [
+              sys.executable, '-B', 'scripts/prever_osm_github.py',
+              '--arquivo', os.environ['OSM_FONTE_ARQUIVO'],
+              '--sha256', os.environ['OSM_FONTE_SHA256'],
+              '--banco', os.environ['OSM_BANCO_ESPERADO'],
+              '--saida', 'relatorios/osm-github-previa',
+          ]
+          sys.exit(subprocess.run(comando, check=False).returncode)
 
-          python -B scripts/executar_job_osm.py "${argumentosOsm[@]}"
-
-      - name: Guardar fonte, relatorio e hashes
+      - name: Guardar a previa
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: osm-previa-${{ github.run_id }}-${{ github.run_attempt }}
-
+          name: osm-tidb-previa-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            back_end/relatorios/osm-${{ github.run_id }}-${{ github.run_attempt }}/fonte.json
-            back_end/relatorios/osm-${{ github.run_id }}-${{ github.run_attempt }}/relatorio.json
-            back_end/relatorios/osm-${{ github.run_id }}-${{ github.run_attempt }}/manifesto.json
-
+            back_end/relatorios/osm-github-previa/fonte.json
+            back_end/relatorios/osm-github-previa/relatorio.json
+            back_end/relatorios/osm-github-previa/manifesto.json
           if-no-files-found: warn
           retention-days: 30
