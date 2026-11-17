@@ -1,0 +1,171 @@
+name: Fonte OSM - Joao Pessoa - sem banco
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: osm-fonte-joao-pessoa
+  cancel-in-progress: false
+
+jobs:
+  fonte:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Consultar e validar a fonte municipal
+        shell: python
+        run: |
+          import hashlib
+          import json
+          import os
+          import subprocess
+          import sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          URL = "https://overpass-api.de/api/interpreter"
+          LIMITE = 16 * 1024 * 1024
+          CONSULTA = (
+              '[out:json][timeout:60];'
+              'area["boundary"="administrative"]["admin_level"="8"]'
+              '["IBGE:GEOCODIGO"="2507507"]->.municipio;'
+              '.municipio out tags;('
+              'nwr["amenity"="fuel"](area.municipio);'
+              'nwr["amenity"="charging_station"](area.municipio);'
+              ');out center tags;'
+          )
+          pasta = Path(os.environ["GITHUB_WORKSPACE"]) / "relatorios/osm-fonte"
+          pasta.mkdir(parents=True, exist_ok=False)
+          temporario = pasta / "resposta.tmp"
+          relatorio = {
+              "status": "iniciado",
+              "etapa": "consultar_overpass",
+              "servidor": URL,
+              "mysql_consultado": False,
+              "gravacao_banco_habilitada": False,
+              "atribuicao": "© OpenStreetMap contributors — ODbL",
+              "licenca_url": "https://www.openstreetmap.org/copyright",
+          }
+          codigo = 1
+
+          def rejeitar_constante(valor):
+              raise ValueError("Constante JSON invalida: " + valor)
+
+          try:
+              execucao = subprocess.run(
+                  [
+                      "curl", "--silent", "--show-error",
+                      "--proto", "=https",
+                      "--connect-timeout", "15",
+                      "--max-time", "180",
+                      "--max-filesize", str(LIMITE),
+                      "--retry", "0",
+                      "--header", "Accept: application/json",
+                      "--user-agent",
+                      "LitroDeOuro/1.1 (contact: litrodeourooficial@gmail.com)",
+                      "--data-urlencode", "data=" + CONSULTA,
+                      "--output", str(temporario),
+                      "--write-out", "%{json}", URL,
+                  ],
+                  capture_output=True, text=True, timeout=190, check=False,
+              )
+              info = json.loads(execucao.stdout)
+              relatorio.update(
+                  codigo_curl=execucao.returncode,
+                  status_http=info.get("http_code") or None,
+                  verificacao_tls=info.get("ssl_verify_result"),
+                  duracao_s=info.get("time_total"),
+              )
+              if execucao.returncode or info.get("http_code") != 200:
+                  raise ValueError("Consulta HTTP nao concluida com sucesso.")
+
+              relatorio["etapa"] = "validar_fonte"
+              with temporario.open("rb") as arquivo:
+                  bruto = arquivo.read(LIMITE + 1)
+              if not bruto or len(bruto) > LIMITE:
+                  raise ValueError("Fonte vazia ou acima do limite.")
+              corpo = json.loads(bruto, parse_constant=rejeitar_constante)
+              if not isinstance(corpo, dict) or corpo.get("remark"):
+                  raise ValueError("Resposta Overpass incompleta.")
+              elementos = corpo.get("elements")
+              if not isinstance(elementos, list) or not 2 <= len(elementos) <= 5000:
+                  raise ValueError("Quantidade de elementos incompatível.")
+              if not all(isinstance(item, dict) for item in elementos):
+                  raise ValueError("Elemento OSM invalido.")
+              areas = [item for item in elementos if item.get("type") == "area"]
+              if len(areas) != 1:
+                  raise ValueError("Area administrativa ausente ou ambigua.")
+              area = areas[0]
+              tags = area.get("tags")
+              if (
+                  not isinstance(tags, dict)
+                  or tags.get("IBGE:GEOCODIGO") != "2507507"
+                  or tags.get("boundary") != "administrative"
+                  or tags.get("admin_level") != "8"
+                  or type(area.get("id")) is not int
+                  or area["id"] <= 0
+              ):
+                  raise ValueError("A area nao comprova o municipio esperado.")
+              locais = [item for item in elementos if item.get("type") != "area"]
+              for item in locais:
+                  tags = item.get("tags")
+                  if (
+                      item.get("type") not in ("node", "way", "relation")
+                      or not isinstance(tags, dict)
+                      or tags.get("amenity") not in ("fuel", "charging_station")
+                  ):
+                      raise ValueError("Local fora da consulta esperada.")
+
+              meta = corpo.get("osm3s")
+              valor = meta.get("timestamp_osm_base") if isinstance(meta, dict) else None
+              if not isinstance(valor, str):
+                  raise ValueError("Data da fonte ausente.")
+              data = datetime.fromisoformat(valor.replace("Z", "+00:00"))
+              if data.tzinfo is None:
+                  raise ValueError("Data da fonte sem fuso horario.")
+              idade_s = (datetime.now(timezone.utc) - data).total_seconds()
+              if not -300 <= idade_s <= 30 * 86400:
+                  raise ValueError("Data da fonte fora do intervalo aceito.")
+
+              relatorio["etapa"] = "arquivar_fonte"
+              with (pasta / "fonte.json").open("xb") as arquivo:
+                  arquivo.write(bruto)
+              sha256 = hashlib.sha256(bruto).hexdigest()
+              manifesto = {"arquivos": {"fonte.json": sha256}}
+              with (pasta / "manifesto.json").open("x", encoding="utf-8") as arquivo:
+                  json.dump(manifesto, arquivo, ensure_ascii=False, indent=2)
+              relatorio.update(
+                  status="ok", etapa="concluido",
+                  consulta_municipal_validada=True,
+                  elementos_locais=len(locais),
+                  data_base_fonte_utc=data.astimezone(timezone.utc).isoformat(),
+                  sha256_fonte=sha256,
+              )
+              codigo = 0
+          except Exception as erro:
+              relatorio.update(
+                  status="falha", tipo_erro=type(erro).__name__,
+              )
+              if isinstance(erro, ValueError):
+                  relatorio["erro"] = str(erro)[:200]
+          finally:
+              temporario.unlink(missing_ok=True)
+              with (pasta / "relatorio.json").open("x", encoding="utf-8") as arquivo:
+                  json.dump(relatorio, arquivo, ensure_ascii=False, indent=2)
+              print(json.dumps(relatorio, ensure_ascii=False, indent=2), flush=True)
+          sys.exit(codigo)
+
+      - name: Guardar fonte e relatorio
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: osm-fonte-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            relatorios/osm-fonte/fonte.json
+            relatorios/osm-fonte/manifesto.json
+            relatorios/osm-fonte/relatorio.json
+          if-no-files-found: warn
+          retention-days: 30
