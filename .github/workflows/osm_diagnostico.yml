@@ -2,111 +2,146 @@ name: Diagnostico Overpass - sem banco
 
 on:
   workflow_dispatch:
-    inputs:
-      servidor:
-        description: 'Servidor publico para testar'
-        required: true
-        type: choice
-        default: 'https://overpass-api.de/api/interpreter'
-        options:
-          - 'https://overpass-api.de/api/interpreter'
-          - 'https://overpass.private.coffee/api/interpreter'
 
 permissions: {}
 
+concurrency:
+  group: osm-diagnostico-overpass
+  cancel-in-progress: false
+
 jobs:
   diagnostico:
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
 
     steps:
-      - name: Testar uma consulta minima
-        env:
-          OVERPASS_TEST_URL: ${{ inputs.servidor }}
+      - name: Testar os dois servidores
         shell: python
         run: |
           import json
-          import os
+          import subprocess
           import sys
-          from urllib.error import HTTPError
-          from urllib.parse import urlencode
-          from urllib.request import Request, urlopen
+          import tempfile
+          from pathlib import Path
 
-          permitidos = {
-              'https://overpass-api.de/api/interpreter',
-              'https://overpass.private.coffee/api/interpreter',
-          }
-
-          url = os.environ.get('OVERPASS_TEST_URL', '')
-
-          if url not in permitidos:
-              raise SystemExit('Servidor nao permitido.')
-
-          requisicao = Request(
-              url,
-              data=urlencode({
-                  'data': '[out:json][timeout:5];node(1);out ids;',
-              }).encode('utf-8'),
-              headers={
-                  'Content-Type': 'application/x-www-form-urlencoded',
-                  'Accept': 'application/json',
-                  'User-Agent': 'LitroDeOuro/1.1 (+https://github.com/odethemets/litro_de_ouro_app)',
-              },
-              method='POST',
+          SERVIDORES = (
+              "https://overpass-api.de/api/interpreter",
+              "https://overpass.private.coffee/api/interpreter",
           )
-
-          resultado = {
-              'servidor': url,
-              'mysql_consultado': False,
+          LIMITE = 1024 * 1024
+          ERROS_CURL = {
+              5: "dns_proxy",
+              6: "dns_servidor",
+              7: "conexao",
+              28: "tempo_limite",
+              35: "negociacao_tls",
+              60: "certificado_tls",
+              63: "resposta_maior_que_limite",
           }
-          codigo = 0
 
-          try:
-              with urlopen(requisicao, timeout=20) as resposta:
-                  resultado['status_http'] = resposta.status
-                  bruto = resposta.read(1024 * 1024 + 1)
+          def testar(url):
+              resultado = {"servidor": url, "mysql_consultado": False}
 
-              if len(bruto) > 1024 * 1024:
-                  raise ValueError('Resposta maior que o limite.')
+              with tempfile.TemporaryDirectory() as pasta:
+                  corpo = Path(pasta) / "resposta.json"
+                  comando = [
+                      "curl", "--silent", "--show-error",
+                      "--proto", "=https",
+                      "--connect-timeout", "15",
+                      "--max-time", "60",
+                      "--max-filesize", str(LIMITE),
+                      "--retry", "0",
+                      "--header", "Accept: application/json",
+                      "--user-agent",
+                      "LitroDeOuro/1.1 (contact: litrodeourooficial@gmail.com)",
+                      "--data-urlencode",
+                      "data=[out:json][timeout:10];node(1);out ids;",
+                      "--output", str(corpo),
+                      "--write-out", "%{json}",
+                      url,
+                  ]
 
-              corpo = json.loads(bruto)
+                  try:
+                      execucao = subprocess.run(
+                          comando, capture_output=True, text=True,
+                          timeout=70, check=False,
+                      )
+                  except subprocess.TimeoutExpired:
+                      return dict(resultado, status="tempo_limite_executor")
+                  except OSError as erro:
+                      return dict(
+                          resultado, status="falha_executor",
+                          tipo_erro=type(erro).__name__,
+                      )
 
-              if (
-                  not isinstance(corpo, dict)
-                  or corpo.get('remark')
-                  or not isinstance(corpo.get('elements'), list)
-              ):
-                  raise ValueError('Resposta Overpass incompleta.')
+                  try:
+                      info = json.loads(execucao.stdout)
+                      if not isinstance(info, dict):
+                          raise ValueError("Metadados invalidos.")
+                  except ValueError:
+                      return dict(
+                          resultado, status="metadados_curl_invalidos",
+                          codigo_curl=execucao.returncode,
+                      )
 
-              resultado.update(
-                  status='ok',
-                  total_elementos=len(corpo['elements']),
-              )
+                  resultado.update(
+                      codigo_curl=execucao.returncode,
+                      status_http=info.get("http_code") or None,
+                      verificacao_tls=info.get("ssl_verify_result"),
+                      tempos_s={
+                          "dns": info.get("time_namelookup"),
+                          "conexao_acumulado": info.get("time_connect"),
+                          "tls_acumulado": info.get("time_appconnect"),
+                          "total": info.get("time_total"),
+                      },
+                  )
 
-          except HTTPError as erro:
-              resultado.update(
-                  status='falha_http',
-                  status_http=erro.code,
-                  retry_after=(
-                      erro.headers.get('Retry-After')
-                      if erro.headers
-                      else None
-                  ),
-              )
-              erro.close()
-              codigo = 1
+                  if execucao.returncode:
+                      return dict(
+                          resultado, status="falha_transporte",
+                          tipo_erro=ERROS_CURL.get(
+                              execucao.returncode, "erro_curl",
+                          ),
+                      )
 
-          except Exception as erro:
-              resultado.update(
-                  status='falha',
-                  tipo_erro=type(erro).__name__,
-              )
-              codigo = 1
+                  if resultado["status_http"] != 200:
+                      return dict(resultado, status="falha_http")
 
-          print(json.dumps(
-              resultado,
-              ensure_ascii=False,
-              indent=2,
-          ))
+                  try:
+                      with corpo.open("rb") as arquivo:
+                          bruto = arquivo.read(LIMITE + 1)
+                      if len(bruto) > LIMITE:
+                          raise ValueError("Resposta acima do limite.")
+                      dados = json.loads(bruto)
+                      if (
+                          not isinstance(dados, dict)
+                          or dados.get("remark")
+                          or not isinstance(dados.get("elements"), list)
+                      ):
+                          raise ValueError("Resposta Overpass incompleta.")
+                  except (ValueError, OSError) as erro:
+                      return dict(
+                          resultado, status="resposta_invalida",
+                          tipo_erro=type(erro).__name__,
+                      )
 
-          sys.exit(codigo)
+                  return dict(
+                      resultado, status="ok",
+                      total_elementos=len(dados["elements"]),
+                  )
+
+          resultados = []
+          for servidor in SERVIDORES:
+              resultado = testar(servidor)
+              resultados.append(resultado)
+              print(json.dumps(resultado, ensure_ascii=False, indent=2), flush=True)
+
+          sucessos = sum(item["status"] == "ok" for item in resultados)
+          resumo = {
+              "status": "ok" if sucessos == 2 else "parcial" if sucessos else "falha",
+              "servidores_disponiveis": sucessos,
+              "mysql_consultado": False,
+              "consulta_municipal_validada": False,
+          }
+          print(json.dumps(resumo, ensure_ascii=False, indent=2), flush=True)
+          sys.exit(0 if sucessos else 1)
