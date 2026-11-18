@@ -142,8 +142,17 @@ def conferir_metadados(plano, postos, ofertas, data):
             raise ErroOSM("conferencia_antes_do_commit_divergiu")
 
 
-def sincronizar(conn, fonte, lugares, migracoes, banco, aplicar=False,
-                backup=None, verificar=validar_migracoes):
+def sincronizar(
+    conn,
+    fonte,
+    lugares,
+    migracoes,
+    banco,
+    aplicar=False,
+    backup=None,
+    verificar=validar_migracoes,
+    validar_plano=None,
+):
     etapa = "validar_destino"
     try:
         with conn.cursor() as cursor:
@@ -180,18 +189,41 @@ def sincronizar(conn, fonte, lugares, migracoes, banco, aplicar=False,
                     for item in catalogo["itens"] if item["categoria"] == "novos"
                 ]]
             plano = planejar_metadados(fonte, postos, ofertas)
+
+            if aplicar and validar_plano is not None:
+                etapa = "validar_plano_operacional"
+                validar_plano(catalogo, plano, postos)
+
             if aplicar:
-                etapa = "atualizar_metadados"
-                aplicar_metadados(cursor, plano, fonte["data_base_utc"])
-                etapa = "conferir_metadados"
-                conferir_metadados(
-                    plano, *ler_estado(cursor, fonte, False, True), fonte["data_base_utc"],
-                )
-        if aplicar:
-            etapa = "commit"
-            conn.commit()
-        else:
-            conn.rollback()
+                etapa = "aplicar_metadados"
+
+                with conn.cursor() as cursor_metadados:
+                    aplicar_metadados(
+                        cursor_metadados,
+                        plano,
+                        fonte["data_base_utc"],
+                    )
+
+                    etapa = "conferir_metadados"
+
+                    postos_conferidos, ofertas_conferidas = ler_estado(
+                        cursor_metadados,
+                        fonte,
+                        False,
+                        travar=True,
+                    )
+
+                    conferir_metadados(
+                        plano,
+                        postos_conferidos,
+                        ofertas_conferidas,
+                        fonte["data_base_utc"],
+                    )
+
+                etapa = "commit"
+                conn.commit()
+            else:
+                conn.rollback()
         return {
             "status": "ok", "modo": "aplicar" if aplicar else "dry-run",
             "banco": banco, "catalogo": catalogo, "plano_metadados": plano,

@@ -1,0 +1,168 @@
+name: OSM - operacao controlada
+
+on:
+  workflow_dispatch:
+    inputs:
+      aplicar:
+        description: Aplicar o plano validado com backup arquivado?
+        type: boolean
+        default: false
+        required: true
+
+  schedule:
+    # Segunda-feira, 06:17 em Fortaleza.
+    # Só executa com OSM_OPERACAO_AGENDADA=true.
+    - cron: '17 9 * * 1'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: osm-operacao-online
+  cancel-in-progress: false
+
+jobs:
+  fonte:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' &&
+      vars.OSM_OPERACAO_AGENDADA == 'true'))
+    uses: ./.github/workflows/osm_fonte.yml
+
+  operar:
+    needs: fonte
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: back_end
+
+    env:
+      OSM_APLICAR: ${{ (github.event_name == 'workflow_dispatch' && inputs.aplicar) || (github.event_name == 'schedule' && vars.OSM_ESCRITA_AGENDADA == 'true') }}
+      OSM_BANCO_ESPERADO: ${{ vars.OSM_BANCO_ESPERADO }}
+      OSM_FONTE_ARQUIVO: ${{ github.workspace }}/.osm-fonte-validada/fonte.json      
+      OSM_FONTE_SHA256: ${{ needs.fonte.outputs.sha256_fonte }}
+      OSM_SAIDA: ${{ github.workspace }}/back_end/relatorios/osm-operacao
+
+      OSM_MAX_NOVOS: ${{ vars.OSM_MAX_NOVOS || '20' }}
+      OSM_MAX_METADADOS: ${{ vars.OSM_MAX_METADADOS || '1000' }}
+      OSM_FALHA_REVISADA_RUN_ID: ${{ vars.OSM_FALHA_REVISADA_RUN_ID }}
+
+      GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      OSM_DB_HOST: ${{ secrets.OSM_DB_HOST }}
+      OSM_DB_PORT: ${{ secrets.OSM_DB_PORT }}
+      OSM_DB_USER: ${{ secrets.OSM_DB_USER }}
+      OSM_DB_PASSWORD: ${{ secrets.OSM_DB_PASSWORD }}
+      OSM_DB_NAME: ${{ secrets.OSM_DB_NAME }}
+      OSM_DB_CA_PEM: ${{ secrets.OSM_DB_CA_PEM }}
+
+      OSM_WRITE_DB_HOST: ${{ secrets.OSM_WRITE_DB_HOST }}
+      OSM_WRITE_DB_PORT: ${{ secrets.OSM_WRITE_DB_PORT }}
+      OSM_WRITE_DB_USER: ${{ secrets.OSM_WRITE_DB_USER }}
+      OSM_WRITE_DB_PASSWORD: ${{ secrets.OSM_WRITE_DB_PASSWORD }}
+      OSM_WRITE_DB_NAME: ${{ secrets.OSM_WRITE_DB_NAME }}
+      OSM_WRITE_DB_CA_PEM: ${{ secrets.OSM_WRITE_DB_CA_PEM }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: back_end/requirements-osm.txt
+
+      - name: Instalar dependencias OSM
+        run: python -m pip install -r requirements-osm.txt
+
+      - name: Testar antes de acessar o banco
+        run: |
+          python -B -m unittest discover -s tests -p 'test_osm_online.py'
+          python -B -m unittest discover -s tests -p 'test_operacao_osm.py'
+          python -B -m unittest discover -s tests -p 'test_preparar_revisao_osm.py'
+          python -B -m unittest discover -s tests -p 'test_prever_osm_github.py'
+
+      - name: Baixar a mesma fonte validada
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.fonte.outputs.artefato_fonte }}
+          path: ${{ runner.temp }}/osm-fonte-validada
+
+      - name: Preparar previa e backup sem alterar dados
+        id: preparar
+        run: python -B scripts/operar_osm_github.py --fase preparar
+
+      - name: Exportar pendencias para revisao
+        run: >-
+          python -B scripts/preparar_revisao_osm.py
+          --relatorio relatorios/osm-operacao/preparar/relatorio.json
+          --fonte relatorios/osm-operacao/preparar/fonte.json
+          --saida relatorios/osm-operacao/revisao
+
+      - name: Arquivar backup antes da escrita
+        if: env.OSM_APLICAR == 'true'
+        id: backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: osm-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: back_end/relatorios/osm-operacao/preparar/backup_catalogo.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Aplicar uma unica vez
+        if: env.OSM_APLICAR == 'true'
+        env:
+          OSM_BACKUP_SHA256: ${{ steps.preparar.outputs.backup_sha256 }}
+          OSM_BACKUP_ARTIFACT_ID: ${{ steps.backup.outputs.artifact-id }}
+        shell: python
+        run: |
+          import os
+          import subprocess
+          import sys
+
+          comando = [
+              sys.executable,
+              '-B',
+              'scripts/operar_osm_github.py',
+              '--fase',
+              'aplicar',
+              '--backup-sha256',
+              os.environ['OSM_BACKUP_SHA256'],
+              '--artefato-backup',
+              os.environ['OSM_BACKUP_ARTIFACT_ID'],
+          ]
+
+          sys.exit(
+              subprocess.run(
+                  comando,
+                  check=False,
+              ).returncode
+          )
+
+      - name: Conferir repeticao sem gravar
+        if: env.OSM_APLICAR == 'true'
+        run: python -B scripts/operar_osm_github.py --fase conferir
+
+      - name: Guardar relatorios e revisao
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: osm-operacao-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            back_end/relatorios/osm-operacao/preparar/fonte.json
+            back_end/relatorios/osm-operacao/preparar/relatorio.json
+            back_end/relatorios/osm-operacao/preparar/manifesto.json
+            back_end/relatorios/osm-operacao/aplicar/relatorio.json
+            back_end/relatorios/osm-operacao/aplicar/manifesto.json
+            back_end/relatorios/osm-operacao/conferir/relatorio.json
+            back_end/relatorios/osm-operacao/conferir/manifesto.json
+            back_end/relatorios/osm-operacao/revisao/revisao.csv
+            back_end/relatorios/osm-operacao/revisao/revisao.json
+          if-no-files-found: warn
+          retention-days: 30
