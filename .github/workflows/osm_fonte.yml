@@ -20,7 +20,7 @@ concurrency:
 jobs:
   fonte:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 12
     outputs:
       sha256_fonte: ${{ steps.captura.outputs.sha256_fonte }}
       artefato_fonte: ${{ format('osm-fonte-{0}-{1}', github.run_id, github.run_attempt) }}
@@ -65,10 +65,172 @@ jobs:
 
           def rejeitar_constante(valor):
               raise ValueError("Constante JSON invalida: " + valor)
+          def consultar_overpass(comando, *argumentos, **opcoes):
+              import time
+              from datetime import datetime, timezone
+              from email.utils import parsedate_to_datetime
 
+              if not isinstance(comando, (list, tuple)) or comando.count(URL) != 1:
+                  raise ValueError("Comando Overpass inesperado.")
+
+              outro = "https://overpass.private.coffee/api/interpreter"
+              if URL == outro:
+                  outro = "https://overpass-api.de/api/interpreter"
+
+              servidores = (URL, outro, URL)
+              inicio = time.monotonic()
+              opcoes = dict(opcoes)
+              opcoes["timeout"] = 150
+              opcoes["check"] = False
+
+              def ajustar(argv, chave, valor):
+                  if chave in argv:
+                      argv[argv.index(chave) + 1] = valor
+                  else:
+                      argv[1:1] = [chave, valor]
+
+              def encerrar(atual):
+                  if atual is None:
+                      raise TimeoutError("Tempo limite ao consultar Overpass.")
+                  return atual
+
+              for numero, servidor in enumerate(servidores, 1):
+                  argv = [
+                      servidor if item == URL else item
+                      for item in comando
+                  ]
+
+                  cabecalho = pasta / f"http-tentativa-{numero}.headers"
+                  temporario.unlink(missing_ok=True)
+
+                  ajustar(argv, "--max-time", "120")
+                  ajustar(argv, "--retry", "0")
+                  ajustar(argv, "--dump-header", str(cabecalho))
+
+                  atual = None
+                  medidas = {}
+                  codigo_curl = None
+                  status_http = None
+
+                  try:
+                      atual = subprocess.run(
+                          argv,
+                          *argumentos,
+                          **opcoes,
+                      )
+                  except subprocess.TimeoutExpired:
+                      pass
+                  else:
+                      codigo_curl = atual.returncode
+                      try:
+                          medidas = json.loads(atual.stdout or "{}")
+                      except (ValueError, TypeError):
+                          medidas = {}
+
+                      if not isinstance(medidas, dict):
+                          medidas = {}
+
+                      valor = medidas.get(
+                          "response_code",
+                          medidas.get("http_code"),
+                      )
+                      try:
+                          status_http = int(valor)
+                      except (ValueError, TypeError):
+                          status_http = None
+
+                  retry_after = None
+                  if cabecalho.is_file():
+                      for linha in cabecalho.read_text(
+                          encoding="utf-8",
+                          errors="replace",
+                      ).splitlines():
+                          if linha.startswith("HTTP/"):
+                              retry_after = None
+                          elif linha.lower().startswith("retry-after:"):
+                              retry_after = linha.split(":", 1)[1].strip()
+
+                      cabecalho.unlink(missing_ok=True)
+
+                  registro = {
+                      "etapa": "consultar_overpass",
+                      "tentativa": numero,
+                      "servidor": servidor,
+                      "codigo_curl": codigo_curl,
+                      "status_http": status_http,
+                      "duracao_s": medidas.get("time_total"),
+                      "retry_after": retry_after,
+                  }
+
+                  if codigo_curl != 0 or status_http != 200:
+                      try:
+                          with temporario.open("rb") as arquivo:
+                              registro["corpo_inicio"] = arquivo.read(500).decode(
+                                  "utf-8",
+                                  errors="replace",
+                              )
+                      except OSError:
+                          pass
+
+                  relatorio["servidor"] = servidor
+                  relatorio["tentativas_realizadas"] = numero
+
+                  print(json.dumps(
+                      registro,
+                      ensure_ascii=False,
+                  ), flush=True)
+
+                  if codigo_curl == 0 and status_http == 200:
+                      return atual
+
+                  recuperavel = (
+                      atual is None
+                      or codigo_curl in {5, 6, 7, 18, 28, 52, 55, 56, 92}
+                      or status_http in {408, 429, 500, 502, 503, 504}
+                  )
+
+                  if not recuperavel or numero == len(servidores):
+                      return encerrar(atual)
+
+                  espera = 30 * (2 ** (numero - 1))
+
+                  if retry_after:
+                      try:
+                          segundos = int(retry_after)
+                      except ValueError:
+                          try:
+                              momento = parsedate_to_datetime(retry_after)
+                              if momento.tzinfo is None:
+                                  momento = momento.replace(tzinfo=timezone.utc)
+                              segundos = (
+                                  momento - datetime.now(timezone.utc)
+                              ).total_seconds()
+                          except (ValueError, TypeError, OverflowError):
+                              segundos = 0
+
+                      espera = max(espera, segundos)
+
+                  excedeu_orcamento = (
+                      time.monotonic() - inicio + espera + 150 > 600
+                  )
+
+                  if espera > 60 or excedeu_orcamento:
+                      print(json.dumps({
+                          "status": "interrompido",
+                          "motivo": "espera_ou_tempo_total_excedido",
+                          "espera_exigida_s": espera,
+                      }), flush=True)
+                      return encerrar(atual)
+
+                  print(json.dumps({
+                      "status": "aguardando",
+                      "proxima_tentativa": numero + 1,
+                      "espera_s": espera,
+                  }), flush=True)
+
+                  time.sleep(espera)
           try:
-              execucao = subprocess.run(
-                  [
+              execucao = consultar_overpass(                  [
                       "curl", "--silent", "--show-error",
                       "--proto", "=https",
                       "--connect-timeout", "15",
