@@ -43,7 +43,6 @@ jobs:
     env:
       OSM_APLICAR: ${{ (github.event_name == 'workflow_dispatch' && inputs.aplicar) || (github.event_name == 'schedule' && vars.OSM_ESCRITA_AGENDADA == 'true') }}
       OSM_BANCO_ESPERADO: ${{ vars.OSM_BANCO_ESPERADO }}
-      OSM_FONTE_ARQUIVO: ${{ github.workspace }}/.osm-fonte-validada/fonte.json      
       OSM_FONTE_SHA256: ${{ needs.fonte.outputs.sha256_fonte }}
       OSM_SAIDA: ${{ github.workspace }}/back_end/relatorios/osm-operacao
 
@@ -93,6 +92,52 @@ jobs:
         with:
           name: ${{ needs.fonte.outputs.artefato_fonte }}
           path: ${{ runner.temp }}/osm-fonte-validada
+
+      - name: Definir caminho da fonte OSM
+        shell: python
+        run: |
+          import json
+          import os
+          from pathlib import Path
+
+          pasta = Path(os.environ["RUNNER_TEMP"]) / "osm-fonte-validada"
+
+          fontes = sorted(
+              arquivo
+              for arquivo in pasta.rglob("fonte.json")
+              if arquivo.is_file()
+          )
+
+          if len(fontes) != 1:
+              arquivos = sorted(
+                  str(arquivo.relative_to(pasta))
+                  for arquivo in pasta.rglob("*")
+                  if arquivo.is_file()
+              )
+
+              print(json.dumps({
+                  "status": "interrompido",
+                  "etapa": "localizar_fonte",
+                  "fontes_encontradas": len(fontes),
+                  "arquivos": arquivos[:10],
+              }, ensure_ascii=False))
+
+              raise SystemExit(1)
+
+          fonte = fontes[0].resolve()
+
+          with open(
+              os.environ["GITHUB_ENV"],
+              "a",
+              encoding="utf-8",
+          ) as arquivo:
+              arquivo.write(f"OSM_FONTE_ARQUIVO={fonte}\n")
+
+          print(json.dumps({
+              "status": "ok",
+              "etapa": "localizar_fonte",
+              "arquivo": str(fonte),
+          }, ensure_ascii=False))
 
       - name: Preparar previa e backup sem alterar dados
         id: preparar
