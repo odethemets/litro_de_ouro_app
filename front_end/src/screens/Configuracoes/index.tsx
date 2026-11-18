@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
+import { AvaliacaoApp } from "../../components/avaliacao-app";
 import { AppButton, Notice, Page, Surface } from "../../components/design";
-
 import type { ContaPilha } from "../../routes/app.routes";
 
 type Props = NativeStackScreenProps<ContaPilha, "Definicoes">;
@@ -64,6 +64,7 @@ export default function Configuracoes({ navigation }: Props) {
           onPress={() => navigation.navigate("ApagarConta")}
         />
       </Surface>
+
       <Surface>
         <Notice>Avisos de preços</Notice>
 
@@ -74,6 +75,7 @@ export default function Configuracoes({ navigation }: Props) {
         />
         <Notice>Seus postos ficam salvos na sua conta.</Notice>
       </Surface>
+      <AvaliacaoApp />
     </Page>
   );
 }

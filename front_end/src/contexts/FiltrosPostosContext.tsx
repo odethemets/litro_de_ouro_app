@@ -1,22 +1,27 @@
 import {
-    createContext,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-    type ReactNode,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
 } from "react";
 import type { PosicaoUsuario } from "../components/mapa/tipos";
 import { api } from "../services/API";
 import {
-    FILTROS_INICIAIS,
-    lerCatalogo,
-    parametrosPostos,
-    type FiltrosPostos,
-    type PostoCatalogo,
+  FILTROS_INICIAIS,
+  lerCatalogo,
+  parametrosPostos,
+  type FiltrosPostos,
+  type PostoCatalogo,
 } from "../services/catalogoPostos";
 import { obterPosicao } from "../utils/localizacao";
+import {
+  avisoPrecisaoMapa,
+  posicaoParaProximidade,
+  prepararPostosParaLocalizacao,
+} from "../utils/precisaoGps";
 
 interface EstadoFiltros {
   filtros: FiltrosPostos;
@@ -27,6 +32,7 @@ interface EstadoFiltros {
   avisoGps: string;
   carregando: boolean;
   erro: string;
+  referenciaMapa: PosicaoUsuario | null;
   atualizarLocalizacao(): void;
   recarregar(): void;
 }
@@ -63,7 +69,7 @@ export function FiltrosPostosProvider({ children }: { children: ReactNode }) {
               lon: local.longitude,
               precisaoM: local.precisaoM,
             },
-            aviso: "",
+            aviso: avisoPrecisaoMapa(local),
           });
       })
       .catch((erro: unknown) => {
@@ -100,7 +106,11 @@ export function FiltrosPostosProvider({ children }: { children: ReactNode }) {
           filtros.combustiveis,
         );
         if (!atual) return;
-        setDados({ chave, base, postos });
+        setDados({
+          chave,
+          base,
+          postos: prepararPostosParaLocalizacao(postos, gps.local),
+        });
         setMarcas((anteriores) =>
           [
             ...new Set([
@@ -132,7 +142,8 @@ export function FiltrosPostosProvider({ children }: { children: ReactNode }) {
       aplicar,
       postos: dados.base === base && gps.pronto ? dados.postos : [],
       marcas,
-      usuario: gps.local,
+      usuario: posicaoParaProximidade(gps.local),
+      referenciaMapa: gps.local,
       avisoGps: gps.aviso,
       carregando:
         !gps.pronto || (dados.chave !== chave && falha.chave !== chave),

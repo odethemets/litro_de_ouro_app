@@ -9,6 +9,7 @@
  *   EXPO_PUBLIC_TILE_ATTR       HTML de atribuição do provedor de tiles
  *   EXPO_PUBLIC_MAPA_BASE_URL   origem usada pelo WebView (envia Referer aos provedores de tiles)
  */
+import { PRECISAO_MAPA_MAX_M } from "../../utils/precisaoGps";
 const TILE_URL =
   process.env.EXPO_PUBLIC_TILE_URL ??
   "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -25,6 +26,7 @@ const CFG = JSON.stringify({
   zoom: 13,
   tileUrl: TILE_URL,
   atribuicao: ATRIBUICAO,
+  precisaoMaxM: PRECISAO_MAPA_MAX_M,
 }).replace(/</g, "\\u003c");
 
 export const MAPA_HTML = String.raw`<!DOCTYPE html>
@@ -166,7 +168,7 @@ export const MAPA_HTML = String.raw`<!DOCTYPE html>
     if (!isFinite(lat) || !isFinite(lon)) return;
     var prec = num(u.precisaoM);
     if (!isFinite(prec) || prec < 0) prec = 0;
-    prec = Math.min(prec, 500);
+    prec = Math.min(prec, CFG.precisaoMaxM);
     if (!ptUsuario) {
       circUsuario = L.circle([lat, lon], { radius: prec, color: '#1a73e8', weight: 1, fillOpacity: 0.12, interactive: false }).addTo(mapa);
       ptUsuario = L.circleMarker([lat, lon], { radius: 8, color: '#fff', weight: 3, fillColor: '#1a73e8', fillOpacity: 1, interactive: false }).addTo(mapa);

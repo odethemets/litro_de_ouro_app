@@ -1,4 +1,6 @@
 import * as Location from "expo-location";
+import { Platform } from "react-native";
+import { PRECISAO_MAPA_MAX_M, PRECISAO_REGISTRO_MAX_M } from "./precisaoGps";
 
 export type PerfilGps = "mapa" | "registro";
 
@@ -8,6 +10,7 @@ export const CENTRO_PADRAO = {
 };
 
 export type CodigoErroGps =
+  | "CONTEXTO_INSEGURO"
   | "PERMISSAO_NEGADA"
   | "SERVICO_DESLIGADO"
   | "TIMEOUT"
@@ -44,7 +47,8 @@ export function validarPosicao(
     !Number.isFinite(latitude) ||
     Math.abs(latitude) > 90 ||
     !Number.isFinite(longitude) ||
-    Math.abs(longitude) > 180
+    Math.abs(longitude) > 180 ||
+    (latitude === 0 && longitude === 0)
   ) {
     throw new ErroGps(
       "INDISPONIVEL",
@@ -63,17 +67,23 @@ export function validarPosicao(
     );
   }
 
-  const limite = perfil === "registro" ? 150 : 500;
-
+  const limite =
+    perfil === "registro" ? PRECISAO_REGISTRO_MAX_M : PRECISAO_MAPA_MAX_M;
   if (
     typeof accuracy !== "number" ||
     !Number.isFinite(accuracy) ||
-    accuracy < 0 ||
-    accuracy > limite
+    accuracy < 0
   ) {
     throw new ErroGps(
       "IMPRECISA",
-      "A localização está imprecisa ou sem precisão informada. Ative a localização precisa e tente novamente.",
+      "O dispositivo não informou uma precisão válida. Ative a localização precisa e tente novamente.",
+    );
+  }
+
+  if (accuracy > limite) {
+    throw new ErroGps(
+      "IMPRECISA",
+      `A precisão recebida é de aproximadamente ±${Math.ceil(accuracy)} m; o limite ${perfil === "registro" ? "para cadastrar preços" : "para localizar no mapa"} é ${limite} m. Ative a localização precisa e tente novamente.`,
     );
   }
 
@@ -91,7 +101,53 @@ export function validarPosicao(
   };
 }
 
+// A API do navegador pede a permissão durante a leitura, sem exigir Permissions API.
+async function lerNavegador(perfil: PerfilGps): Promise<PosicaoGps> {
+  if (typeof window !== "undefined" && window.isSecureContext === false) {
+    throw new ErroGps(
+      "CONTEXTO_INSEGURO",
+      "Abra o aplicativo por HTTPS para usar a localização. No computador de desenvolvimento, localhost também é permitido.",
+    );
+  }
+
+  if (typeof navigator === "undefined" || !navigator.geolocation) {
+    throw new ErroGps(
+      "INDISPONIVEL",
+      "Este navegador não disponibilizou a localização. Abra o aplicativo em um navegador atualizado.",
+    );
+  }
+
+  const local = await new Promise<Location.LocationObject>(
+    (resolver, rejeitar) => {
+      navigator.geolocation.getCurrentPosition(
+        (posicao) =>
+          resolver({ coords: posicao.coords, timestamp: posicao.timestamp }),
+        (erro) => {
+          const codigo =
+            erro.code === 1
+              ? "PERMISSAO_NEGADA"
+              : erro.code === 3
+                ? "TIMEOUT"
+                : "INDISPONIVEL";
+          const mensagem =
+            erro.code === 1
+              ? "Permita a localização para este site no navegador e nas configurações do sistema. Depois, tente novamente."
+              : erro.code === 3
+                ? "A localização demorou a responder. Ative a localização do dispositivo e tente novamente."
+                : "O navegador não conseguiu determinar sua posição. Ative a localização do sistema e tente novamente.";
+          rejeitar(new ErroGps(codigo, mensagem));
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
+      );
+    },
+  );
+
+  return validarPosicao(local, perfil);
+}
+
 async function ler(perfil: PerfilGps) {
+  if (Platform.OS === "web") return lerNavegador(perfil);
+
   let permissao = await Location.getForegroundPermissionsAsync();
 
   if (!permissao.granted && permissao.canAskAgain) {

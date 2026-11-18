@@ -3,13 +3,7 @@ import {
   useNavigation,
   type NavigationProp,
 } from "@react-navigation/native";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -21,10 +15,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import {
-  AppButton,
-  useAppTheme,
-} from "../../components/design";
+import { AvaliacaoApp } from "../../components/avaliacao-app";
+import { AppButton, useAppTheme } from "../../components/design";
 import {
   AvisoFavoritos,
   CartaoPostoComFavorito,
@@ -49,9 +41,9 @@ import {
 } from "../../services/catalogoPostos";
 import { registrarPostoVisto } from "../../services/historicoVistos";
 import { design } from "../../theme/design";
+import { zoomLocalizacao } from "../../utils/precisaoGps";
 import { DetalhesPostoConsulta } from "./detalhes";
 import { BotaoConsulta, styles } from "./layout";
-
 // Coordena Mapa/Feed com catálogo e filtros compartilhados, seleção e painéis responsivos.
 export default function ConsultaPostos({
   modo = "mapa",
@@ -70,28 +62,34 @@ export default function ConsultaPostos({
     avisoGps,
     erro,
     carregando,
+    referenciaMapa,
     atualizarLocalizacao,
     recarregar,
   } = useFiltrosPostos();
-
+  useEffect(() => {
+    if (referenciaMapa) {
+      mapa.current?.centralizar(
+        referenciaMapa.lat,
+        referenciaMapa.lon,
+        zoomLocalizacao(referenciaMapa),
+      );
+    }
+  }, [referenciaMapa]);
   useFocusEffect(
     useCallback(() => {
       recarregar();
     }, [recarregar]),
   );
 
-  const desktop =
-    useWindowDimensions().width >= design.desktop;
+  const desktop = useWindowDimensions().width >= design.desktop;
 
   const mapa = useRef<MapaLeafletHandle>(null);
 
   const [filtrosAbertos, abrirFiltros] = useState(false);
   const [listaAberta, abrirLista] = useState(false);
   const [legendaAberta, abrirLegenda] = useState(false);
-  const [selecionado, selecionar] =
-    useState<number | null>(null);
-  const [painelDesktop, definirPainelDesktop] =
-    useState(true);
+  const [selecionado, selecionar] = useState<number | null>(null);
+  const [painelDesktop, definirPainelDesktop] = useState(true);
   const [erroRota, definirErroRota] = useState("");
   const [buscaNome, definirBuscaNome] = useState("");
 
@@ -100,11 +98,7 @@ export default function ConsultaPostos({
 
   useEffect(() => {
     if (usuario) {
-      mapa.current?.centralizar(
-        usuario.lat,
-        usuario.lon,
-        14,
-      );
+      mapa.current?.centralizar(usuario.lat, usuario.lon, 14);
     }
   }, [usuario]);
 
@@ -121,16 +115,11 @@ export default function ConsultaPostos({
               ? "Sem preço"
               : "Ver preços"
             : precoFormatado(p.preco_referencia),
-        segmentos: segmentosPosto(
-          p,
-          filtros.combustiveis,
-        ).map((s) => s.cor),
+        segmentos: segmentosPosto(p, filtros.combustiveis).map((s) => s.cor),
         eletrico:
           p.tipo_posto === "Eletroposto" ||
           p.combustiveis.some(
-            (o) =>
-              o.codigo === "recarga_eletrica" &&
-              o.disponivel === true,
+            (o) => o.codigo === "recarga_eletrica" && o.disponivel === true,
           ),
         selecionado: p.id === selecionado,
         nome: p.nome,
@@ -145,11 +134,7 @@ export default function ConsultaPostos({
     abrirLista(false);
     definirPainelDesktop(true);
 
-    mapa.current?.centralizar(
-      p.latitude,
-      p.longitude,
-      17,
-    );
+    mapa.current?.centralizar(p.latitude, p.longitude, 17);
 
     void registrarPostoVisto(
       {
@@ -223,11 +208,7 @@ export default function ConsultaPostos({
         onErroRota={definirErroRota}
         onAtualizar={recarregar}
         onRegistrar={(combustivel) =>
-          abrirCadastro(
-            posto,
-            combustivel,
-            Date.now(),
-          )
+          abrirCadastro(posto, combustivel, Date.now())
         }
         onVoltar={() => {
           selecionar(null);
@@ -237,12 +218,10 @@ export default function ConsultaPostos({
     );
   }
 
-  const painelNaLateral =
-    desktop && modo === "mapa";
+  const painelNaLateral = desktop && modo === "mapa";
 
   const modalAberto =
-    legendaAberta ||
-    (!painelNaLateral && (listaAberta || !!posto));
+    legendaAberta || (!painelNaLateral && (listaAberta || !!posto));
 
   // Fecha legenda/lista e limpa a seleção ao dispensar o painel ou modal.
   function fecharPainel() {
@@ -259,20 +238,12 @@ export default function ConsultaPostos({
         backgroundColor: colors.background,
       }}
     >
-      <View
-        style={[
-          styles.cabecalho,
-          { borderBottomColor: colors.border },
-        ]}
-      >
+      <View style={[styles.cabecalho, { borderBottomColor: colors.border }]}>
         <AvisoFavoritos />
 
         <Text
           accessibilityRole="header"
-          style={[
-            styles.titulo,
-            { color: colors.textPrimary },
-          ]}
+          style={[styles.titulo, { color: colors.textPrimary }]}
         >
           {modo === "mapa"
             ? desktop
@@ -287,15 +258,14 @@ export default function ConsultaPostos({
           {filtros.combustiveis.length
             ? filtros.combustiveis.length === 1
               ? produto(filtros.combustiveis[0]).nome
-              : filtros.combustiveis.length +
-                " combustíveis selecionados"
+              : filtros.combustiveis.length + " combustíveis selecionados"
             : "Todos os combustíveis"}
           {" · "}
           {filtros.marca === "nao_informada"
             ? "Marca não informada"
             : filtros.marca || "Todas as bandeiras"}
         </Text>
-
+        {modo === "lista" ? <AvaliacaoApp compacto /> : null}
         {avisoGps ? (
           <Text
             accessibilityLabel={avisoGps}
@@ -304,8 +274,7 @@ export default function ConsultaPostos({
               marginTop: 6,
             }}
           >
-            Localização indisponível · João Pessoa como
-            referência. Sem distâncias pessoais.
+            {avisoGps}
           </Text>
         ) : null}
       </View>
@@ -321,11 +290,9 @@ export default function ConsultaPostos({
             <MapaLeaflet
               ref={mapa}
               postos={pinos}
-              usuario={usuario}
+              usuario={referenciaMapa}
               onSelecionarPosto={(id) => {
-                const p = postos.find(
-                  (item) => item.id === id,
-                );
+                const p = postos.find((item) => item.id === id);
 
                 if (p) escolher(p);
               }}
@@ -352,9 +319,7 @@ export default function ConsultaPostos({
               ]}
             >
               {carregando ? (
-                <ActivityIndicator
-                  color={colors.textPrimary}
-                />
+                <ActivityIndicator color={colors.textPrimary} />
               ) : (
                 <Pressable
                   accessibilityRole="button"
@@ -388,11 +353,11 @@ export default function ConsultaPostos({
               label="Localização"
               icone="locate-outline"
               onPress={() => {
-                if (usuario) {
+                if (referenciaMapa) {
                   mapa.current?.centralizar(
-                    usuario.lat,
-                    usuario.lon,
-                    14,
+                    referenciaMapa.lat,
+                    referenciaMapa.lon,
+                    zoomLocalizacao(referenciaMapa),
                   );
                 }
 
@@ -485,10 +450,7 @@ export default function ConsultaPostos({
             </ScrollView>
 
             <View style={{ padding: 16 }}>
-              <AppButton
-                label="Fechar painel"
-                onPress={fecharPainel}
-              />
+              <AppButton label="Fechar painel" onPress={fecharPainel} />
             </View>
           </SafeAreaView>
         </View>
