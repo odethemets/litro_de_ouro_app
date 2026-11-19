@@ -1,4 +1,4 @@
-"""Testa a recuperação HTTP sem acessar a rede."""
+"""Testa recuperação HTTP e validade temporal sem acessar a rede."""
 
 import ast
 import io
@@ -18,37 +18,112 @@ URL = "https://overpass-api.de/api/interpreter"
 ALTERNATIVO = "https://overpass.private.coffee/api/interpreter"
 
 
-def carregar_funcao(ambiente):
+def carregar_funcoes(ambiente):
     raiz = Path(__file__).resolve().parents[2]
     arquivo = raiz / ".github/workflows/osm_fonte.yml"
     linhas = arquivo.read_text(encoding="utf-8-sig").splitlines()
-
-    inicio = next(
-        i for i, linha in enumerate(linhas)
-        if linha.lstrip().startswith("def consultar_overpass(")
-    )
-    recuo = len(linhas[inicio]) - len(linhas[inicio].lstrip())
 
     referencia = next(
         linha for linha in linhas
         if linha.lstrip().startswith("def rejeitar_constante(")
     )
-    if recuo != len(referencia) - len(referencia.lstrip()):
-        raise ValueError("Alinhe consultar_overpass com rejeitar_constante.")
+    recuo_esperado = len(referencia) - len(referencia.lstrip())
 
-    fim = inicio + 1
-    while fim < len(linhas):
-        linha = linhas[fim]
-        if linha.strip():
-            atual = len(linha) - len(linha.lstrip())
-            if atual <= recuo:
-                break
-        fim += 1
+    for nome in (
+        "rejeitar_constante",
+        "validar_data_fonte",
+        "consultar_overpass",
+    ):
+        inicio = next(
+            i for i, linha in enumerate(linhas)
+            if linha.lstrip().startswith(f"def {nome}(")
+        )
+        recuo = len(linhas[inicio]) - len(linhas[inicio].lstrip())
+        if recuo != recuo_esperado:
+            raise ValueError(f"Alinhamento incorreto de {nome}.")
 
-    codigo = textwrap.dedent("\n".join(linhas[inicio:fim]))
-    arvore = ast.parse(codigo)
-    exec(compile(arvore, str(arquivo), "exec"), ambiente)
-    return ambiente["consultar_overpass"]
+        fim = inicio + 1
+        while fim < len(linhas):
+            linha = linhas[fim]
+            if linha.strip():
+                atual = len(linha) - len(linha.lstrip())
+                if atual <= recuo:
+                    break
+            fim += 1
+
+        codigo = textwrap.dedent("\n".join(linhas[inicio:fim]))
+        exec(compile(ast.parse(codigo), str(arquivo), "exec"), ambiente)
+
+    return ambiente
+
+
+def fonte_json(data=None, marcador="nova"):
+    if data is None:
+        data = datetime.now(timezone.utc) - timedelta(minutes=1)
+    return json.dumps({
+        "osm3s": {"timestamp_osm_base": data.isoformat()},
+        "marcador": marcador,
+    })
+
+
+class DataFonteTests(unittest.TestCase):
+    def setUp(self):
+        ambiente = carregar_funcoes({"json": json})
+        self.validar = ambiente["validar_data_fonte"]
+        self.agora = datetime(2026, 11, 18, 12, tzinfo=timezone.utc)
+        saida = patch("sys.stdout", new=io.StringIO())
+        saida.start()
+        self.addCleanup(saida.stop)
+
+    def test_recente_com_z_e_offset(self):
+        data = self.agora - timedelta(minutes=1)
+        valores = (
+            data.isoformat().replace("+00:00", "Z"),
+            data.astimezone(timezone(timedelta(hours=-3))).isoformat(),
+        )
+        for valor in valores:
+            with self.subTest(valor=valor):
+                _, idade = self.validar(
+                    {"osm3s": {"timestamp_osm_base": valor}},
+                    agora=self.agora,
+                )
+                self.assertEqual(idade, 60)
+
+    def test_limites_exatos(self):
+        for idade in (-300, 30 * 86400):
+            with self.subTest(idade=idade):
+                corpo = json.loads(fonte_json(
+                    self.agora - timedelta(seconds=idade)
+                ))
+                _, calculada = self.validar(corpo, agora=self.agora)
+                self.assertEqual(calculada, idade)
+
+    def test_rejeita_fora_da_janela(self):
+        for idade in (-301, 30 * 86400 + 1):
+            with self.subTest(idade=idade):
+                corpo = json.loads(fonte_json(
+                    self.agora - timedelta(seconds=idade)
+                ))
+                with self.assertRaisesRegex(ValueError, "fora do intervalo"):
+                    self.validar(corpo, agora=self.agora)
+
+    def test_rejeita_data_ausente_ou_sem_fuso(self):
+        corpos = (
+            {},
+            {"osm3s": {}},
+            {"osm3s": {"timestamp_osm_base": "2026-11-18T12:00:00"}},
+        )
+        for corpo in corpos:
+            with self.subTest(corpo=corpo):
+                with self.assertRaises(ValueError):
+                    self.validar(corpo, agora=self.agora)
+
+    def test_rejeita_formato_invalido(self):
+        with self.assertRaises(ValueError):
+            self.validar(
+                {"osm3s": {"timestamp_osm_base": "data-invalida"}},
+                agora=self.agora,
+            )
 
 
 class CapturaOverpassTests(unittest.TestCase):
@@ -67,14 +142,16 @@ class CapturaOverpassTests(unittest.TestCase):
         )
         self.processo = processo
 
-        self.consultar = carregar_funcao({
+        ambiente = carregar_funcoes({
             "json": json,
             "subprocess": processo,
             "URL": URL,
+            "LIMITE": 1024 * 1024,
             "pasta": self.pasta,
             "temporario": self.corpo,
             "relatorio": self.relatorio,
         })
+        self.consultar = ambiente["consultar_overpass"]
 
         pausa = patch("time.sleep")
         self.pausa = pausa.start()
@@ -96,16 +173,14 @@ class CapturaOverpassTests(unittest.TestCase):
             raise resposta
 
         http = resposta.get("http", 200)
-        cabecalho = Path(
-            comando[comando.index("--dump-header") + 1]
-        )
+        cabecalho = Path(comando[comando.index("--dump-header") + 1])
         linhas = [f"HTTP/2 {http}"]
         if "retry_after" in resposta:
             linhas.append("Retry-After: " + resposta["retry_after"])
 
         cabecalho.write_text("\n".join(linhas), encoding="utf-8")
         self.corpo.write_text(
-            resposta.get("corpo", "{}"),
+            resposta.get("corpo", fonte_json()),
             encoding="utf-8",
         )
 
@@ -148,7 +223,6 @@ class CapturaOverpassTests(unittest.TestCase):
     def test_502_usa_alternativo_preservando_requisicao(self):
         self.respostas = [{"http": 502}, {"http": 200}]
         self.executar()
-
         chamada = self.processo.run.call_args
         comando = chamada.args[0]
         self.assertIn(ALTERNATIVO, comando)
@@ -156,13 +230,11 @@ class CapturaOverpassTests(unittest.TestCase):
         self.assertEqual(comando[comando.index("--proto") + 1], "=https")
         self.assertEqual(comando[comando.index("--max-time") + 1], "120")
         self.assertEqual(chamada.kwargs["timeout"], 150)
-        self.assertEqual(self.relatorio["servidor"], ALTERNATIVO)
         self.pausa.assert_called_once_with(30)
 
     def test_tres_falhas_tem_limite(self):
         self.respostas = [{"http": 502}] * 3
         resultado = self.executar()
-
         self.assertEqual(json.loads(resultado.stdout)["response_code"], 502)
         self.assertEqual(self.processo.run.call_count, 3)
         self.assertEqual(
@@ -177,10 +249,7 @@ class CapturaOverpassTests(unittest.TestCase):
         self.pausa.assert_not_called()
 
     def test_timeout_curl_usa_alternativo(self):
-        self.respostas = [
-            {"http": 0, "codigo": 28},
-            {"http": 200},
-        ]
+        self.respostas = [{"http": 0, "codigo": 28}, {"http": 200}]
         self.executar()
         self.assertEqual(self.processo.run.call_count, 2)
         self.assertEqual(self.relatorio["servidor"], ALTERNATIVO)
@@ -194,17 +263,17 @@ class CapturaOverpassTests(unittest.TestCase):
         self.assertEqual(self.processo.run.call_count, 2)
         self.pausa.assert_called_once_with(30)
 
-    def test_retry_after_e_limpeza_de_resposta_anterior(self):
+    def test_retry_after_e_limpeza(self):
         self.respostas = [
-            {"http": 503, "retry_after": "45", "corpo": "resposta incompleta"},
-            {"http": 200, "corpo": "resposta nova"},
+            {"http": 503, "retry_after": "45", "corpo": "incompleta"},
+            {"http": 200, "corpo": fonte_json(marcador="nova")},
         ]
         self.executar()
         self.pausa.assert_called_once_with(45)
         self.assertEqual(self.sobras, [False, False])
         self.assertEqual(
-            self.corpo.read_text(encoding="utf-8"),
-            "resposta nova",
+            json.loads(self.corpo.read_text(encoding="utf-8"))["marcador"],
+            "nova",
         )
 
     def test_retry_after_longo_interrompe(self):
@@ -227,9 +296,45 @@ class CapturaOverpassTests(unittest.TestCase):
         self.respostas = [{"http": 502}]
         with patch("time.monotonic", side_effect=[0, 590]):
             self.executar()
-
         self.assertEqual(self.processo.run.call_count, 1)
         self.pausa.assert_not_called()
+
+    def test_200_antigo_tenta_outro_servidor(self):
+        antiga = datetime.now(timezone.utc) - timedelta(days=31)
+        self.respostas = [
+            {"http": 200, "corpo": fonte_json(antiga)},
+            {"http": 200},
+        ]
+        self.executar()
+        self.assertEqual(self.processo.run.call_count, 2)
+        self.assertEqual(self.relatorio["servidor"], ALTERNATIVO)
+
+    def test_200_futuro_tenta_outro_servidor(self):
+        futura = datetime.now(timezone.utc) + timedelta(minutes=10)
+        self.respostas = [
+            {"http": 200, "corpo": fonte_json(futura)},
+            {"http": 200},
+        ]
+        self.executar()
+        self.assertEqual(self.processo.run.call_count, 2)
+
+    def test_todas_as_fontes_antigas_sao_rejeitadas(self):
+        antiga = datetime.now(timezone.utc) - timedelta(days=31)
+        self.respostas = [{"http": 200, "corpo": fonte_json(antiga)}] * 3
+        with self.assertRaisesRegex(ValueError, "fonte rejeitada"):
+            self.executar()
+        self.assertEqual(self.processo.run.call_count, 3)
+        self.assertEqual(self.relatorio["etapa"], "validar_fonte")
+
+    def test_json_nao_finito_tenta_outro_servidor(self):
+        invalida = json.loads(fonte_json())
+        invalida["extra"] = float("nan")
+        self.respostas = [
+            {"http": 200, "corpo": json.dumps(invalida)},
+            {"http": 200},
+        ]
+        self.executar()
+        self.assertEqual(self.processo.run.call_count, 2)
 
 
 if __name__ == "__main__":

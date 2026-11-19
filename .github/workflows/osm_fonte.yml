@@ -21,6 +21,7 @@ jobs:
   fonte:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
+
     outputs:
       sha256_fonte: ${{ steps.captura.outputs.sha256_fonte }}
       artefato_fonte: ${{ format('osm-fonte-{0}-{1}', github.run_id, github.run_attempt) }}
@@ -40,6 +41,7 @@ jobs:
 
           URL = "https://overpass-api.de/api/interpreter"
           LIMITE = 16 * 1024 * 1024
+
           CONSULTA = (
               '[out:json][timeout:60];'
               'area["boundary"="administrative"]["admin_level"="8"]'
@@ -49,9 +51,11 @@ jobs:
               'nwr["amenity"="charging_station"](area.municipio);'
               ');out center tags;'
           )
+
           pasta = Path(os.environ["GITHUB_WORKSPACE"]) / "relatorios/osm-fonte"
           pasta.mkdir(parents=True, exist_ok=False)
           temporario = pasta / "resposta.tmp"
+
           relatorio = {
               "status": "iniciado",
               "etapa": "consultar_overpass",
@@ -65,9 +69,66 @@ jobs:
 
           def rejeitar_constante(valor):
               raise ValueError("Constante JSON invalida: " + valor)
-          def consultar_overpass(comando, *argumentos, **opcoes):
-              import time
+
+          def validar_data_fonte(corpo, agora=None, servidor=None):
               from datetime import datetime, timezone
+              momento = datetime.now(timezone.utc) if agora is None else agora
+              meta = corpo.get("osm3s") if isinstance(corpo, dict) else None
+              valor = meta.get("timestamp_osm_base") if isinstance(meta, dict) else None
+
+              registro = {
+                  "etapa": "diagnosticar_data_fonte",
+                  "servidor": servidor,
+                  "data_recebida": valor[:100] if isinstance(valor, str) else None,
+                  "agora_utc": momento.astimezone(timezone.utc).isoformat(),
+                  "idade_min_s": -300,
+                  "idade_max_s": 30 * 86400,
+              }
+
+              motivo = "data_ausente"
+
+              try:
+                  if not isinstance(valor, str):
+                      raise ValueError("Data da fonte ausente.")
+
+                  motivo = "formato_invalido"
+                  data = datetime.fromisoformat(valor.replace("Z", "+00:00"))
+
+                  motivo = "data_sem_fuso"
+                  if data.tzinfo is None:
+                      raise ValueError("Data da fonte sem fuso horario.")
+
+                  idade_s = (momento - data).total_seconds()
+                  registro["data_fonte_utc"] = data.astimezone(
+                      timezone.utc
+                  ).isoformat()
+                  registro["idade_s"] = idade_s
+                  registro["idade_dias"] = round(idade_s / 86400, 4)
+
+                  if idade_s < -300:
+                      motivo = "data_no_futuro"
+                      raise ValueError("Data da fonte fora do intervalo aceito.")
+
+                  if idade_s > 30 * 86400:
+                      motivo = "fonte_antiga"
+                      raise ValueError("Data da fonte fora do intervalo aceito.")
+
+              except (ValueError, TypeError, OverflowError) as erro:
+                  registro.update({
+                      "status": "rejeitada",
+                      "motivo": motivo,
+                      "erro": str(erro)[:180],
+                  })
+                  print(json.dumps(registro, ensure_ascii=False), flush=True)
+                  raise
+
+              registro["status"] = "aceita"
+              print(json.dumps(registro, ensure_ascii=False), flush=True)
+              return data, idade_s
+
+          def consultar_overpass(comando, *argumentos, **opcoes):
+              from datetime import datetime, timezone
+              import time
               from email.utils import parsedate_to_datetime
 
               if not isinstance(comando, (list, tuple)) or comando.count(URL) != 1:
@@ -89,7 +150,12 @@ jobs:
                   else:
                       argv[1:1] = [chave, valor]
 
-              def encerrar(atual):
+              def encerrar(atual, erro_fonte):
+                  if erro_fonte is not None:
+                      relatorio["etapa"] = "validar_fonte"
+                      raise ValueError(
+                          "Resposta recebida, mas fonte rejeitada: " + erro_fonte
+                      )
                   if atual is None:
                       raise TimeoutError("Tempo limite ao consultar Overpass.")
                   return atual
@@ -111,13 +177,11 @@ jobs:
                   medidas = {}
                   codigo_curl = None
                   status_http = None
+                  erro_fonte = None
+                  fonte_valida = False
 
                   try:
-                      atual = subprocess.run(
-                          argv,
-                          *argumentos,
-                          **opcoes,
-                      )
+                      atual = subprocess.run(argv, *argumentos, **opcoes)
                   except subprocess.TimeoutExpired:
                       pass
                   else:
@@ -152,6 +216,26 @@ jobs:
 
                       cabecalho.unlink(missing_ok=True)
 
+                  if codigo_curl == 0 and status_http == 200:
+                      try:
+                          if temporario.stat().st_size > LIMITE:
+                              raise ValueError("Fonte excede o limite de tamanho.")
+
+                          with temporario.open("rb") as arquivo:
+                              candidato = json.load(
+                                  arquivo,
+                                  parse_constant=rejeitar_constante,
+                              )
+
+                          if not isinstance(candidato, dict) or candidato.get("remark"):
+                              raise ValueError("Resposta Overpass incompleta.")
+
+                          validar_data_fonte(candidato, servidor=servidor)
+                      except (OSError, ValueError, TypeError, OverflowError) as erro:
+                          erro_fonte = str(erro)[:180]
+                      else:
+                          fonte_valida = True
+
                   registro = {
                       "etapa": "consultar_overpass",
                       "tentativa": numero,
@@ -160,9 +244,13 @@ jobs:
                       "status_http": status_http,
                       "duracao_s": medidas.get("time_total"),
                       "retry_after": retry_after,
+                      "data_validada": fonte_valida,
                   }
 
-                  if codigo_curl != 0 or status_http != 200:
+                  if erro_fonte is not None:
+                      registro["erro_validacao"] = erro_fonte
+
+                  if not fonte_valida:
                       try:
                           with temporario.open("rb") as arquivo:
                               registro["corpo_inicio"] = arquivo.read(500).decode(
@@ -172,25 +260,29 @@ jobs:
                       except OSError:
                           pass
 
-                  relatorio["servidor"] = servidor
-                  relatorio["tentativas_realizadas"] = numero
+                  relatorio.update({
+                      "servidor": servidor,
+                      "tentativas_realizadas": numero,
+                      "codigo_curl": codigo_curl,
+                      "status_http": status_http,
+                      "verificacao_tls": medidas.get("ssl_verify_result"),
+                      "duracao_s": medidas.get("time_total"),
+                  })
 
-                  print(json.dumps(
-                      registro,
-                      ensure_ascii=False,
-                  ), flush=True)
+                  print(json.dumps(registro, ensure_ascii=False), flush=True)
 
-                  if codigo_curl == 0 and status_http == 200:
+                  if fonte_valida:
                       return atual
 
                   recuperavel = (
                       atual is None
                       or codigo_curl in {5, 6, 7, 18, 28, 52, 55, 56, 92}
                       or status_http in {408, 429, 500, 502, 503, 504}
+                      or erro_fonte is not None
                   )
 
                   if not recuperavel or numero == len(servidores):
-                      return encerrar(atual)
+                      return encerrar(atual, erro_fonte)
 
                   espera = 30 * (2 ** (numero - 1))
 
@@ -220,7 +312,7 @@ jobs:
                           "motivo": "espera_ou_tempo_total_excedido",
                           "espera_exigida_s": espera,
                       }), flush=True)
-                      return encerrar(atual)
+                      return encerrar(atual, erro_fonte)
 
                   print(json.dumps({
                       "status": "aguardando",
@@ -229,8 +321,10 @@ jobs:
                   }), flush=True)
 
                   time.sleep(espera)
+
           try:
-              execucao = consultar_overpass(                  [
+              execucao = consultar_overpass(
+                  [
                       "curl", "--silent", "--show-error",
                       "--proto", "=https",
                       "--connect-timeout", "15",
@@ -242,98 +336,144 @@ jobs:
                       "LitroDeOuro/1.1 (contact: litrodeourooficial@gmail.com)",
                       "--data-urlencode", "data=" + CONSULTA,
                       "--output", str(temporario),
-                      "--write-out", "%{json}", URL,
+                      "--write-out", "%{json}",
+                      URL,
                   ],
-                  capture_output=True, text=True, timeout=190, check=False,
+                  capture_output=True,
+                  text=True,
+                  timeout=190,
+                  check=False,
               )
-              info = json.loads(execucao.stdout)
+
+              info = json.loads(
+                  execucao.stdout or "{}",
+                  parse_constant=rejeitar_constante,
+              )
+              if not isinstance(info, dict):
+                  raise ValueError("Metricas HTTP invalidas.")
+
+              valor_http = info.get("response_code", info.get("http_code"))
+              try:
+                  status_http = int(valor_http)
+              except (ValueError, TypeError):
+                  status_http = None
+
               relatorio.update(
                   codigo_curl=execucao.returncode,
-                  status_http=info.get("http_code") or None,
+                  status_http=status_http,
                   verificacao_tls=info.get("ssl_verify_result"),
                   duracao_s=info.get("time_total"),
               )
-              if execucao.returncode or info.get("http_code") != 200:
+
+              if execucao.returncode != 0 or status_http != 200:
                   raise ValueError("Consulta HTTP nao concluida com sucesso.")
 
               relatorio["etapa"] = "validar_fonte"
-              with temporario.open("rb") as arquivo:
-                  bruto = arquivo.read(LIMITE + 1)
+              bruto = temporario.read_bytes()
+
               if not bruto or len(bruto) > LIMITE:
                   raise ValueError("Fonte vazia ou acima do limite.")
+
               corpo = json.loads(bruto, parse_constant=rejeitar_constante)
+
               if not isinstance(corpo, dict) or corpo.get("remark"):
                   raise ValueError("Resposta Overpass incompleta.")
+
               elementos = corpo.get("elements")
               if not isinstance(elementos, list) or not 2 <= len(elementos) <= 5000:
-                  raise ValueError("Quantidade de elementos incompatível.")
+                  raise ValueError("Quantidade de elementos incompativel.")
+
               if not all(isinstance(item, dict) for item in elementos):
                   raise ValueError("Elemento OSM invalido.")
-              areas = [item for item in elementos if item.get("type") == "area"]
+
+              areas = [
+                  item for item in elementos
+                  if item.get("type") == "area"
+              ]
               if len(areas) != 1:
                   raise ValueError("Area administrativa ausente ou ambigua.")
-              area = areas[0]
-              tags = area.get("tags")
+
+              tags = areas[0].get("tags")
               if (
                   not isinstance(tags, dict)
-                  or tags.get("IBGE:GEOCODIGO") != "2507507"
                   or tags.get("boundary") != "administrative"
                   or tags.get("admin_level") != "8"
-                  or type(area.get("id")) is not int
-                  or area["id"] <= 0
+                  or tags.get("IBGE:GEOCODIGO") != "2507507"
               ):
-                  raise ValueError("A area nao comprova o municipio esperado.")
-              locais = [item for item in elementos if item.get("type") != "area"]
+                  raise ValueError("Consulta fora do municipio esperado.")
+
+              locais = [
+                  item for item in elementos
+                  if item.get("type") != "area"
+              ]
+
               for item in locais:
+                  centro = (
+                      item if item.get("type") == "node"
+                      else item.get("center")
+                  )
                   tags = item.get("tags")
+
                   if (
-                      item.get("type") not in ("node", "way", "relation")
+                      item.get("type") not in {"node", "way", "relation"}
+                      or not isinstance(item.get("id"), int)
+                      or item["id"] <= 0
                       or not isinstance(tags, dict)
-                      or tags.get("amenity") not in ("fuel", "charging_station")
+                      or tags.get("amenity") not in {"fuel", "charging_station"}
+                      or not isinstance(centro, dict)
+                      or not isinstance(centro.get("lat"), (int, float))
+                      or not isinstance(centro.get("lon"), (int, float))
+                      or not -7.25 <= centro["lat"] <= -6.95
+                      or not -35.0 <= centro["lon"] <= -34.7
                   ):
                       raise ValueError("Local fora da consulta esperada.")
 
-              meta = corpo.get("osm3s")
-              valor = meta.get("timestamp_osm_base") if isinstance(meta, dict) else None
-              if not isinstance(valor, str):
-                  raise ValueError("Data da fonte ausente.")
-              data = datetime.fromisoformat(valor.replace("Z", "+00:00"))
-              if data.tzinfo is None:
-                  raise ValueError("Data da fonte sem fuso horario.")
-              idade_s = (datetime.now(timezone.utc) - data).total_seconds()
-              if not -300 <= idade_s <= 30 * 86400:
-                  raise ValueError("Data da fonte fora do intervalo aceito.")
+              data, idade_s = validar_data_fonte(
+                  corpo,
+                  servidor=relatorio["servidor"],
+              )
 
               relatorio["etapa"] = "arquivar_fonte"
+
               with (pasta / "fonte.json").open("xb") as arquivo:
                   arquivo.write(bruto)
-              sha256 = hashlib.sha256(bruto).hexdigest()
-              manifesto = {"arquivos": {"fonte.json": sha256}}
+
+              sha256_fonte = hashlib.sha256(bruto).hexdigest()
+              manifesto = {"arquivos": {"fonte.json": sha256_fonte}}
+
               with (pasta / "manifesto.json").open("x", encoding="utf-8") as arquivo:
                   json.dump(manifesto, arquivo, ensure_ascii=False, indent=2)
+
               relatorio.update(
-                  status="ok", etapa="concluido",
+                  status="ok",
+                  etapa="concluido",
                   consulta_municipal_validada=True,
                   elementos_locais=len(locais),
                   data_base_fonte_utc=data.astimezone(timezone.utc).isoformat(),
-                  sha256_fonte=sha256,
+                  sha256_fonte=sha256_fonte,
               )
+
               saida_github = os.environ.get("GITHUB_OUTPUT")
               if saida_github:
                   with Path(saida_github).open("a", encoding="utf-8") as arquivo:
-                      arquivo.write("sha256_fonte=" + sha256 + "\n")
+                      arquivo.write("sha256_fonte=" + sha256_fonte + "\n")
+
               codigo = 0
+
           except Exception as erro:
               relatorio.update(
-                  status="falha", tipo_erro=type(erro).__name__,
+                  status="falha",
+                  tipo_erro=type(erro).__name__,
               )
               if isinstance(erro, ValueError):
                   relatorio["erro"] = str(erro)[:200]
+
           finally:
               temporario.unlink(missing_ok=True)
               with (pasta / "relatorio.json").open("x", encoding="utf-8") as arquivo:
                   json.dump(relatorio, arquivo, ensure_ascii=False, indent=2)
               print(json.dumps(relatorio, ensure_ascii=False, indent=2), flush=True)
+
           sys.exit(codigo)
 
       - name: Guardar fonte e relatorio
