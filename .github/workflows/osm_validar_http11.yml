@@ -1,0 +1,161 @@
+name: OSM - validar HTTP1.1
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+
+    defaults:
+      run:
+        working-directory: back_end
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Testar validacao sem rede
+        run: python -B tests/test_http11_overpass.py
+
+      - name: Validar POST HTTP1.1 sem banco
+        env:
+          OSM_HTTP11_SAIDA: ${{ runner.temp }}/osm-http11
+        run: |
+          python -B - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import time
+
+          from services.diagnostico_rede_overpass import sondar, resumo_markdown
+          from services.fontes_overpass import ALTERNATIVO
+
+          pasta = Path(os.environ["OSM_HTTP11_SAIDA"])
+          pasta.mkdir(parents=True, exist_ok=False)
+          resultados = []
+
+          for indice, ipv4 in enumerate((False, True)):
+              if indice:
+                  time.sleep(2)
+
+              negociacao = {"versao": None}
+
+              def executar(argv, **opcoes):
+                  comando = list(argv)
+                  comando.insert(1, "--http1.1")
+
+                  if ipv4:
+                      comando.insert(1, "--ipv4")
+
+                  resposta = subprocess.run(comando, **opcoes)
+
+                  try:
+                      medidas = json.loads(resposta.stdout or "{}")
+
+                      if isinstance(medidas, dict):
+                          valor = medidas.get("http_version")
+
+                          if isinstance(valor, str) and valor in (
+                              "0", "1", "1.0", "1.1", "2", "3"
+                          ):
+                              negociacao["versao"] = valor
+
+                  except (TypeError, ValueError):
+                      pass
+
+                  return resposta
+
+              registro = sondar(
+                  ALTERNATIVO,
+                  "POST",
+                  "automatico",
+                  executar=executar,
+              )
+
+              registro["perfil"] = (
+                  "http11_ipv4" if ipv4 else "http11_automatico"
+              )
+              registro["protocolo_solicitado"] = "HTTP/1.1"
+              registro["http_version_negociada"] = negociacao["versao"]
+
+              if registro["resposta_overpass_reconhecida"] and (
+                  negociacao["versao"] not in ("1", "1.0", "1.1")
+              ):
+                  registro["resposta_overpass_reconhecida"] = False
+                  registro["categoria"] = "http1_nao_confirmado"
+
+              resultados.append(registro)
+              print(json.dumps(registro, ensure_ascii=False), flush=True)
+
+              if (
+                  registro.get("status_http") in (401, 403, 429)
+                  or registro.get("retry_after_presente")
+                  or registro.get("codigo_curl") in (35, 60)
+              ):
+                  break
+
+          validas = [
+              r for r in resultados
+              if r["resposta_overpass_reconhecida"]
+          ]
+
+          relatorio = {
+              "status": (
+                  "http11_respondeu" if validas
+                  else "http11_sem_resposta_valida"
+              ),
+              "testes_realizados": len(resultados),
+              "banco_consultado": False,
+              "gravacao_banco_habilitada": False,
+              "consulta_municipal_validada": False,
+              "resultados": resultados,
+          }
+
+          resumo = resumo_markdown(relatorio)
+
+          (pasta / "relatorio.json").write_text(
+              json.dumps(
+                  relatorio,
+                  ensure_ascii=False,
+                  indent=2,
+              ) + "\n",
+              encoding="utf-8",
+          )
+
+          (pasta / "resumo.md").write_text(
+              resumo,
+              encoding="utf-8",
+          )
+
+          if os.environ.get("GITHUB_STEP_SUMMARY"):
+              try:
+                  with Path(os.environ["GITHUB_STEP_SUMMARY"]).open(
+                      "a",
+                      encoding="utf-8",
+                  ) as arquivo:
+                      arquivo.write(resumo)
+              except OSError:
+                  pass
+
+          raise SystemExit(0 if validas else 2)
+          PY
+
+      - name: Guardar resultados HTTP1.1
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: osm-http11-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/osm-http11
+          if-no-files-found: warn
+          retention-days: 7
