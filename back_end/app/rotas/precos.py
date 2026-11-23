@@ -9,6 +9,8 @@ from app.db import get_db_connection
 from app.utils.decorator import token_required
 from app.utils.geofence import GeofenceError, validar_proximidade
 from services.atividade_alertas import registrar_karma
+from services.catalogo_postos import NOMES
+from services.servicos_postos import produto_compativel
 
 precos_bp = Blueprint("precos", __name__)
 
@@ -43,6 +45,7 @@ FOTO_HOSTS = (
     "www.dropbox.com",
     "dl.dropboxusercontent.com",
 )
+
 
 def _validar_foto_url(bruto):
     """Retorna (url, erro). Sem foto, retorna (None, None)."""
@@ -92,6 +95,7 @@ def _validar_foto_url(bruto):
 
     return url, None
 
+
 def _id_posto_valido(valor):
     """Aceita somente inteiros positivos compatíveis com INT do MySQL."""
     if isinstance(valor, bool) or not isinstance(valor, (int, str)):
@@ -109,6 +113,7 @@ def _id_posto_valido(valor):
     numero = int(texto)
 
     return numero if 1 <= numero <= 2147483647 else None
+
 
 # Valida o cadastro e confirma preço, Karma, histórico e evento em uma transação.
 def registrar_preco_validado(
@@ -271,9 +276,15 @@ def registrar_preco_validado(
                     "error": "Posto não encontrado."
                 }), 404
 
-            eletrico = posto.get("tipo_posto") == "Eletroposto"
+            cursor.execute("""SELECT COALESCE(disponivel_manual,disponivel_osm) AS disponivel
+                FROM postos_combustiveis WHERE posto_id=%s AND combustivel_codigo=%s FOR UPDATE""",
+                (posto_id, NOMES[tipo]))
+            oferta = cursor.fetchone()
+            disponivel = oferta["disponivel"] if oferta else None
+            if disponivel == 0:
+                return jsonify(error="Este produto está marcado como indisponível.", codigo="PRODUTO_INDISPONIVEL"), 409
 
-            if eletrico != (tipo == COMBUSTIVEL_ELETRICO):
+            if not produto_compativel(posto.get("tipo_posto"), NOMES[tipo], disponivel):
                 return jsonify({
                     "error": (
                         "Este combustível não corresponde "
@@ -398,11 +409,25 @@ def registrar_preco_validado(
         if conn is not None:
             conn.close()
 
+
 @precos_bp.route("", methods=["POST"], strict_slashes=False)
 @token_required
 # Encaminha o JSON e a conta autenticada à regra compartilhada com o alias por posto.
 def registrar_preco(usuario_id_token):
     return registrar_preco_validado(
+        usuario_id_token,
+        request.get_json(silent=True),
+    )
+
+
+@precos_bp.route("/lote", methods=["POST"], strict_slashes=False)
+@token_required
+def registrar_precos_lote(usuario_id_token):
+    from services.precos_lote import registrar_lote_validado
+
+    if request.content_length and request.content_length > 16384:
+        return jsonify(error="Lote muito grande."), 413
+    return registrar_lote_validado(
         usuario_id_token,
         request.get_json(silent=True),
     )

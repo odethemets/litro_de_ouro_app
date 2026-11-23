@@ -15,6 +15,7 @@ FILES = (
     "002_marcas_postos.sql",
     "003_gestao_conta.sql",
     "004_atividade_alertas.sql",
+    "005_solicitacoes_servicos.sql",
 )
 
 
@@ -33,6 +34,7 @@ TABLES = (
     "historico_karma",
     "eventos_preco",
     "notificacoes",
+    "solicitacoes_servicos",
 )
 
 
@@ -226,6 +228,8 @@ def load_migrations(folder: Path) -> list[dict]:
             r"CREATE\s+TABLE\s+notificacoes\s*\(",
         ),
     )
+
+    allowed += ((r"CREATE\s+TABLE\s+solicitacoes_servicos\s*\(",),)
 
     for name, patterns in zip(FILES, allowed):
         text = (folder / name).read_text(encoding="utf-8-sig")

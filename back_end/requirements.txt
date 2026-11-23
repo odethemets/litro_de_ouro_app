@@ -9,3 +9,4 @@ requests==2.31.0
 google-genai==2.34.0
 dropbox==11.36.2
 Pillow
+setuptools<81

@@ -3,160 +3,42 @@ name: OSM - diagnostico HTTP
 on:
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   diagnostico:
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
+    timeout-minutes: 5
+
+    defaults:
+      run:
+        working-directory: back_end
 
     steps:
-      - name: Comparar respostas dos servidores Overpass
-        shell: python
-        run: |
-          import json
-          import os
-          import subprocess
-          import tempfile
-          import time
-          from pathlib import Path
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-          servidores = (
-              "https://overpass-api.de/api/interpreter",
-              "https://overpass.private.coffee/api/interpreter",
-          )
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-          consulta = "[out:json][timeout:5];node(1);out ids;"
-          resultados = []
+      - name: Testar diagnostico sem rede
+        run: python -B tests/test_diagnostico_overpass.py
 
-          for servidor in servidores:
-              for metodo in ("POST", "GET"):
-                  with tempfile.TemporaryDirectory() as temporario:
-                      pasta = Path(temporario)
-                      corpo = pasta / "corpo.txt"
-                      cabecalhos = pasta / "cabecalhos.txt"
+      - name: Comparar servidores e IPv4 sem banco
+        env:
+          OSM_OVERPASS_URLS: ""
+        run: >-
+          python -B scripts/diagnosticar_rede_overpass.py
+          --saida "${{ runner.temp }}/osm-diagnostico-rede"
 
-                      comando = [
-                          "curl",
-                          "--silent",
-                          "--show-error",
-                          "--location",
-                          "--max-redirs", "3",
-                          "--proto", "=https",
-                          "--proto-redir", "=https",
-                          "--connect-timeout", "8",
-                          "--max-time", "25",
-                          "--max-filesize", "262144",
-                          "--user-agent",
-                          "LitroDeOuro/diagnostico (+https://github.com/odethemets/litro_de_ouro_app)",
-                          "--header", "Accept: application/json",
-                          "--dump-header", str(cabecalhos),
-                          "--output", str(corpo),
-                          "--write-out", "%{json}",
-                      ]
-
-                      if metodo == "GET":
-                          comando.append("--get")
-                      else:
-                          comando.extend(["--request", "POST"])
-
-                      comando.extend([
-                          "--data-urlencode",
-                          "data=" + consulta,
-                          servidor,
-                      ])
-
-                      registro = {
-                          "servidor": servidor,
-                          "metodo": metodo,
-                          "consulta_minima": True,
-                      }
-
-                      try:
-                          resposta = subprocess.run(
-                              comando,
-                              capture_output=True,
-                              text=True,
-                              timeout=35,
-                              check=False,
-                          )
-
-                          try:
-                              medidas = json.loads(resposta.stdout)
-                          except ValueError:
-                              medidas = {}
-
-                          headers = {}
-                          if cabecalhos.is_file():
-                              for linha in cabecalhos.read_text(
-                                  encoding="utf-8",
-                                  errors="replace",
-                              ).splitlines():
-                                  if linha.startswith("HTTP/"):
-                                      headers = {}
-                                  elif ":" in linha:
-                                      nome, valor = linha.split(":", 1)
-                                      nome = nome.strip().lower()
-                                      if nome in {
-                                          "server",
-                                          "via",
-                                          "content-type",
-                                          "retry-after",
-                                          "x-cache",
-                                      }:
-                                          headers[nome] = valor.strip()
-
-                          texto = ""
-                          if corpo.is_file():
-                              with corpo.open("rb") as arquivo:
-                                  texto = arquivo.read(4096).decode(
-                                      "utf-8",
-                                      errors="replace",
-                                  )
-
-                          registro.update({
-                              "codigo_curl": resposta.returncode,
-                              "status_http": medidas.get(
-                                  "response_code",
-                                  medidas.get("http_code"),
-                              ),
-                              "verificacao_tls": medidas.get(
-                                  "ssl_verify_result",
-                              ),
-                              "duracao_s": medidas.get("time_total"),
-                              "ip_remoto": medidas.get("remote_ip"),
-                              "versao_http": medidas.get("http_version"),
-                              "cabecalhos": headers,
-                              "corpo_inicio": texto[:800],
-                              "erro_curl": resposta.stderr.strip()[:300],
-                              "proxy_configurado": any(
-                                  os.environ.get(nome)
-                                  for nome in (
-                                      "HTTP_PROXY", "HTTPS_PROXY",
-                                      "http_proxy", "https_proxy",
-                                      "ALL_PROXY", "all_proxy",
-                                  )
-                              ),
-                          })
-
-                      except subprocess.TimeoutExpired:
-                          registro.update({
-                              "status_http": None,
-                              "erro": "Timeout do processo curl.",
-                          })
-
-                      resultados.append(registro)
-                      print(json.dumps(
-                          registro,
-                          ensure_ascii=False,
-                      ), flush=True)
-
-                      if registro.get("status_http") == 429:
-                          break
-
-                  time.sleep(3)
-
-          print(json.dumps({
-              "status": "coleta_concluida",
-              "testes": len(resultados),
-          }, ensure_ascii=False))
+      - name: Guardar resultados de conectividade
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: osm-rede-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/osm-diagnostico-rede
+          if-no-files-found: warn
+          retention-days: 7

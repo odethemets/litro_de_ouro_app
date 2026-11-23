@@ -173,7 +173,9 @@ def make_plan(cursor, migrations):
             state = "aplicada"
         else:
             pending_seen = True
-            if version.startswith("004"):
+            if version.startswith("005"):
+                partial = "solicitacoes_servicos" in schema["tables"]
+            elif version.startswith("004"):
                 partial = any(t in schema["tables"] for t in ESTRUTURAS_004)
             elif version.startswith("003"):
                 partial = "trocas_email" in schema["tables"] or any(

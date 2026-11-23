@@ -127,6 +127,10 @@ def _index(schema, table, name, columns, unique=False):
 
 
 def validate_structure(cursor, schema, version):
+    if version.startswith("005"):
+        from services.validacao_servicos import validar_estrutura
+        validar_estrutura(cursor, schema, _column, _index)
+        return
     if version.startswith("004"):
         for table, fields in ESTRUTURAS_004.items():
             if str(schema["tables"].get(table, "")).lower() != "innodb":
@@ -336,4 +340,3 @@ def validate_structure(cursor, schema, version):
         _index(
             schema, "postos", "idx_postos_marca", ("marca",)
         )
-        

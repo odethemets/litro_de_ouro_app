@@ -1,8 +1,8 @@
 import type { PosicaoGps } from "../utils/localizacao";
 import {
-    COMBUSTIVEIS,
-    type Combustivel,
-    type PostoCatalogo,
+  COMBUSTIVEIS,
+  type Combustivel,
+  type PostoCatalogo,
 } from "./catalogoPostos";
 
 export interface PedidoCadastro {
@@ -57,12 +57,19 @@ export function precoCadastro(texto: string): string | null {
 export function produtosCadastro(posto: PostoCatalogo) {
   const eletrico = posto.tipo_posto === "Eletroposto";
 
-  return COMBUSTIVEIS.filter(
-    (p) =>
-      (p.codigo === "recarga_eletrica") === eletrico &&
-      posto.combustiveis.find((o) => o.codigo === p.codigo)?.disponivel !==
-        false,
-  );
+  return COMBUSTIVEIS.filter((produto) => {
+    const oferta = posto.combustiveis.find((o) => o.codigo === produto.codigo);
+
+    if (oferta?.disponivel === false) {
+      return false;
+    }
+
+    if (eletrico) {
+      return produto.codigo === "recarga_eletrica";
+    }
+
+    return produto.codigo !== "recarga_eletrica" || oferta?.disponivel === true;
+  });
 }
 
 export function produtoInicialCadastro(
@@ -185,6 +192,39 @@ export function confirmarCadastro(
   };
 }
 
+function falhaRespostaCadastro(
+  status: number | undefined,
+  bruto: unknown,
+): FalhaCadastro {
+  const dados =
+    bruto && typeof bruto === "object"
+      ? (bruto as Record<string, unknown>)
+      : {};
+
+  const mensagem =
+    typeof dados.error === "string" && dados.error.trim() ? dados.error : null;
+
+  if (status === 401) {
+    return new FalhaCadastro(
+      "sessao",
+      mensagem ?? "Sua sessão expirou. Entre novamente antes de registrar.",
+    );
+  }
+
+  if (status !== undefined && status >= 400 && status < 500 && status !== 408) {
+    return new FalhaCadastro(
+      "rejeitado",
+      mensagem ??
+        "O servidor recusou o registro. Confira os dados e tente novamente.",
+    );
+  }
+
+  return new FalhaCadastro(
+    "incerto",
+    "A confirmação não chegou. O preço pode ter sido registrado. Confira sua atividade antes de tentar novamente.",
+  );
+}
+
 export function criarEnvioPreco(deps: {
   tokenAtual(): string | null;
   obterGps(): Promise<PosicaoGps>;
@@ -196,13 +236,24 @@ export function criarEnvioPreco(deps: {
   let ocupado = false;
 
   return {
-    async enviar(pedido: PedidoCadastro): Promise<ConfirmacaoPreco> {
+    async enviar(original: PedidoCadastro): Promise<ConfirmacaoPreco> {
       if (ocupado) {
         throw new FalhaCadastro(
           "rejeitado",
           "Um envio já está em andamento. Aguarde a confirmação.",
         );
       }
+
+      // Captura o contexto antes de aguardar o GPS.
+      const pedido: PedidoCadastro = {
+        ...original,
+        posto: {
+          ...original.posto,
+          combustiveis: original.posto.combustiveis.map((oferta) => ({
+            ...oferta,
+          })),
+        },
+      };
 
       validarPedido(pedido);
       ocupado = true;
@@ -242,24 +293,16 @@ export function criarEnvioPreco(deps: {
             erro as {
               response?: {
                 status?: number;
-                data?: { error?: unknown };
+                data?: unknown;
               };
             } | null
           )?.response;
 
-          if (r?.status && r.status >= 400 && r.status < 500) {
-            throw new FalhaCadastro(
-              "rejeitado",
-              typeof r.data?.error === "string"
-                ? r.data.error
-                : "O servidor recusou o registro. Confira os dados e tente novamente.",
-            );
-          }
+          throw falhaRespostaCadastro(r?.status, r?.data);
+        }
 
-          throw new FalhaCadastro(
-            "incerto",
-            "A confirmação não chegou. O preço pode ter sido registrado. Confira sua atividade antes de tentar novamente.",
-          );
+        if (resposta.status !== 201) {
+          throw falhaRespostaCadastro(resposta.status, resposta.data);
         }
 
         return confirmarCadastro(

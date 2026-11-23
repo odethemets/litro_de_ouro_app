@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AvaliacaoApp } from "../../components/avaliacao-app";
+import { AtalhoBuscaMapa } from "../../components/busca-no-mapa";
 import { AppButton, useAppTheme } from "../../components/design";
 import {
   AvisoFavoritos,
@@ -241,16 +242,35 @@ export default function ConsultaPostos({
       <View style={[styles.cabecalho, { borderBottomColor: colors.border }]}>
         <AvisoFavoritos />
 
-        <Text
-          accessibilityRole="header"
-          style={[styles.titulo, { color: colors.textPrimary }]}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+          }}
         >
-          {modo === "mapa"
-            ? desktop
-              ? "Encontre seu próximo posto"
-              : "Postos próximos"
-            : "Postos na região"}
-        </Text>
+          <Text
+            accessibilityRole="header"
+            style={[
+              styles.titulo,
+              {
+                color: colors.textPrimary,
+                flex: 1,
+                minWidth: 0,
+              },
+            ]}
+          >
+            {modo === "mapa"
+              ? desktop
+                ? "Encontre seu próximo posto"
+                : "Postos próximos"
+              : "Postos na região"}
+          </Text>
+
+          {modo === "mapa" ? (
+            <AtalhoBuscaMapa aoAplicar={() => selecionar(null)} />
+          ) : null}
+        </View>
 
         <Text style={{ color: colors.textSecondary }}>
           Preço exibido: {referencia.nome}
@@ -265,7 +285,9 @@ export default function ConsultaPostos({
             ? "Marca não informada"
             : filtros.marca || "Todas as bandeiras"}
         </Text>
+
         {modo === "lista" ? <AvaliacaoApp compacto /> : null}
+
         {avisoGps ? (
           <Text
             accessibilityLabel={avisoGps}

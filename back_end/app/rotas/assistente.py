@@ -241,3 +241,81 @@ def consultar(usuario_id):
                 "Tente novamente ou use os filtros."
             )
         ), 503
+
+@assistente_bp.route(
+    "/ia/transcrever",
+    methods=["POST"],
+    strict_slashes=False,
+)
+@token_required
+def transcrever_busca_voz(usuario_id):
+    from services.transcricao_voz import (
+        AudioBuscaInvalido,
+        TranscricaoInvalida,
+        TranscricaoIndisponivel,
+        LIMITE_AUDIO_BYTES,
+        LIMITE_REQUISICAO_BYTES,
+        validar_audio,
+        transcrever_audio,
+    )
+
+    if (
+        request.content_length
+        and request.content_length > LIMITE_REQUISICAO_BYTES
+    ):
+        return jsonify(
+            error="O áudio deve ter no máximo 2 MB."
+        ), 413
+
+    arquivo = request.files.get("audio")
+
+    if arquivo is None:
+        return jsonify(
+            error="Envie a gravação no campo audio."
+        ), 400
+
+    try:
+        bruto, mime = validar_audio(
+            arquivo.read(LIMITE_AUDIO_BYTES + 1),
+            arquivo.mimetype,
+        )
+    except AudioBuscaInvalido as erro:
+        return jsonify(error=str(erro)), erro.status
+
+    if (
+        not os.getenv("GEMINI_API_KEY", "").strip()
+        or ia.genai is None
+        or ia.types is None
+    ):
+        return jsonify(
+            error=(
+                "A transcrição está indisponível. "
+                "Você pode digitar sua busca."
+            )
+        ), 503
+
+    if ia._excedeu_limite(usuario_id):
+        return jsonify(
+            error=(
+                "Limite de uso da IA atingido nesta hora. "
+                "Digite sua busca."
+            ),
+            codigo="LIMITE_IA",
+        ), 429
+
+    try:
+        texto = transcrever_audio(bruto, mime, ia)
+    except TranscricaoInvalida as erro:
+        return jsonify(error=str(erro)), 422
+    except TranscricaoIndisponivel:
+        current_app.logger.warning(
+            "Transcrição de busca indisponível."
+        )
+        return jsonify(
+            error=(
+                "Não foi possível transcrever agora. "
+                "Tente novamente ou digite."
+            )
+        ), 503
+
+    return jsonify(texto=texto), 200

@@ -14,6 +14,9 @@ from .rotas.participacao import participacao_bp
 from .rotas.assistente import assistente_bp
 from .rotas.ofertas import ofertas_bp
 from .rotas.votos import votos_bp
+from .rotas.servicos import servicos_bp
+
+
 def create_app():
     app = Flask(__name__)
 
@@ -63,4 +66,6 @@ def create_app():
     app.register_blueprint(assistente_bp)
     app.register_blueprint(ofertas_bp)
     app.register_blueprint(votos_bp)
+    app.register_blueprint(servicos_bp)
+
     return app

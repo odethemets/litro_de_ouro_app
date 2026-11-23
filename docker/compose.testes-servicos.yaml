@@ -1,0 +1,45 @@
+# Stack descartável EXCLUSIVA dos testes; usar -p ldo-servicos-validacao.
+# Não aplicar este override ao stack de desenvolvimento/produção.
+services:
+  certificados:
+    volumes:
+      # Substitui apenas o destino /exportar-ca; não toca a CA do stack dev.
+      - ca_teste_exportada:/exportar-ca
+
+  db:
+    ports: !reset []
+    environment:
+      MYSQL_DATABASE: ldo_validacao_servicos
+
+  testes_servicos:
+    image: litro-de-ouro-backend-local:dev
+    environment:
+      LDO_DOCKER_LOCAL: "1"
+      DATABASE_URL: ""
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: ldo_validacao_servicos
+      DB_USER: litro_local
+      DB_PASSWORD: ${LDO_DB_PASSWORD:?Execute docker/preparar_local.py}
+      DB_SSL_CA: /run/ldo-ca/ca.pem
+      SECRET_KEY: ${LDO_SECRET_KEY:?Execute docker/preparar_local.py}
+      APP_ENV: test
+      GOOGLE_SCRIPT_URL: ""
+      GOOGLE_SCRIPT_SECRET: ""
+      DROPBOX_TOKEN: ""
+      GEMINI_API_KEY: ""
+
+    entrypoint: ["python", "-B", "tests/integracao_servicos.py"]
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    volumes:
+      - ./back_end:/app:ro
+      - tls_cliente:/run/ldo-ca:ro
+
+    networks: [local]
+
+volumes:
+  ca_teste_exportada:

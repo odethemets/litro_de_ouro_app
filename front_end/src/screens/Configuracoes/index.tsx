@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { AvaliacaoApp } from "../../components/avaliacao-app";
 import { AppButton, Notice, Page, Surface } from "../../components/design";
+import { CentralServicos } from "../../components/servicos/central-servicos";
 import type { ContaPilha } from "../../routes/app.routes";
 
 type Props = NativeStackScreenProps<ContaPilha, "Definicoes">;
@@ -73,8 +74,11 @@ export default function Configuracoes({ navigation }: Props) {
           secondary
           onPress={() => navigation.navigate("PreferenciasAlertas")}
         />
+
         <Notice>Seus postos ficam salvos na sua conta.</Notice>
       </Surface>
+
+      <CentralServicos />
       <AvaliacaoApp />
     </Page>
   );
