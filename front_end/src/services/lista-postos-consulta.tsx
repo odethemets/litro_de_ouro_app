@@ -1,23 +1,13 @@
 import { useMemo, type ReactNode } from "react";
-import {
-  ActivityIndicator,
-  Keyboard,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Keyboard, Text, View } from "react-native";
 
-import type { PostoCatalogo } from "../services/catalogoPostos";
+import { AppButton, AppField, Notice, useAppTheme } from "../components/design";
 import {
   filtrarPostosPorNome,
   normalizarBuscaNome,
   postoMaisProximo,
-} from "../services/buscaPostosNome";
-import {
-  AppButton,
-  AppField,
-  Notice,
-  useAppTheme,
-} from "../components/design";
+} from "./buscaPostosNome";
+import type { PostoCatalogo } from "./catalogoPostos";
 
 interface Props {
   postos: PostoCatalogo[];
@@ -48,19 +38,14 @@ export function ListaPostosConsulta({
 }: Props) {
   const { colors } = useAppTheme();
 
-  const termo = buscaPorNome
-    ? normalizarBuscaNome(busca)
-    : "";
+  const termo = buscaPorNome ? normalizarBuscaNome(busca) : "";
 
   const visiveis = useMemo(
     () => filtrarPostosPorNome(postos, termo),
     [postos, termo],
   );
 
-  const proximo = useMemo(
-    () => postoMaisProximo(visiveis),
-    [visiveis],
-  );
+  const proximo = useMemo(() => postoMaisProximo(visiveis), [visiveis]);
 
   return (
     <View style={{ padding: 16, gap: 12 }}>
@@ -89,9 +74,7 @@ export function ListaPostosConsulta({
             onSubmitEditing={() => Keyboard.dismiss()}
           />
 
-          <Notice>
-            Busca nos postos dos filtros e da região atuais.
-          </Notice>
+          <Notice>Busca nos postos dos filtros e da região atuais.</Notice>
 
           {busca.length > 0 ? (
             <AppButton
@@ -142,25 +125,18 @@ export function ListaPostosConsulta({
       {!carregando && !erro && postos.length === 0 ? (
         <>
           <Notice>
-            Nenhum posto corresponde à consulta. Ofertas
-            desconhecidas ficam disponíveis no filtro Todos
-            os combustíveis.
+            Nenhum posto corresponde à consulta. Ofertas desconhecidas ficam
+            disponíveis no filtro Todos os combustíveis.
           </Notice>
 
-          <AppButton
-            label="Revisar filtros"
-            onPress={onFiltros}
-          />
+          <AppButton label="Revisar filtros" onPress={onFiltros} />
         </>
       ) : null}
 
-      {!carregando &&
-      !erro &&
-      postos.length > 0 &&
-      visiveis.length === 0 ? (
+      {!carregando && !erro && postos.length > 0 && visiveis.length === 0 ? (
         <Notice>
-          Nenhum posto encontrado com esse nome. Tente outro
-          termo ou limpe a busca.
+          Nenhum posto encontrado com esse nome. Tente outro termo ou limpe a
+          busca.
         </Notice>
       ) : null}
 

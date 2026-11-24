@@ -22,6 +22,7 @@ import { AppButton, Notice, Surface } from "./design";
 
 interface Props {
   postoId: number;
+  administrativo?: boolean;
   bloqueado: boolean;
   permitidos?: Combustivel[];
   usar(codigo: Combustivel, preco: string, fotoUrl: string | null): void;
@@ -29,6 +30,7 @@ interface Props {
   limparComprovante(): void;
 }
 
+// Uma foto/resposta não pode pertencer à conta ou ao posto anterior.
 export function LeitorTotem(props: Props) {
   const { token, status } = useAuth();
 
@@ -36,15 +38,22 @@ export function LeitorTotem(props: Props) {
 
   return (
     <ConteudoLeitor
-      key={JSON.stringify([token, status, props.postoId])}
+      key={JSON.stringify([
+        token,
+        status,
+        props.postoId,
+        props.administrativo === true,
+      ])}
       {...props}
       token={token}
     />
   );
 }
 
+// O leitor sugere valores; nunca chama a rota de cadastro de preço.
 function ConteudoLeitor({
   postoId,
+  administrativo = false,
   bloqueado,
   permitidos,
   usar,
@@ -56,10 +65,10 @@ function ConteudoLeitor({
   const [guardar, setGuardar] = useState(false);
   const [leitura, setLeitura] = useState<LeituraTotem | null>(null);
   const [operacao, setOperacao] = useState<AbortController | null>(null);
+  const busy = !bloqueado && !!operacao && !operacao.signal.aborted;
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
 
-  const busy = !bloqueado && !!operacao && !operacao.signal.aborted;
   const consulta = useRef<AbortController | null>(null);
   const ativo = useRef(false);
   const selecao = useRef(0);
@@ -82,6 +91,7 @@ function ConteudoLeitor({
     }
   }, [bloqueado]);
 
+  // Sair invalida picker e rede; envio iniciado pode ter chegado ao servidor.
   useFocusEffect(
     useCallback(() => {
       ativo.current = true;
@@ -110,6 +120,7 @@ function ConteudoLeitor({
     atual?.abort();
   }
 
+  // Recuperação Android sem contexto não é associada automaticamente ao posto.
   useEffect(() => {
     if (Platform.OS !== "android") return;
 
@@ -136,15 +147,15 @@ function ConteudoLeitor({
     };
   }, []);
 
+  // Na web a última seleção vence, inclusive após picker sem resposta.
   async function selecionar() {
     if (
       !ativo.current ||
       bloqueio.current ||
       consulta.current ||
       (Platform.OS !== "web" && selecionando.current)
-    ) {
+    )
       return;
-    }
 
     const id = ++selecao.current;
     selecionando.current = Platform.OS !== "web";
@@ -164,9 +175,8 @@ function ConteudoLeitor({
         bloqueio.current ||
         selecao.current !== id ||
         resultado.canceled
-      ) {
+      )
         return;
-      }
 
       const imagem = resultado.assets[0];
       validarFoto(imagem);
@@ -197,9 +207,8 @@ function ConteudoLeitor({
       !ativo.current ||
       consulta.current ||
       selecionando.current
-    ) {
+    )
       return;
-    }
 
     const atual = new AbortController();
     consulta.current = atual;
@@ -219,20 +228,22 @@ function ConteudoLeitor({
           ? await prepararFotoWeb(foto, atual.signal)
           : null;
 
-      if (atual.signal.aborted || !ativo.current || bloqueio.current) {
-        return;
-      }
+      if (atual.signal.aborted || !ativo.current || bloqueio.current) return;
 
-      const gps = await obterPosicao("registro");
+      const gps = administrativo ? null : await obterPosicao("registro");
 
-      if (atual.signal.aborted || !ativo.current || bloqueio.current) {
-        return;
-      }
+      if (atual.signal.aborted || !ativo.current || bloqueio.current) return;
 
-      const dados = formularioLeitura(postoId, foto, arquivo, gps, guardar);
+      const dados = formularioLeitura(
+        postoId,
+        foto,
+        arquivo,
+        gps,
+        guardar,
+        administrativo,
+      );
 
       enviou = true;
-
       const resultado = await lerFotoTotem(dados, token, atual.signal, guardar);
 
       if (
@@ -240,29 +251,21 @@ function ConteudoLeitor({
         atual.signal.aborted ||
         !ativo.current ||
         bloqueio.current
-      ) {
+      )
         return;
-      }
 
       setLeitura(resultado);
       setAviso(
         guardar && !resultado.fotoUrl
           ? "Preços lidos. O comprovante não foi confirmado e não será anexado."
-          : "Revise os valores e escolha quais levar para o formulário. A leitura não cadastra preços.",
+          : "Revise os valores e escolha qual levar para o formulário. A leitura não cadastra preços.",
       );
     } catch (falha) {
-      if (
-        atual.signal.aborted ||
-        consulta.current !== atual ||
-        !ativo.current
-      ) {
+      if (atual.signal.aborted || consulta.current !== atual || !ativo.current)
         return;
-      }
 
       const resposta = (
-        falha as {
-          response?: { data?: { error?: unknown } };
-        } | null
+        falha as { response?: { data?: { error?: unknown } } } | null
       )?.response;
 
       setErro(
@@ -283,9 +286,8 @@ function ConteudoLeitor({
   }
 
   function usarValor(codigo: Combustivel, preco: number) {
-    if (bloqueio.current || !ativo.current || consulta.current || !leitura) {
+    if (bloqueio.current || !ativo.current || consulta.current || !leitura)
       return;
-    }
 
     if (permitidos && !permitidos.includes(codigo)) {
       setErro("Este produto não está disponível para cadastro neste posto.");
@@ -311,9 +313,8 @@ function ConteudoLeitor({
       bloqueio.current ||
       !ativo.current ||
       consulta.current
-    ) {
+    )
       return;
-    }
 
     usarVarios(
       valoresPermitidos.map((v) => ({
@@ -331,12 +332,10 @@ function ConteudoLeitor({
   return (
     <Surface>
       <Notice>Leitura de foto do totem · R$/L</Notice>
-
       <Notice>
         Leia gasolina comum, aditivada, etanol ou diesel. Informe GNV e recarga
         elétrica manualmente.
       </Notice>
-
       <Notice>
         A imagem será enviada ao serviço de IA. Somente os valores que você
         revisar serão levados ao formulário.
@@ -357,7 +356,6 @@ function ConteudoLeitor({
             style={{ width: "100%", height: 200 }}
             resizeMode="contain"
           />
-
           <AppButton
             label={
               guardar
@@ -374,12 +372,10 @@ function ConteudoLeitor({
               limpar.current();
             }}
           />
-
           <Notice>
             Opcional: guardar uma cópia no Dropbox. Quem tiver o link poderá
             acessar a foto. Desativar não exclui cópias já enviadas.
           </Notice>
-
           <AppButton
             label="Ler preços da foto"
             busy={busy}

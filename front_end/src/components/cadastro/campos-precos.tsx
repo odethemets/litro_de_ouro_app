@@ -3,11 +3,11 @@ import { Pressable, Text, View } from "react-native";
 import type { CadastroLote } from "../../screens/AdicionarPreco/useCadastroLote";
 import { precoCadastro, produtosCadastro } from "../../services/cadastroPreco";
 import {
-    dataPublicacao,
-    precoFormatado,
-    produto,
-    type Combustivel,
-    type PostoCatalogo,
+  dataPublicacao,
+  precoFormatado,
+  produto,
+  type Combustivel,
+  type PostoCatalogo,
 } from "../../services/catalogoPostos";
 import { nomePreco } from "../../services/rascunhoPrecos";
 import { AppButton, AppField, Notice, Surface, useAppTheme } from "../design";
@@ -35,7 +35,6 @@ export function CamposPrecos({
       >
         2. Selecione os preços
       </Text>
-
       <Notice>
         Digite um ou vários valores. Cada produto mantém sua unidade. Selecione
         apenas os que você observou.
@@ -65,9 +64,7 @@ export function CamposPrecos({
               }}
               disabled={form.bloqueado || (!permitido && !item.selecionado)}
               onPress={() =>
-                form.alterar(item.codigo, {
-                  selecionado: !item.selecionado,
-                })
+                form.alterar(item.codigo, { selecionado: !item.selecionado })
               }
               onFocus={() => setFocado(item.codigo)}
               onBlur={() => setFocado(null)}
@@ -173,17 +170,12 @@ export function TextoPrecos({ form }: { form: CadastroLote }) {
         numberOfLines={3}
         maxLength={1200}
         placeholder="Gasolina comum: 6,19; Etanol: 4,29"
-        style={{
-          minHeight: 100,
-          textAlignVertical: "top",
-        }}
+        style={{ minHeight: 100, textAlignVertical: "top" }}
       />
-
       <Notice>
         Separe os produtos por ponto e vírgula ou quebra de linha. Exemplo: GNV:
         4,89 / m³.
       </Notice>
-
       <AppButton
         label="Conferir preços do texto"
         secondary
@@ -227,7 +219,6 @@ export function SugestoesPrecos({ form }: { form: CadastroLote }) {
             Alguns campos já têm valores. Você pode mantê-los ou substituir
             somente os produtos sugeridos.
           </Notice>
-
           <AppButton
             label="Substituir valores desses produtos"
             secondary
@@ -279,8 +270,9 @@ export function RevisaoPrecos({ form }: { form: CadastroLote }) {
       ))}
 
       <Notice>
-        Ao confirmar, sua localização será consultada novamente. Todos os preços
-        selecionados serão enviados juntos.
+        {form.administrativo
+          ? "Cadastro administrativo: todos os preços serão enviados juntos, sem GPS e sem Karma."
+          : "Ao confirmar, sua localização será consultada novamente. Todos os preços selecionados serão enviados juntos."}
       </Notice>
 
       <AppButton
@@ -290,14 +282,13 @@ export function RevisaoPrecos({ form }: { form: CadastroLote }) {
           (pedido.itens.length === 1 ? " preço" : " preços")
         }
         busy={form.enviando}
-        disabled={form.enviando || form.incerto}
+        disabled={!form.permissaoConfirmada || form.enviando || form.incerto}
         onPress={() => void form.enviar()}
       />
-
       <AppButton
         label="Voltar para editar"
         secondary
-        disabled={form.enviando || form.incerto}
+        disabled={!form.permissaoConfirmada || form.enviando || form.incerto}
         onPress={() => form.setRevisao(null)}
       />
     </Surface>

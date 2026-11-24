@@ -1,14 +1,15 @@
 import type { PosicaoGps } from "../utils/localizacao";
 import {
-    FalhaCadastro,
-    payloadCadastro,
-    precoCadastro,
-    produtosCadastro,
+  FalhaCadastro,
+  payloadCadastro,
+  payloadCadastroRemoto,
+  precoCadastro,
+  produtosCadastro,
 } from "./cadastroPreco";
 import {
-    produto,
-    type Combustivel,
-    type PostoCatalogo,
+  produto,
+  type Combustivel,
+  type PostoCatalogo,
 } from "./catalogoPostos";
 
 export interface ItemPrecoLote {
@@ -35,6 +36,11 @@ export interface PayloadPrecosLote {
   precisao_m: number;
   simulada: false;
 }
+
+export type PayloadPrecosLoteRemoto = Pick<
+  PayloadPrecosLote,
+  "posto_id" | "itens"
+>;
 
 export interface ConfirmacaoPrecosLote {
   postoId: number;
@@ -167,6 +173,31 @@ export function payloadPrecosLote(
   };
 }
 
+export function payloadPrecosLoteRemoto(
+  pedido: PedidoPrecosLote,
+): PayloadPrecosLoteRemoto {
+  const atual = validarPedidoLote(pedido);
+
+  return {
+    posto_id: atual.posto.id,
+    itens: atual.itens.map((item) => {
+      const { tipo_combustivel, preco, foto_url } = payloadCadastroRemoto({
+        posto: atual.posto,
+        combustivel: item.codigo,
+        textoPreco: item.textoPreco,
+        fotoUrl: item.fotoUrl,
+        token: atual.token,
+      });
+
+      return {
+        tipo_combustivel,
+        preco,
+        ...(foto_url ? { foto_url } : {}),
+      };
+    }),
+  };
+}
+
 function objeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === "object" && valor !== null && !Array.isArray(valor);
 }
@@ -175,6 +206,7 @@ export function confirmarPrecosLote(
   status: number,
   bruto: unknown,
   pedido: PedidoPrecosLote,
+  administrativo = false,
 ): ConfirmacaoPrecosLote {
   const incerto = () =>
     new FalhaCadastro(
@@ -190,7 +222,9 @@ export function confirmarPrecosLote(
     !Array.isArray(bruto.registros) ||
     bruto.registros.length !== pedido.itens.length ||
     !Number.isSafeInteger(bruto.karma_ganho) ||
-    Number(bruto.karma_ganho) < 0
+    Number(bruto.karma_ganho) < 0 ||
+    (administrativo &&
+      (bruto.administrativo !== true || bruto.karma_ganho !== 0))
   ) {
     throw incerto();
   }
@@ -214,7 +248,8 @@ export function confirmarPrecosLote(
       typeof r.preco !== "string" ||
       precoCadastro(r.preco) !== precoCadastro(item.textoPreco) ||
       !Number.isSafeInteger(r.karma_ganho) ||
-      Number(r.karma_ganho) < 0
+      Number(r.karma_ganho) < 0 ||
+      (administrativo && r.karma_ganho !== 0)
     ) {
       throw incerto();
     }
@@ -232,7 +267,9 @@ export function confirmarPrecosLote(
 
   const karmaGanho = registros.reduce((soma, r) => soma + r.karmaGanho, 0);
 
-  if (karmaGanho !== bruto.karma_ganho) throw incerto();
+  if (karmaGanho !== bruto.karma_ganho) {
+    throw incerto();
+  }
 
   return {
     postoId: pedido.posto.id,
@@ -268,8 +305,9 @@ function recusa(status: number, data: unknown): FalhaCadastro {
 export function criarEnvioPrecosLote(deps: {
   tokenAtual(): string | null;
   obterGps(): Promise<PosicaoGps>;
+  administrativo?: boolean;
   postar(
-    payload: PayloadPrecosLote,
+    payload: PayloadPrecosLote | PayloadPrecosLoteRemoto,
     token: string,
   ): Promise<{ status: number; data: unknown }>;
 }) {
@@ -299,23 +337,32 @@ export function criarEnvioPrecosLote(deps: {
       ocupado = true;
 
       try {
-        let gps: PosicaoGps;
+        let payload: PayloadPrecosLote | PayloadPrecosLoteRemoto;
 
-        try {
-          gps = await deps.obterGps();
-        } catch (erro) {
-          throw new FalhaCadastro(
-            "gps",
-            erro instanceof Error
-              ? erro.message
-              : "Não foi possível obter sua localização.",
-          );
+        if (deps.administrativo === true) {
+          payload = payloadPrecosLoteRemoto(atual);
+        } else {
+          let gps: PosicaoGps;
+
+          try {
+            gps = await deps.obterGps();
+          } catch (erro) {
+            throw new FalhaCadastro(
+              "gps",
+              erro instanceof Error
+                ? erro.message
+                : "Não foi possível obter sua localização.",
+            );
+          }
+
+          conferirSessao();
+          payload = payloadPrecosLote(atual, gps);
         }
 
-        conferirSessao();
-
-        const payload = payloadPrecosLote(atual, gps);
-        let resposta: { status: number; data: unknown };
+        let resposta: {
+          status: number;
+          data: unknown;
+        };
 
         try {
           resposta = await deps.postar(payload, atual.token);
@@ -330,7 +377,14 @@ export function criarEnvioPrecosLote(deps: {
           throw recusa(resposta.status, resposta.data);
         }
 
-        return confirmarPrecosLote(resposta.status, resposta.data, atual);
+        conferirSessao();
+
+        return confirmarPrecosLote(
+          resposta.status,
+          resposta.data,
+          atual,
+          deps.administrativo === true,
+        );
       } finally {
         ocupado = false;
       }

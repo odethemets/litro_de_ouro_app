@@ -1,0 +1,19 @@
+{
+  "status": "falha",
+  "etapa": "consultar_overpass",
+  "servidor": "https://overpass.private.coffee/api/interpreter",
+  "protocolo_solicitado": "HTTP/1.1",
+  "ipv6_solicitado": true,
+  "consulta_municipal_validada": false,
+  "mysql_consultado": false,
+  "gravacao_banco_habilitada": false,
+  "atribuicao": "© OpenStreetMap contributors — ODbL",
+  "licenca_url": "https://www.openstreetmap.org/copyright",
+  "codigo_curl": 28,
+  "status_http": 0,
+  "verificacao_tls": 0,
+  "duracao_s": 120.01117,
+  "http_version_negociada": "0",
+  "familia_ip_remota": "IPv6",
+  "erro": "consulta_http_nao_concluida"
+}

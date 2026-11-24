@@ -24,6 +24,11 @@ export interface PayloadPreco {
   simulada: false;
 }
 
+export type PayloadPrecoRemoto = Pick<
+  PayloadPreco,
+  "posto_id" | "tipo_combustivel" | "preco" | "foto_url"
+>;
+
 export interface ConfirmacaoPreco {
   registoId: number;
   postoId: number;
@@ -60,13 +65,8 @@ export function produtosCadastro(posto: PostoCatalogo) {
   return COMBUSTIVEIS.filter((produto) => {
     const oferta = posto.combustiveis.find((o) => o.codigo === produto.codigo);
 
-    if (oferta?.disponivel === false) {
-      return false;
-    }
-
-    if (eletrico) {
-      return produto.codigo === "recarga_eletrica";
-    }
+    if (oferta?.disponivel === false) return false;
+    if (eletrico) return produto.codigo === "recarga_eletrica";
 
     return produto.codigo !== "recarga_eletrica" || oferta?.disponivel === true;
   });
@@ -123,7 +123,7 @@ export function payloadCadastro(
   gps: PosicaoGps,
   agora = Date.now(),
 ): PayloadPreco {
-  const preco = validarPedido(pedido);
+  validarPedido(pedido);
 
   if (
     !Number.isFinite(gps.latitude) ||
@@ -145,15 +145,8 @@ export function payloadCadastro(
     );
   }
 
-  const info = COMBUSTIVEIS.find((p) => p.codigo === pedido.combustivel)!;
-
   return {
-    // Encaminha apenas o comprovante escolhido; o backend valida a URL.
-    ...(pedido.fotoUrl ? { foto_url: pedido.fotoUrl } : {}),
-    posto_id: pedido.posto.id,
-    tipo_combustivel:
-      info.codigo === "recarga_eletrica" ? "Recarga Elétrica (kWh)" : info.nome,
-    preco,
+    ...payloadCadastroRemoto(pedido),
     latitude: gps.latitude,
     longitude: gps.longitude,
     precisao_m: gps.precisaoM,
@@ -161,10 +154,27 @@ export function payloadCadastro(
   };
 }
 
+// Somente a API decide se a conta autenticada pode enviar sem GPS.
+export function payloadCadastroRemoto(
+  pedido: PedidoCadastro,
+): PayloadPrecoRemoto {
+  const preco = validarPedido(pedido);
+  const info = COMBUSTIVEIS.find((p) => p.codigo === pedido.combustivel)!;
+
+  return {
+    ...(pedido.fotoUrl ? { foto_url: pedido.fotoUrl } : {}),
+    posto_id: pedido.posto.id,
+    tipo_combustivel:
+      info.codigo === "recarga_eletrica" ? "Recarga Elétrica (kWh)" : info.nome,
+    preco,
+  };
+}
+
 export function confirmarCadastro(
   status: number,
   bruto: unknown,
   postoId: number,
+  administrativo = false,
 ): ConfirmacaoPreco {
   const r =
     bruto && typeof bruto === "object"
@@ -177,7 +187,8 @@ export function confirmarCadastro(
     Number(r.registo_id) <= 0 ||
     r.posto_id !== postoId ||
     !Number.isSafeInteger(r.karma_ganho) ||
-    Number(r.karma_ganho) < 0
+    Number(r.karma_ganho) < 0 ||
+    (administrativo && (r.administrativo !== true || r.karma_ganho !== 0))
   ) {
     throw new FalhaCadastro(
       "incerto",
@@ -228,8 +239,9 @@ function falhaRespostaCadastro(
 export function criarEnvioPreco(deps: {
   tokenAtual(): string | null;
   obterGps(): Promise<PosicaoGps>;
+  administrativo?: boolean;
   postar(
-    payload: PayloadPreco,
+    payload: PayloadPreco | PayloadPrecoRemoto,
     token: string,
   ): Promise<{ status: number; data: unknown }>;
 }) {
@@ -244,7 +256,7 @@ export function criarEnvioPreco(deps: {
         );
       }
 
-      // Captura o contexto antes de aguardar o GPS.
+      // Captura o contexto antes de aguardar operações assíncronas.
       const pedido: PedidoCadastro = {
         ...original,
         posto: {
@@ -259,27 +271,38 @@ export function criarEnvioPreco(deps: {
       ocupado = true;
 
       try {
-        let gps: PosicaoGps;
+        const conferirSessao = () => {
+          if (deps.tokenAtual() !== pedido.token) {
+            throw new FalhaCadastro(
+              "sessao",
+              "A sessão mudou. Entre novamente antes de registrar.",
+            );
+          }
+        };
 
-        try {
-          gps = await deps.obterGps();
-        } catch (erro) {
-          throw new FalhaCadastro(
-            "gps",
-            erro instanceof Error
-              ? erro.message
-              : "Não foi possível obter sua localização.",
-          );
+        conferirSessao();
+
+        let payload: PayloadPreco | PayloadPrecoRemoto;
+
+        if (deps.administrativo === true) {
+          payload = payloadCadastroRemoto(pedido);
+        } else {
+          let gps: PosicaoGps;
+
+          try {
+            gps = await deps.obterGps();
+          } catch (erro) {
+            throw new FalhaCadastro(
+              "gps",
+              erro instanceof Error
+                ? erro.message
+                : "Não foi possível obter sua localização.",
+            );
+          }
+
+          conferirSessao();
+          payload = payloadCadastro(pedido, gps);
         }
-
-        if (deps.tokenAtual() !== pedido.token) {
-          throw new FalhaCadastro(
-            "sessao",
-            "A sessão mudou. Entre novamente antes de registrar.",
-          );
-        }
-
-        const payload = payloadCadastro(pedido, gps);
 
         let resposta: {
           status: number;
@@ -305,10 +328,13 @@ export function criarEnvioPreco(deps: {
           throw falhaRespostaCadastro(resposta.status, resposta.data);
         }
 
+        conferirSessao();
+
         return confirmarCadastro(
           resposta.status,
           resposta.data,
           pedido.posto.id,
+          deps.administrativo === true,
         );
       } finally {
         ocupado = false;

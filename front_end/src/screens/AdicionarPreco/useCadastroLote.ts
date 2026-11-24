@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-
 import { api } from "../../services/API";
 import { FalhaCadastro, produtosCadastro } from "../../services/cadastroPreco";
 import type { Combustivel, PostoCatalogo } from "../../services/catalogoPostos";
+import {
+  POLITICA_COMUM,
+  type PoliticaPrecos,
+} from "../../services/politicaPrecos";
 import {
   criarEnvioPrecosLote,
   validarPedidoLote,
@@ -23,20 +26,16 @@ export function useCadastroLote(
   preferido: Combustivel,
   token: string,
   atualizar: () => void | Promise<unknown>,
+  politica: PoliticaPrecos | null = POLITICA_COMUM,
 ) {
   const [itens, setItens] = useState<RascunhoPreco[]>([]);
   const [texto, setTexto] = useState("");
-
   const [sugestoes, setSugestoes] = useState<SugestaoPreco[] | null>(null);
-
   const [revisao, setRevisao] = useState<PedidoPrecosLote | null>(null);
-
   const [confirmacao, setConfirmacao] = useState<ConfirmacaoPrecosLote | null>(
     null,
   );
-
   const [falha, setFalha] = useState<FalhaCadastro | null>(null);
-
   const [aviso, setAviso] = useState("");
   const [local, setLocal] = useState<PosicaoGps | null>(null);
   const [checandoGps, setChecandoGps] = useState(false);
@@ -46,29 +45,24 @@ export function useCadastroLote(
   const configurado = useRef<number | null>(null);
   const gpsOcupado = useRef(false);
   const emEnvio = useRef(false);
-
   const envio = useRef<ReturnType<typeof criarEnvioPrecosLote> | null>(null);
 
   const incerto = falha?.tipo === "incerto";
-
-  const bloqueado = enviando || incerto || !!confirmacao || !!revisao;
+  const bloqueado =
+    !politica || enviando || incerto || !!confirmacao || !!revisao;
 
   useEffect(() => {
     montado.current = true;
-
     return () => {
       montado.current = false;
     };
   }, []);
 
   useEffect(() => {
-    if (!posto) {
-      return;
-    }
+    if (!posto) return;
 
     if (configurado.current === posto.id) {
-      // Uma aprovação pode liberar produto novo com o rascunho aberto.
-      // Preserva edições e produtos removidos para a revisão.
+      // Preserva edições e inclui produtos liberados durante o cadastro.
       setItens((atuais) => {
         const novos = produtosCadastro(posto).filter(
           (p) => !atuais.some((i) => i.codigo === p.codigo),
@@ -86,7 +80,6 @@ export function useCadastroLote(
             ]
           : atuais;
       });
-
       return;
     }
 
@@ -111,48 +104,40 @@ export function useCadastroLote(
   }, [posto, preferido]);
 
   useEffect(() => {
+    if (!politica) {
+      envio.current = null;
+      return;
+    }
+
     envio.current = criarEnvioPrecosLote({
+      administrativo: politica.administrativo,
       tokenAtual: () => (montado.current ? lerTokenAtivo() : null),
 
       obterGps: async () => {
         const gps = await obterPosicao("registro");
-
-        if (montado.current) {
-          setLocal(gps);
-        }
-
+        if (montado.current) setLocal(gps);
         return gps;
       },
 
       postar: (payload, sessao) =>
         api.post("/precos/lote", payload, {
           timeout: 45000,
-          headers: {
-            Authorization: "Bearer " + sessao,
-          },
+          headers: { Authorization: "Bearer " + sessao },
         }),
     });
 
     return () => {
       envio.current = null;
     };
-  }, []);
+  }, [politica]);
 
   const limparComprovante = useCallback(() => {
-    setItens((atuais) =>
-      atuais.map((i) => ({
-        ...i,
-        fotoUrl: null,
-      })),
-    );
-
+    setItens((atuais) => atuais.map((i) => ({ ...i, fotoUrl: null })));
     setSugestoes(null);
   }, []);
 
   function alterar(codigo: Combustivel, mudanca: Partial<RascunhoPreco>) {
-    if (bloqueado) {
-      return;
-    }
+    if (bloqueado) return;
 
     setItens((atuais) =>
       atuais.map((i) =>
@@ -165,9 +150,7 @@ export function useCadastroLote(
   }
 
   function receberFoto(valores: SugestaoPreco[]) {
-    if (bloqueado || !posto) {
-      return;
-    }
+    if (bloqueado || !posto) return;
 
     const permitidos = produtosCadastro(posto).map((p) => p.codigo);
 
@@ -181,20 +164,16 @@ export function useCadastroLote(
           "A leitura contém um produto indisponível neste posto.",
         ),
       );
-
       return;
     }
 
     setSugestoes(valores.map((i) => ({ ...i })));
-
     setFalha(null);
     setAviso("");
   }
 
   function lerTexto() {
-    if (bloqueado || !posto) {
-      return;
-    }
+    if (bloqueado || !posto) return;
 
     try {
       setSugestoes(
@@ -203,7 +182,6 @@ export function useCadastroLote(
           produtosCadastro(posto).map((p) => p.codigo),
         ),
       );
-
       setFalha(null);
     } catch (erro) {
       setFalha(
@@ -215,16 +193,12 @@ export function useCadastroLote(
   }
 
   function preencher(substituir: boolean) {
-    if (bloqueado || !sugestoes) {
-      return;
-    }
+    if (bloqueado || !sugestoes) return;
 
     try {
       setItens(mesclarSugestoes(itens, sugestoes, substituir));
-
       setSugestoes(null);
       setFalha(null);
-
       setAviso(
         "Confira os campos preenchidos e selecione somente os preços que deseja registrar.",
       );
@@ -238,9 +212,7 @@ export function useCadastroLote(
   }
 
   function revisar() {
-    if (bloqueado || !posto || checandoGps) {
-      return;
-    }
+    if (bloqueado || !posto || checandoGps) return;
 
     try {
       setRevisao(
@@ -266,9 +238,15 @@ export function useCadastroLote(
   async function enviar() {
     const servico = envio.current;
 
-    if (!servico || emEnvio.current || !revisao || incerto || confirmacao) {
+    if (
+      !politica ||
+      !servico ||
+      emEnvio.current ||
+      !revisao ||
+      incerto ||
+      confirmacao
+    )
       return;
-    }
 
     emEnvio.current = true;
     setEnviando(true);
@@ -279,23 +257,15 @@ export function useCadastroLote(
 
     try {
       const resultado = await servico.enviar(pedido);
-
-      if (!montado.current || lerTokenAtivo() !== token) {
-        return;
-      }
+      if (!montado.current || lerTokenAtivo() !== token) return;
 
       setConfirmacao(resultado);
       setRevisao(null);
-
       setItens((atuais) =>
-        atuais.map((i) => ({
-          ...i,
-          textoPreco: "",
-          fotoUrl: null,
-        })),
+        atuais.map((i) => ({ ...i, textoPreco: "", fotoUrl: null })),
       );
 
-      // Falha ao recarregar não torna um cadastro confirmado incerto.
+      // Falha ao recarregar não transforma cadastro confirmado em incerto.
       try {
         await atualizar();
       } catch {
@@ -318,17 +288,12 @@ export function useCadastroLote(
       }
     } finally {
       emEnvio.current = false;
-
-      if (montado.current) {
-        setEnviando(false);
-      }
+      if (montado.current) setEnviando(false);
     }
   }
 
   async function verificarGps() {
-    if (gpsOcupado.current || bloqueado) {
-      return;
-    }
+    if (!politica?.exigeGps || gpsOcupado.current || bloqueado) return;
 
     gpsOcupado.current = true;
     setChecandoGps(true);
@@ -336,31 +301,22 @@ export function useCadastroLote(
 
     try {
       const gps = await obterPosicao("registro");
-
-      if (montado.current) {
-        setLocal(gps);
-      }
+      if (montado.current) setLocal(gps);
     } catch (erro) {
       if (montado.current) {
         setLocal(null);
-
         setAviso(
           erro instanceof Error ? erro.message : "Localização indisponível.",
         );
       }
     } finally {
       gpsOcupado.current = false;
-
-      if (montado.current) {
-        setChecandoGps(false);
-      }
+      if (montado.current) setChecandoGps(false);
     }
   }
 
   function novo() {
-    if (enviando) {
-      return;
-    }
+    if (enviando) return;
 
     setConfirmacao(null);
     setRevisao(null);
@@ -368,17 +324,14 @@ export function useCadastroLote(
     setSugestoes(null);
     setTexto("");
     setAviso("");
-
     setItens((atuais) =>
-      atuais.map((i) => ({
-        ...i,
-        textoPreco: "",
-        fotoUrl: null,
-      })),
+      atuais.map((i) => ({ ...i, textoPreco: "", fotoUrl: null })),
     );
   }
 
   return {
+    permissaoConfirmada: politica !== null,
+    administrativo: politica?.administrativo === true,
     itens,
     texto,
     setTexto,

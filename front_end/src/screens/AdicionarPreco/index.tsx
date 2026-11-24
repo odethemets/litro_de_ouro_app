@@ -14,7 +14,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import {
   CamposPrecos,
   RevisaoPrecos,
@@ -41,6 +40,7 @@ import {
   precoFormatado,
   produto,
 } from "../../services/catalogoPostos";
+import { lerPoliticaPrecos } from "../../services/politicaPrecos";
 import { design } from "../../theme/design";
 import { useCadastroLote } from "./useCadastroLote";
 
@@ -55,6 +55,9 @@ const carregarCatalogo = async (signal: AbortSignal) =>
     "gasolina_comum",
   );
 
+const carregarPolitica = async (signal: AbortSignal) =>
+  lerPoliticaPrecos((await api.get("/precos/permissoes", { signal })).data);
+
 export default function AdicionarPreco() {
   const route = useRoute<RouteProp<Abas, "Adicionar">>();
   const { token, status, openAuth } = useAuth();
@@ -66,7 +69,6 @@ export default function AdicionarPreco() {
           <Notice>
             Entre na sua conta para registrar os preços que observou no posto.
           </Notice>
-
           <AppButton
             label="Entrar para informar preços"
             onPress={() => openAuth("Login")}
@@ -97,12 +99,15 @@ function FormularioPreco({
   const { filtros, recarregar } = useFiltrosPostos();
   const desktop = useWindowDimensions().width >= design.desktop;
   const consulta = useConsultaConta(carregarCatalogo);
+  const permissoes = useConsultaConta(carregarPolitica);
+
+  const politica =
+    permissoes.loading || permissoes.erro ? null : permissoes.dados;
 
   const [postoId, selecionarPosto] = useState<number | null>(
     parametros?.postoId ?? null,
   );
   const [seletorAberto, abrirSeletor] = useState(false);
-
   const posto = consulta.dados?.find((p) => p.id === postoId);
 
   const form = useCadastroLote(
@@ -115,6 +120,7 @@ function FormularioPreco({
         Promise.resolve(consulta.atualizar()),
       ]);
     },
+    politica,
   );
 
   const atividade = () =>
@@ -128,10 +134,7 @@ function FormularioPreco({
   return (
     <SafeAreaView
       edges={["top", "left", "right"]}
-      style={{
-        flex: 1,
-        backgroundColor: colors.background,
-      }}
+      style={{ flex: 1, backgroundColor: colors.background }}
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -139,10 +142,7 @@ function FormularioPreco({
       >
         <ScrollView
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{
-            padding: 20,
-            flexGrow: 1,
-          }}
+          contentContainerStyle={{ padding: 20, flexGrow: 1 }}
         >
           <View
             style={{
@@ -162,6 +162,24 @@ function FormularioPreco({
             >
               Informar preços
             </Text>
+
+            {permissoes.loading ? (
+              <Notice>Conferindo a permissão de cadastro...</Notice>
+            ) : null}
+
+            {permissoes.erro ? (
+              <Surface>
+                <Notice error>
+                  Não foi possível confirmar a permissão. Atualize antes de
+                  enviar.
+                </Notice>
+                <AppButton
+                  label="Atualizar permissão"
+                  secondary
+                  onPress={permissoes.atualizar}
+                />
+              </Surface>
+            ) : null}
 
             {form.confirmacao ? (
               <Surface>
@@ -184,7 +202,11 @@ function FormularioPreco({
                 ))}
 
                 <Notice>
-                  +{form.confirmacao.karmaGanho} Karma confirmado pelo servidor.
+                  {form.confirmacao.karmaGanho === 0
+                    ? "Cadastro confirmado sem concessão de Karma."
+                    : "+" +
+                      form.confirmacao.karmaGanho +
+                      " Karma confirmado pelo servidor."}
                 </Notice>
 
                 {posto?.combustiveis.some(
@@ -202,13 +224,11 @@ function FormularioPreco({
                 ) : null}
 
                 <AppButton label="Ver minha atividade" onPress={atividade} />
-
                 <AppButton
                   label="Voltar ao Feed"
                   secondary
                   onPress={() => navigation.navigate("Feed")}
                 />
-
                 <AppButton
                   label="Informar outros preços"
                   secondary
@@ -218,6 +238,11 @@ function FormularioPreco({
               </Surface>
             ) : (
               <>
+                <Notice>
+                  {form.administrativo
+                    ? "Cadastro administrativo: sem GPS e sem concessão de Karma."
+                    : "Informe preços observados no posto."}
+                </Notice>
                 <Notice>
                   Registre um ou vários preços do mesmo posto. Você revisará a
                   seleção antes de confirmar.
@@ -262,7 +287,6 @@ function FormularioPreco({
                           >
                             {posto.nome}
                           </Text>
-
                           <Notice>
                             {posto.marca ?? "Marca não informada"}
                             {" · "}
@@ -283,7 +307,6 @@ function FormularioPreco({
                             Não foi possível atualizar o catálogo. Atualize
                             antes de confirmar.
                           </Notice>
-
                           <AppButton
                             label="Atualizar catálogo"
                             secondary
@@ -311,6 +334,7 @@ function FormularioPreco({
                           <LeitorTotem
                             key={posto.id}
                             postoId={posto.id}
+                            administrativo={form.administrativo}
                             bloqueado={form.bloqueado}
                             permitidos={produtosCadastro(posto).map(
                               (i) => i.codigo,
@@ -345,28 +369,35 @@ function FormularioPreco({
                   >
                     {posto ? <CamposPrecos posto={posto} form={form} /> : null}
 
-                    <Surface>
-                      <Notice>
-                        Esteja no posto. Uma localização atual será consultada
-                        ao confirmar os preços.
-                      </Notice>
-
-                      {form.local ? (
+                    {!form.administrativo ? (
+                      <Surface>
                         <Notice>
-                          Última leitura: precisão aproximada de ±
-                          {Math.round(form.local.precisaoM)} m. A posição será
-                          consultada novamente no envio.
+                          Esteja no posto. Uma localização atual será consultada
+                          ao confirmar os preços.
                         </Notice>
-                      ) : null}
-
-                      <AppButton
-                        label="Verificar minha localização"
-                        secondary
-                        busy={form.checandoGps}
-                        disabled={form.bloqueado}
-                        onPress={() => void form.verificarGps()}
-                      />
-                    </Surface>
+                        {form.local ? (
+                          <Notice>
+                            Última leitura: precisão aproximada de ±
+                            {Math.round(form.local.precisaoM)} m. A posição será
+                            consultada novamente no envio.
+                          </Notice>
+                        ) : null}
+                        <AppButton
+                          label="Verificar minha localização"
+                          secondary
+                          busy={form.checandoGps}
+                          disabled={form.bloqueado}
+                          onPress={() => void form.verificarGps()}
+                        />
+                      </Surface>
+                    ) : (
+                      <Surface>
+                        <Notice>
+                          Os preços serão registrados com sua autoria, sem
+                          consultar a localização do aparelho.
+                        </Notice>
+                      </Surface>
+                    )}
 
                     <RevisaoPrecos form={form} />
                   </View>
@@ -393,7 +424,6 @@ function FormularioPreco({
                       label="Conferir meus preços"
                       onPress={atividade}
                     />
-
                     <AppButton
                       label="Já conferi, preparar novo registro"
                       secondary
@@ -446,7 +476,6 @@ function FormularioPreco({
         fechar={() => abrirSeletor(false)}
         escolher={(p) => {
           if (form.bloqueado) return;
-
           form.novo();
           selecionarPosto(p.id);
           abrirSeletor(false);
