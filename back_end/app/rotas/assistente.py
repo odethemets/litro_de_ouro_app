@@ -3,6 +3,7 @@ import json
 import os
 
 from flask import Blueprint, current_app, jsonify, request
+from werkzeug.exceptions import HTTPException
 
 from app.db import get_db_connection
 from app.utils.decorator import token_required
@@ -24,6 +25,44 @@ from services.comandos_ia import (
 from . import ia
 
 assistente_bp = Blueprint("assistente", __name__)
+
+
+def _ia_configurada():
+    return (
+        bool(os.getenv("GEMINI_API_KEY", "").strip())
+        and ia.genai is not None
+        and ia.types is not None
+        and all(
+            callable(getattr(ia, nome, None))
+            for nome in (
+                "_config_geracao",
+                "_cliente",
+                "_extrair_json",
+                "_excedeu_limite",
+            )
+        )
+    )
+
+
+def _voz_indisponivel(etapa, erro=None):
+    # Não registra áudio, transcrição, chave ou mensagem do provedor.
+    current_app.logger.warning(
+        "Transcrição indisponível: etapa=%s tipo=%s",
+        etapa,
+        (
+            type(erro).__name__
+            if erro is not None
+            else "ConfiguracaoIndisponivel"
+        ),
+    )
+
+    return jsonify(
+        error=(
+            "Não foi possível transcrever agora. "
+            "Tente novamente ou digite."
+        ),
+        codigo="TRANSCRICAO_INDISPONIVEL",
+    ), 503
 
 
 def _interpretar_ia(mensagem, atuais):
@@ -55,8 +94,19 @@ def _interpretar_ia(mensagem, atuais):
         )
     )
 
+    tipos = ia.types
+
+    if tipos is None:
+        raise RuntimeError("SDK de IA indisponível.")
+
     config = ia._config_geracao()
-    config.http_options = ia.types.HttpOptions(timeout=12000)
+
+    if config is None:
+        raise RuntimeError(
+            "Configuração de IA incompleta."
+        )
+
+    config.http_options = tipos.HttpOptions(timeout=12000)
     config.max_output_tokens = 2048
 
     resposta = ia._cliente().models.generate_content(
@@ -65,13 +115,21 @@ def _interpretar_ia(mensagem, atuais):
         config=config,
     )
 
-    dados = ia._extrair_json(getattr(resposta, "text", ""))
+    dados = ia._extrair_json(
+        getattr(resposta, "text", "")
+    )
 
     if (
         not isinstance(dados, dict)
-        or set(dados) != {"filtros", "regiao", "esclarecimento"}
+        or set(dados) != {
+            "filtros",
+            "regiao",
+            "esclarecimento",
+        }
     ):
-        raise ValueError("Resposta da IA incompatível.")
+        raise ValueError(
+            "Resposta da IA incompatível."
+        )
 
     if dados["esclarecimento"] is not None:
         raise BuscaNaoSuportada(
@@ -81,10 +139,16 @@ def _interpretar_ia(mensagem, atuais):
 
     if (
         not isinstance(dados["filtros"], dict)
-        or set(dados["filtros"])
-        != {"combustiveis", "referencia", "marca", "ordenar"}
+        or set(dados["filtros"]) != {
+            "combustiveis",
+            "referencia",
+            "marca",
+            "ordenar",
+        }
     ):
-        raise ValueError("Filtros incompletos na resposta da IA.")
+        raise ValueError(
+            "Filtros incompletos na resposta da IA."
+        )
 
     regiao = dados["regiao"]
 
@@ -112,13 +176,22 @@ def _interpretar_ia(mensagem, atuais):
 )
 @token_required
 def consultar(usuario_id):
-    if request.content_length and request.content_length > 16384:
-        return jsonify(error="Busca muito grande."), 413
+    if (
+        request.content_length
+        and request.content_length > 16384
+    ):
+        return jsonify(
+            error="Busca muito grande."
+        ), 413
 
     dados = request.get_json(silent=True)
-    mensagem = (
-        dados.get("mensagem") if isinstance(dados, dict) else None
-    )
+
+    if not isinstance(dados, dict):
+        return jsonify(
+            error="Envie uma busca de até 500 caracteres."
+        ), 400
+
+    mensagem = dados.get("mensagem")
 
     if (
         not isinstance(mensagem, str)
@@ -152,15 +225,14 @@ def consultar(usuario_id):
                 "ou procure pelo menor preço."
             )
 
-        filtros = interpretar_comando(mensagem, atuais)
+        filtros = interpretar_comando(
+            mensagem,
+            atuais,
+        )
         metodo = "comando"
 
         if filtros is None:
-            if (
-                not os.getenv("GEMINI_API_KEY", "").strip()
-                or ia.genai is None
-                or ia.types is None
-            ):
+            if not _ia_configurada():
                 return jsonify(
                     error=(
                         "A interpretação por IA está indisponível. "
@@ -177,10 +249,15 @@ def consultar(usuario_id):
                     )
                 ), 429
 
-            filtros = _interpretar_ia(mensagem, atuais)
+            filtros = _interpretar_ia(
+                mensagem,
+                atuais,
+            )
             metodo = "gemini"
 
-        filtros_validados = _validar_objeto_filtros(filtros)
+        filtros_validados = _validar_objeto_filtros(
+            filtros
+        )
 
         conn = get_db_connection(read_only=True)
 
@@ -200,7 +277,8 @@ def consultar(usuario_id):
 
         aviso = (
             " Distâncias pessoais indisponíveis nesta consulta."
-            if centro is None else ""
+            if centro is None
+            else ""
         )
 
         return jsonify(
@@ -242,6 +320,7 @@ def consultar(usuario_id):
             )
         ), 503
 
+
 @assistente_bp.route(
     "/ia/transcrever",
     methods=["POST"],
@@ -259,63 +338,68 @@ def transcrever_busca_voz(usuario_id):
         transcrever_audio,
     )
 
-    if (
-        request.content_length
-        and request.content_length > LIMITE_REQUISICAO_BYTES
-    ):
-        return jsonify(
-            error="O áudio deve ter no máximo 2 MB."
-        ), 413
-
-    arquivo = request.files.get("audio")
-
-    if arquivo is None:
-        return jsonify(
-            error="Envie a gravação no campo audio."
-        ), 400
+    etapa = "validar_audio"
 
     try:
+        if (
+            request.content_length
+            and request.content_length > LIMITE_REQUISICAO_BYTES
+        ):
+            return jsonify(
+                error="O áudio deve ter no máximo 2 MB."
+            ), 413
+
+        arquivo = request.files.get("audio")
+
+        if arquivo is None:
+            return jsonify(
+                error="Envie a gravação no campo audio."
+            ), 400
+
         bruto, mime = validar_audio(
             arquivo.read(LIMITE_AUDIO_BYTES + 1),
             arquivo.mimetype,
         )
+
+        etapa = "configuracao"
+
+        if not _ia_configurada():
+            return _voz_indisponivel(etapa)
+
+        etapa = "limite_uso"
+
+        if ia._excedeu_limite(usuario_id):
+            return jsonify(
+                error=(
+                    "Limite de uso da IA atingido nesta hora. "
+                    "Digite sua busca."
+                ),
+                codigo="LIMITE_IA",
+            ), 429
+
+        etapa = "provedor"
+        texto = transcrever_audio(
+            bruto,
+            mime,
+            ia,
+        )
+
+        return jsonify(texto=texto), 200
+
     except AudioBuscaInvalido as erro:
         return jsonify(error=str(erro)), erro.status
 
-    if (
-        not os.getenv("GEMINI_API_KEY", "").strip()
-        or ia.genai is None
-        or ia.types is None
-    ):
-        return jsonify(
-            error=(
-                "A transcrição está indisponível. "
-                "Você pode digitar sua busca."
-            )
-        ), 503
-
-    if ia._excedeu_limite(usuario_id):
-        return jsonify(
-            error=(
-                "Limite de uso da IA atingido nesta hora. "
-                "Digite sua busca."
-            ),
-            codigo="LIMITE_IA",
-        ), 429
-
-    try:
-        texto = transcrever_audio(bruto, mime, ia)
     except TranscricaoInvalida as erro:
         return jsonify(error=str(erro)), 422
-    except TranscricaoIndisponivel:
-        current_app.logger.warning(
-            "Transcrição de busca indisponível."
-        )
-        return jsonify(
-            error=(
-                "Não foi possível transcrever agora. "
-                "Tente novamente ou digite."
-            )
-        ), 503
 
-    return jsonify(texto=texto), 200
+    except HTTPException as erro:
+        status = 413 if erro.code == 413 else 400
+        return jsonify(
+            error="Não foi possível ler o áudio enviado."
+        ), status
+
+    except TranscricaoIndisponivel as erro:
+        return _voz_indisponivel(etapa, erro)
+
+    except Exception as erro:
+        return _voz_indisponivel(etapa, erro)
