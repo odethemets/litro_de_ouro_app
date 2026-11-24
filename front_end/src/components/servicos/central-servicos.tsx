@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+
 import { useAuth } from "../../contexts/AuthContext";
 import { useConsultaConta } from "../../hooks/useConsultaConta";
 import { api } from "../../services/API";
@@ -9,7 +10,9 @@ import { PainelServicos } from "./painel-servicos";
 export function CentralServicos() {
   const { token, status } = useAuth();
 
-  if (!token || status !== "AUTHENTICATED") return null;
+  if (!token || status !== "AUTHENTICATED") {
+    return null;
+  }
 
   return <ConteudoCentral key={token} token={token} />;
 }
@@ -21,7 +24,9 @@ function ConteudoCentral({ token }: { token: string }) {
     async (signal: AbortSignal) => {
       const { data } = await api.get("/admin/servicos/acesso", {
         signal,
-        headers: { Authorization: "Bearer " + token },
+        headers: {
+          Authorization: "Bearer " + token,
+        },
       });
 
       return lerAcessoServicos(data);
@@ -52,6 +57,7 @@ function ConteudoCentral({ token }: { token: string }) {
       {consulta.erro ? (
         <>
           <Notice error>Não foi possível conferir o acesso à revisão.</Notice>
+
           <AppButton
             label="Tentar novamente"
             secondary

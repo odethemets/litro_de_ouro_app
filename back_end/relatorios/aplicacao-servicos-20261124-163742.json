@@ -1,0 +1,12 @@
+{
+  "status": "interrompido",
+  "erro": "Execucao interrompida em 005_solicitacoes_servicos. DDL pode ter sido aplicado; conferir o historico antes de repetir.",
+  "modo": "aplicar",
+  "erro_tipo": "MigrationError",
+  "etapa": "consultar_metadados_e_planejar",
+  "codigo_mysql": null,
+  "causa_tipo": "MigrationError",
+  "codigo_sistema": null,
+  "falha_tls_detectada": false,
+  "codigo_verificacao_tls": null
+}

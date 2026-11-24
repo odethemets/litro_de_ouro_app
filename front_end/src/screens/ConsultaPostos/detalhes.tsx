@@ -6,7 +6,7 @@ import { ConfirmarOferta } from "../../components/confirmar-oferta";
 import { AppButton, Notice, useAppTheme } from "../../components/design";
 import { BotaoFavorito } from "../../components/favoritos";
 import type { PosicaoUsuario } from "../../components/mapa/tipos";
-import { SolicitarServico } from "../../components/servicos/solicitar-servicos";
+import { SolicitarServico } from "../../components/servicos/solicitar-servico";
 import { VotarPreco } from "../../components/votar-preco";
 import { produtosCadastro } from "../../services/cadastroPreco";
 import {

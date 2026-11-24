@@ -1,0 +1,3 @@
+# Leitura de planilhas XLSX da ANP.
+# Para CSV, o preparador utiliza a biblioteca padrão.
+openpyxl==3.1.5

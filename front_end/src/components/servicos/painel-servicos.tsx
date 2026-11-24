@@ -25,7 +25,9 @@ interface Props {
 export function PainelServicos(props: Props) {
   const { token, status } = useAuth();
 
-  if (!token || status !== "AUTHENTICATED") return null;
+  if (!token || status !== "AUTHENTICATED") {
+    return null;
+  }
 
   return (
     <ConteudoPainel
@@ -49,8 +51,11 @@ function ConteudoPainel({ admin, fechar, token }: Props & { token: string }) {
   const estado = filtro.estado;
 
   const [itens, definirItens] = useState<SolicitacaoServico[]>([]);
+
   const [antes, definirAntes] = useState<number | null>(null);
+
   const [selecionada, selecionar] = useState<SolicitacaoServico | null>(null);
+
   const [foto, definirFoto] = useState("");
   const [imagemPronta, definirImagemPronta] = useState(false);
   const [revisada, definirRevisada] = useState(false);
@@ -61,7 +66,11 @@ function ConteudoPainel({ admin, fechar, token }: Props & { token: string }) {
 
   const pedido = useRef<AbortController | null>(null);
   const vivo = useRef(true);
-  const fotoAtual = useRef<{ id: number; uri: string } | null>(null);
+
+  const fotoAtual = useRef<{
+    id: number;
+    uri: string;
+  } | null>(null);
 
   const vigente = useCallback(
     (c: AbortController) =>
@@ -136,9 +145,11 @@ function ConteudoPainel({ admin, fechar, token }: Props & { token: string }) {
     }
 
     const c = new AbortController();
+
     pedido.current = c;
     definirBusy(true);
     definirErro("");
+
     return c;
   }
 
@@ -186,6 +197,7 @@ function ConteudoPainel({ admin, fechar, token }: Props & { token: string }) {
     if (!c) return;
 
     fotoAtual.current = null;
+
     selecionar(item);
     definirFoto("");
     definirImagemPronta(false);
@@ -197,7 +209,11 @@ function ConteudoPainel({ admin, fechar, token }: Props & { token: string }) {
       const uri = await consultarFotoServico(item.id, token, c.signal);
 
       if (vigente(c)) {
-        fotoAtual.current = { id: item.id, uri };
+        fotoAtual.current = {
+          id: item.id,
+          uri,
+        };
+
         definirFoto(uri);
       }
     } catch (falha) {
@@ -233,14 +249,13 @@ function ConteudoPainel({ admin, fechar, token }: Props & { token: string }) {
         );
 
         fotoAtual.current = null;
+
         selecionar(resultado);
         definirFoto("");
         definirImagemPronta(false);
         definirRevisada(false);
         definirMotivo("");
 
-        // Uma falha de recarga não converte decisão confirmada
-        // em falha da escrita.
         if (resultado.estado === "aprovada") {
           try {
             recarregar();
@@ -254,6 +269,7 @@ function ConteudoPainel({ admin, fechar, token }: Props & { token: string }) {
     } catch (falha) {
       if (vigente(c)) {
         const e = falhaSolicitacao(falha, true);
+
         definirErro(e.message);
         definirIncerta(e.incerta);
       }
@@ -292,7 +308,10 @@ function ConteudoPainel({ admin, fechar, token }: Props & { token: string }) {
         >
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ padding: 20, gap: 14 }}
+            contentContainerStyle={{
+              padding: 20,
+              gap: 14,
+            }}
           >
             <Text
               accessibilityRole="header"
@@ -347,6 +366,7 @@ function ConteudoPainel({ admin, fechar, token }: Props & { token: string }) {
             />
 
             {busy ? <Notice>Consultando...</Notice> : null}
+
             {erro ? <Notice error>{erro}</Notice> : null}
 
             {!busy && !itens.length && !erro ? (
@@ -362,13 +382,18 @@ function ConteudoPainel({ admin, fechar, token }: Props & { token: string }) {
                     fontSize: 18,
                   }}
                 >
-                  {item.posto_nome} · {produto(item.codigo).nome}
+                  {item.posto_nome}
+                  {" · "}
+                  {produto(item.codigo).nome}
                 </Text>
 
                 <Notice>{item.posto_endereco}</Notice>
 
                 <Notice>
-                  Solicitação #{item.id} · {item.estado} ·{" "}
+                  Solicitação #{item.id}
+                  {" · "}
+                  {item.estado}
+                  {" · "}
                   {new Date(item.criado_em).toLocaleString("pt-BR")}
                 </Notice>
 
@@ -401,7 +426,10 @@ function ConteudoPainel({ admin, fechar, token }: Props & { token: string }) {
                               " em " +
                               item.posto_nome
                             }
-                            style={{ width: "100%", height: 300 }}
+                            style={{
+                              width: "100%",
+                              height: 300,
+                            }}
                             resizeMode="contain"
                             onLoad={() => {
                               if (imagemVigente(item.id, foto)) {

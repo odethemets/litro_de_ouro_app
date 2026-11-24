@@ -137,7 +137,6 @@ function FormularioServico({
     definirErro("");
 
     try {
-      // Deve ser chamado diretamente pelo toque no navegador mobile.
       const resultado = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: false,
@@ -151,6 +150,7 @@ function FormularioServico({
       }
 
       const imagem = resultado.assets[0];
+
       validarFoto(imagem);
       definirFoto(imagem);
       chave.current = novaChaveSolicitacao();
@@ -187,6 +187,7 @@ function FormularioServico({
     }
 
     const atual = new AbortController();
+
     operacao.current = atual;
     definirBusy(true);
     definirErro("");
@@ -223,6 +224,7 @@ function FormularioServico({
             ? falha.message
             : "Não foi possível enviar a solicitação.",
         );
+
         definirIncerta(falha instanceof FalhaSolicitacao && falha.incerta);
       }
     } finally {
@@ -279,7 +281,10 @@ function FormularioServico({
                 <Image
                   source={{ uri: foto.uri }}
                   accessibilityLabel="Foto escolhida como evidência do serviço"
-                  style={{ width: "100%", height: 220 }}
+                  style={{
+                    width: "100%",
+                    height: 220,
+                  }}
                   resizeMode="contain"
                 />
               ) : null}

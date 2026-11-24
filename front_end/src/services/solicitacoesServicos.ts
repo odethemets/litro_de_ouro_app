@@ -77,7 +77,7 @@ export function lerSolicitacao(v: unknown): SolicitacaoServico {
     );
   }
 
-  // Não propaga campos extras, caminhos privados ou dados de outra conta.
+  // Não propaga campos extras ou caminhos privados.
   return {
     id: v.id,
     posto_id: v.posto_id,
@@ -115,7 +115,10 @@ export function lerPaginaServicos(v: unknown): PaginaServicos {
     throw new Error("Página de solicitações inconsistente.");
   }
 
-  return { itens, antes_de: v.antes_de };
+  return {
+    itens,
+    antes_de: v.antes_de,
+  };
 }
 
 export function lerAcessoServicos(v: unknown): boolean {
@@ -143,7 +146,7 @@ export function lerFotoServico(v: unknown): string {
 }
 
 export function novaChaveSolicitacao(): string {
-  // Chave de idempotência local, não é credencial nem autorização.
+  // Identificador local de idempotência, não credencial.
   return Array.from({ length: 4 }, () =>
     Math.floor(Math.random() * 0x100000000)
       .toString(16)
@@ -165,18 +168,24 @@ export function falhaSolicitacao(
   erro: unknown,
   enviou: boolean,
 ): FalhaSolicitacao {
-  if (erro instanceof FalhaSolicitacao) return erro;
+  if (erro instanceof FalhaSolicitacao) {
+    return erro;
+  }
 
   const resposta = (
     erro as {
       response?: {
         status?: number;
-        data?: { error?: unknown; codigo?: unknown };
+        data?: {
+          error?: unknown;
+          codigo?: unknown;
+        };
       };
     } | null
   )?.response;
 
   const status = resposta?.status ?? 0;
+
   const incerta =
     enviou &&
     !(status >= 400 && status < 500 && status !== 408) &&
@@ -208,17 +217,23 @@ interface Pedido {
 
 export function criarEnvioSolicitacao(deps: {
   tokenAtual(): string | null;
+
   prepararFoto(
     foto: ImagePickerAsset,
     signal: AbortSignal,
   ): Promise<Blob | null>;
+
   obterGps(): Promise<PosicaoGps>;
+
   postar(
     postoId: number,
     dados: FormData,
     token: string,
     signal: AbortSignal,
-  ): Promise<{ status: number; data: unknown }>;
+  ): Promise<{
+    status: number;
+    data: unknown;
+  }>;
 }) {
   let ocupado = false;
 
@@ -228,7 +243,10 @@ export function criarEnvioSolicitacao(deps: {
         throw new FalhaSolicitacao("Há uma solicitação em andamento.", false);
       }
 
-      const p = { ...original, foto: { ...original.foto } };
+      const p = {
+        ...original,
+        foto: { ...original.foto },
+      };
 
       if (
         !idValido(p.postoId) ||
@@ -247,6 +265,7 @@ export function criarEnvioSolicitacao(deps: {
 
       validarFoto(p.foto);
       ocupado = true;
+
       let enviou = false;
 
       const vigente = () => {
@@ -262,9 +281,11 @@ export function criarEnvioSolicitacao(deps: {
         vigente();
 
         const arquivo = await deps.prepararFoto(p.foto, p.signal);
+
         vigente();
 
         const posicao = payloadOferta(await deps.obterGps());
+
         vigente();
 
         const dados = new FormData();
@@ -294,6 +315,7 @@ export function criarEnvioSolicitacao(deps: {
         enviou = true;
 
         const resposta = await deps.postar(p.postoId, dados, p.token, p.signal);
+
         vigente();
 
         if (resposta.status !== 200 && resposta.status !== 201) {
@@ -342,15 +364,17 @@ export async function consultarSolicitacoes(
     },
   );
 
-  if (signal.aborted) throw new Error("Consulta cancelada.");
+  if (signal.aborted) {
+    throw new Error("Consulta cancelada.");
+  }
 
   const pagina = lerPaginaServicos(data);
 
   if (
     pagina.itens.some(
-      (i) =>
-        (estado !== "todos" && i.estado !== estado) ||
-        (antes !== undefined && i.id >= antes),
+      (item) =>
+        (estado !== "todos" && item.estado !== estado) ||
+        (antes !== undefined && item.id >= antes),
     )
   ) {
     throw new Error("A lista retornou solicitações de outro filtro ou página.");
@@ -364,7 +388,9 @@ export async function consultarFotoServico(
   token: string,
   signal: AbortSignal,
 ) {
-  if (!idValido(id)) throw new Error("Solicitação inválida.");
+  if (!idValido(id)) {
+    throw new Error("Solicitação inválida.");
+  }
 
   const { data } = await api.get(`/admin/servicos/solicitacoes/${id}/foto`, {
     signal,
@@ -372,7 +398,9 @@ export async function consultarFotoServico(
     timeout: 30000,
   });
 
-  if (signal.aborted) throw new Error("Consulta cancelada.");
+  if (signal.aborted) {
+    throw new Error("Consulta cancelada.");
+  }
 
   return lerFotoServico(data);
 }

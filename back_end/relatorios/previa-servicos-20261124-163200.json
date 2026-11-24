@@ -1,0 +1,12 @@
+{
+  "status": "interrompido",
+  "erro_tipo": "OperationalError",
+  "etapa": "conectar",
+  "codigo_mysql": 2003,
+  "causa_tipo": "gaierror",
+  "codigo_sistema": 11001,
+  "falha_tls_detectada": false,
+  "codigo_verificacao_tls": null,
+  "erro": "Falha ao ler arquivos ou acessar o banco; detalhes de conexao omitidos.",
+  "modo": "dry-run"
+}

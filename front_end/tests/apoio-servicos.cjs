@@ -1,5 +1,5 @@
 /* global __dirname */
-// Componentes reais com fronteiras de hooks/JSX/rede/GPS simuladas.
+// Componentes reais com hooks, JSX, rede e GPS simulados.
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
@@ -7,6 +7,7 @@ const ts = require("typescript");
 const assert = require("node:assert/strict");
 
 let corrente;
+
 const jsx = (type, props, key) => ({
   type,
   props: props || {},
@@ -25,7 +26,9 @@ const hooks = {
     return [
       dono.slots[i],
       (v) => {
-        if (!dono.montado) dono.atualizacoesAposSaida++;
+        if (!dono.montado) {
+          dono.atualizacoesAposSaida++;
+        }
 
         dono.slots[i] = typeof v === "function" ? v(dono.slots[i]) : v;
       },
@@ -37,7 +40,9 @@ const hooks = {
     const i = dono.indice++;
 
     if (!(i in dono.slots)) {
-      dono.slots[i] = { current: inicial };
+      dono.slots[i] = {
+        current: inicial,
+      };
     }
 
     return dono.slots[i];
@@ -49,7 +54,10 @@ const hooks = {
     const antes = dono.slots[i];
 
     if (!antes || deps.some((v, j) => !Object.is(v, antes.deps[j]))) {
-      dono.slots[i] = { deps, fn };
+      dono.slots[i] = {
+        deps,
+        fn,
+      };
     }
 
     return dono.slots[i].fn;
@@ -63,6 +71,7 @@ const hooks = {
     if (!antes || deps.some((v, j) => !Object.is(v, antes.deps[j]))) {
       dono.efeitos.push(() => {
         antes?.cleanup?.();
+
         dono.slots[i] = {
           deps,
           cleanup: fn(),
@@ -85,11 +94,15 @@ const foto = () => ({
 
 function pendente() {
   let resolve;
+
   const promise = new Promise((r) => {
     resolve = r;
   });
 
-  return { promise, resolve };
+  return {
+    promise,
+    resolve,
+  };
 }
 
 function item(extra = {}) {
@@ -138,7 +151,9 @@ function ambiente() {
 
   e.post = async () => ({
     status: 201,
-    data: item({ pode_revisar: false }),
+    data: item({
+      pode_revisar: false,
+    }),
   });
 
   e.get = async () => ({
@@ -151,9 +166,12 @@ function ambiente() {
   const cache = new Map();
 
   function carregar(rel) {
-    if (cache.has(rel)) return cache.get(rel);
+    if (cache.has(rel)) {
+      return cache.get(rel);
+    }
 
     const arquivo = path.resolve(__dirname, "../src", rel);
+
     let fonte = fs.readFileSync(arquivo, "utf8");
 
     if (rel.endsWith("solicitar-servico.tsx")) {
@@ -176,7 +194,9 @@ function ambiente() {
       },
     }).outputText;
 
-    const modulo = { exports: {} };
+    const modulo = {
+      exports: {},
+    };
 
     vm.runInNewContext("(function(require,module,exports){" + js + "\n})", {
       Date,
@@ -190,10 +210,15 @@ function ambiente() {
       Map,
     })(
       (nome) => {
-        if (nome === "react") return hooks;
+        if (nome === "react") {
+          return hooks;
+        }
 
         if (nome === "react/jsx-runtime") {
-          return { jsx, jsxs: jsx };
+          return {
+            jsx,
+            jsxs: jsx,
+          };
         }
 
         if (nome === "@react-navigation/native") {
@@ -218,7 +243,9 @@ function ambiente() {
         }
 
         if (nome === "react-native-safe-area-context") {
-          return { SafeAreaView: "SafeAreaView" };
+          return {
+            SafeAreaView: "SafeAreaView",
+          };
         }
 
         if (nome === "expo-image-picker") {
@@ -229,7 +256,9 @@ function ambiente() {
         }
 
         if (nome.endsWith("/AuthContext")) {
-          return { useAuth: () => e.auth };
+          return {
+            useAuth: () => e.auth,
+          };
         }
 
         if (nome.endsWith("/FiltrosPostosContext")) {
@@ -243,11 +272,15 @@ function ambiente() {
         }
 
         if (nome.endsWith("/sessao")) {
-          return { lerTokenAtivo: () => e.token };
+          return {
+            lerTokenAtivo: () => e.token,
+          };
         }
 
         if (nome.endsWith("/localizacao")) {
-          return { obterPosicao: () => e.gps() };
+          return {
+            obterPosicao: () => e.gps(),
+          };
         }
 
         if (nome.endsWith("/API")) {
@@ -257,6 +290,7 @@ function ambiente() {
                 e.chamadas.push(["POST", ...a]);
                 return e.post(...a);
               },
+
               get: (...a) => {
                 e.chamadas.push(["GET", ...a]);
                 return e.get(...a);
@@ -271,11 +305,14 @@ function ambiente() {
             AppField: "AppField",
             Notice: "Notice",
             Surface: "Surface",
-            useAppTheme: () => ({ colors: {} }),
+            useAppTheme: () => ({
+              colors: {},
+            }),
           };
         }
 
         const base = path.resolve(path.dirname(arquivo), nome);
+
         const ext = [".ts", ".tsx"].find((s) => fs.existsSync(base + s));
 
         if (!ext) {
@@ -291,11 +328,12 @@ function ambiente() {
     );
 
     cache.set(rel, modulo.exports);
+
     return modulo.exports;
   }
 
-  // Carrega somente o componente que o teste realmente utiliza.
-  // Um arquivo necessário ausente continua gerando erro.
+  // Carrega somente o componente usado pelo teste.
+  // Arquivo ausente continua causando erro quando necessário.
   const componentes = {
     formulario: "components/servicos/solicitar-servico.tsx",
     painel: "components/servicos/painel-servicos.tsx",
@@ -324,7 +362,11 @@ function montar(fn, inicial) {
     atualizacoesAposSaida: 0,
 
     render(novos = {}) {
-      props = { ...props, ...novos };
+      props = {
+        ...props,
+        ...novos,
+      };
+
       this.indice = 0;
       this.efeitos = [];
       corrente = this;
@@ -335,16 +377,22 @@ function montar(fn, inicial) {
         corrente = null;
       }
 
-      for (const efeito of this.efeitos) efeito();
+      for (const efeito of this.efeitos) {
+        efeito();
+      }
     },
 
     sair() {
       this.montado = false;
-      for (const s of this.slots) s?.cleanup?.();
+
+      for (const s of this.slots) {
+        s?.cleanup?.();
+      }
     },
   };
 
   d.render();
+
   return d;
 }
 
@@ -352,7 +400,10 @@ function todos(n, tipo, itens = []) {
   if (Array.isArray(n)) {
     n.forEach((x) => todos(x, tipo, itens));
   } else if (n && typeof n === "object") {
-    if (n.type === tipo) itens.push(n);
+    if (n.type === tipo) {
+      itens.push(n);
+    }
+
     todos(n.props?.children, tipo, itens);
   }
 
@@ -363,11 +414,13 @@ function botao(d, nome) {
   const b = todos(d.arvore, "AppButton").find((x) => x.props.label === nome);
 
   assert.ok(b, "Botão ausente: " + nome);
+
   return b;
 }
 
 async function clicar(d, nome) {
   botao(d, nome).props.onPress();
+
   await turno();
   d.render();
 }
