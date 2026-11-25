@@ -67,7 +67,7 @@ function pedido() {
       tipo_posto: "Posto",
       combustiveis: COMBUSTIVEIS.map((p) => ({
         codigo: p.codigo,
-        disponivel: true,
+        disponivel: p.codigo === "recarga_eletrica" ? null : true,
       })),
     },
     itens: [

@@ -3,9 +3,9 @@ const assert = require("node:assert/strict");
 const { ambiente, montar, todos, botao, buscar, pendente, turno } = require("./apoio-assistente.cjs");
 
 test("assistente separa rascunho e resultado por sessão", () => {
-  const e = ambiente(), primeira = e.tela.default().key;
+  const e = ambiente(), primeira = e.tela.default().props.children.key;
   e.auth.token = "sessao-sintetica-b";
-  assert.notEqual(e.tela.default().key, primeira);
+  assert.notEqual(e.tela.default().props.children.key, primeira);
   e.auth.status = "GUEST"; e.auth.token = null;
   const pagina = montar(e.tela.default);
   botao(pagina, "Entrar para usar o assistente");
@@ -70,19 +70,30 @@ test("mudança dos filtros ou GPS impede aplicar uma prévia anterior", async ()
   }
 });
 
-test("fala preenche texto sem consultar nem aplicar automaticamente", () => {
+test("fala preenche texto sem consultar nem aplicar automaticamente", async () => {
   const e = ambiente(); e.vozAtiva = true;
   const d = montar(e.tela.ConteudoAssistente, { token: e.auth.token });
-  botao(d, "Falar busca").props.onPress(); e.transcrever("diesel e etanol"); e.fimVoz(); d.render();
+  botao(d, "Falar busca").props.onPress();
+  await turno(); d.render();
+  botao(d, "Concluir fala").props.onPress();
+  await turno();
+  e.transcrever("diesel e etanol");
+  await turno(); d.render();
   assert.equal(todos(d.arvore, (n) => n.type === "AppField")[0].props.value, "diesel e etanol");
   assert.equal(e.chamadas.length, 0); assert.equal(e.aplicacoes.length, 0);
 });
 
-test("sair durante escuta ignora transcrição tardia", () => {
+test("sair durante escuta ignora transcrição tardia", async () => {
   const e = ambiente(); e.vozAtiva = true;
   const d = montar(e.tela.ConteudoAssistente, { token: e.auth.token });
-  botao(d, "Falar busca").props.onPress(); d.sair();
+  botao(d, "Falar busca").props.onPress();
+  await turno(); d.render();
+  botao(d, "Concluir fala").props.onPress();
+  await turno();
+  d.sair();
+  await turno();
   e.transcrever("resposta antiga");
+  await turno();
   assert.equal(e.abortouVoz, true); assert.equal(d.atualizacoesAposSaida, 0);
 });
 

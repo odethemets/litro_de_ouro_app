@@ -446,9 +446,10 @@ test("recusas 4xx como distancia, precisao e intervalo sao explicitas", async ()
       }),
     );
 
+    const tipoEsperado = status === 401 ? "sessao" : "rejeitado";
     await assert.rejects(
       envio.enviar(pedido()),
-      (e) => erro("rejeitado")(e) && e.message === "Recusa verificada",
+      (e) => erro(tipoEsperado)(e) && e.message === "Recusa verificada",
     );
   }
 });

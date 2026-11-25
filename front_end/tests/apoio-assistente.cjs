@@ -22,6 +22,8 @@ const hooks = {
     return dono.slots[i];
   },
   useCallback: (fn) => fn,
+  useMemo: (fn) => fn(),
+  useSyncExternalStore: (_sub, getSnapshot) => getSnapshot(),
   useEffect(fn, deps) {
     const dono = corrente, i = dono.indice++, antes = dono.slots[i];
     if (!antes || deps.some((v, j) => !Object.is(v, antes.deps[j]))) {
@@ -42,6 +44,15 @@ function ambiente() {
     auth: { token: "sessao-sintetica-a", status: "AUTHENTICATED", openAuth() {} },
     contexto: { filtros: { combustiveis: [], referencia: "gasolina_comum", marca: "", ordenar: "preco" }, usuario: null },
     vozAtiva: false,
+    transcrever: () => {},
+    gravador: {
+      isRecording: false,
+      uri: "blob:http://localhost/audio-teste",
+      async prepareToRecordAsync() {},
+      record() { this.isRecording = true; },
+      async stop() { this.isRecording = false; env.abortouVoz = true; },
+      release() { this.isRecording = false; env.abortouVoz = true; },
+    },
   };
   env.contexto.aplicar = (filtros) => env.aplicacoes.push(filtros);
   env.resposta = () => ({ filtros: { combustiveis: ["etanol"], referencia: "etanol", marca: "Shell", ordenar: "preco" },
@@ -51,8 +62,7 @@ function ambiente() {
   function carregar(relativo) {
     const arquivo = path.resolve(__dirname, "../src", relativo);
     if (cache.has(arquivo)) return cache.get(arquivo);
-    let codigo = fs.readFileSync(arquivo, "utf8");
-    if (relativo.endsWith("Assistente/index.tsx")) codigo += "\nexport { ConteudoAssistente };";
+    const codigo = fs.readFileSync(arquivo, "utf8");
     const js = ts.transpileModule(codigo, { compilerOptions: {
       module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX,
     } }).outputText;
@@ -60,7 +70,17 @@ function ambiente() {
     const importar = (nome) => {
       if (nome === "react") return hooks;
       if (nome === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
-      if (nome === "react-native") return { View: "View" };
+      if (nome === "react-native") return {
+        View: "View",
+        Platform: { OS: "web" },
+        AppState: { addEventListener: () => ({ remove() {} }) },
+      };
+      if (nome === "expo-audio") return {
+        RecordingPresets: { HIGH_QUALITY: { web: {} } },
+        requestRecordingPermissionsAsync: async () => ({ granted: true }),
+        setAudioModeAsync: async () => {},
+        useAudioRecorder: () => env.gravador,
+      };
       if (nome === "@react-navigation/native") return {
         useNavigation: () => ({ navigate: (rota) => env.navegacoes.push(rota) }),
         useFocusEffect: (fn) => hooks.useEffect(() => {
@@ -76,23 +96,51 @@ function ambiente() {
       if (nome === "axios") return { isAxiosError: (erro) => !!erro?.isAxiosError };
       if (nome.endsWith("/design")) return { AppButton: "AppButton", AppField: "AppField", Notice: "Notice", Page: "Page", Surface: "Surface" };
       if (nome.endsWith("/cartao-posto")) return { CartaoPosto: "CartaoPosto" };
-      if (nome.endsWith("/voz")) return {
-        vozDisponivel: () => env.vozAtiva,
-        iniciarVoz: (texto, fim, erro) => {
-          env.transcrever = texto; env.fimVoz = fim; env.erroVoz = erro;
-          return () => { env.abortouVoz = true; fim(); };
-        },
+      if (nome.endsWith("/transcricaoVoz")) return {
+        transcreverVoz: (_uri, _token, signal) => new Promise((resolve, reject) => {
+          env.transcrever = (texto) => {
+            if (signal?.aborted) {
+              env.abortouVoz = true;
+              reject(Object.assign(new Error("AbortError"), { name: "AbortError" }));
+              return;
+            }
+            resolve(texto);
+          };
+          signal?.addEventListener?.("abort", () => {
+            env.abortouVoz = true;
+            reject(Object.assign(new Error("AbortError"), { name: "AbortError" }));
+          });
+        }),
       };
       const destino = path.resolve(path.dirname(arquivo), nome);
       const ext = [".ts", ".tsx"].find((sufixo) => fs.existsSync(destino + sufixo));
       if (!ext) throw new Error("Import não simulado: " + nome);
       return carregar(path.relative(path.resolve(__dirname, "../src"), destino + ext));
     };
-    vm.runInNewContext("(function(require,module,exports){" + js + "\n})", { AbortController, Error, Date })(importar, modulo, modulo.exports);
+    vm.runInNewContext("(function(require,module,exports){" + js + "\n})", {
+      AbortController,
+      Error,
+      Date,
+      Symbol,
+      URL,
+      setTimeout,
+      clearTimeout,
+      get isSecureContext() { return env.vozAtiva; },
+      get MediaRecorder() { return env.vozAtiva ? { isTypeSupported: () => true } : undefined; },
+      get navigator() { return env.vozAtiva ? { mediaDevices: { getUserMedia: async () => ({}) } } : undefined; },
+    })(importar, modulo, modulo.exports);
     cache.set(arquivo, modulo.exports);
     return modulo.exports;
   }
-  env.tela = carregar("screens/Assistente/index.tsx");
+  const { FormularioBuscaAssistida } = carregar("components/busca-assistida.tsx");
+  env.tela = {
+    ...carregar("screens/Assistente/index.tsx"),
+    ConteudoAssistente: (props) =>
+      FormularioBuscaAssistida({
+        aoAplicar: () => env.navegacoes.push("Mapa"),
+        ...props,
+      }),
+  };
   env.servico = carregar("services/assistente.ts");
   return env;
 }
@@ -106,7 +154,7 @@ function montar(funcao, props = {}) {
       for (const efeito of this.efeitos) efeito();
       return this.arvore;
     },
-    sair() { this.montado = false; for (const slot of this.slots) slot?.cleanup?.(); },
+    sair() { for (const slot of this.slots) slot?.cleanup?.(); this.montado = false; },
   };
   dono.render();
   return dono;

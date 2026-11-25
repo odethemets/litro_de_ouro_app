@@ -375,10 +375,11 @@ test("GPS valida coordenadas, precisao e idade, sem usar centro padrao", () => {
     { longitude: -181 },
     { accuracy: null },
     { accuracy: -1 },
-    { accuracy: 8000 },
+    { accuracy: 12000 },
   ]) {
     assert.throws(() => validarPosicao(fix(c), "mapa"));
   }
+  assert.equal(validarPosicao(fix({ accuracy: 8000 }), "mapa").precisaoM, 8000);
   assert.throws(() =>
     validarPosicao({ ...fix(), timestamp: Date.now() - 120000 }, "mapa"),
   );
@@ -397,7 +398,7 @@ test("GPS negado nao pede coordenadas nem inventa posicao", async () => {
       return fix();
     },
   };
-  const { obterPosicao } = ambiente({ gps }).carregar(
+  const { obterPosicao } = ambiente({ os: "android", gps }).carregar(
     "src/utils/localizacao.ts",
   );
   await assert.rejects(obterPosicao(), (e) => e.codigo === "PERMISSAO_NEGADA");
@@ -417,7 +418,7 @@ test("GPS atual pede alta precisao e nao usa cache antigo", async () => {
       throw Error("nao deve consultar cache");
     },
   };
-  const { obterPosicao } = ambiente({ gps }).carregar(
+  const { obterPosicao } = ambiente({ os: "android", gps }).carregar(
     "src/utils/localizacao.ts",
   );
   assert.equal((await obterPosicao()).longitude, -34.86);
@@ -431,6 +432,7 @@ test("GPS indisponivel tem limite de tempo e nao inventa fallback", async () => 
     getCurrentPositionAsync: () => new Promise(() => {}),
   };
   const { obterPosicao } = ambiente({
+    os: "android",
     gps,
     globals: { setTimeout: (fn) => setTimeout(fn, 5) },
   }).carregar("src/utils/localizacao.ts");

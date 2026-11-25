@@ -1,5 +1,5 @@
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 
 import { useFiltrosPostos } from "../contexts/FiltrosPostosContext";
@@ -61,7 +61,9 @@ export function FormularioBuscaAssistida({
   });
 
   const cancelarVoz = useRef(voz.cancelar);
-  cancelarVoz.current = voz.cancelar;
+  useEffect(() => {
+    cancelarVoz.current = voz.cancelar;
+  }, [voz.cancelar]);
 
   useFocusEffect(
     useCallback(() => {

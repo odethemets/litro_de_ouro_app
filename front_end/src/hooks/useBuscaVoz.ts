@@ -4,7 +4,13 @@ import {
     setAudioModeAsync,
     useAudioRecorder,
 } from "expo-audio";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { AppState, Platform } from "react-native";
 
 import { mensagemErroBusca } from "../services/assistente";
@@ -34,6 +40,20 @@ interface NavegadorAudio {
 }
 
 let capturaAtual: symbol | null = null;
+
+const semAssinatura = () => () => {};
+
+function microfoneDisponivelNoCliente(): boolean {
+  if (Platform.OS !== "web") return true;
+
+  const ambiente = globalThis as unknown as NavegadorAudio;
+
+  return Boolean(
+    ambiente.isSecureContext &&
+      ambiente.MediaRecorder &&
+      typeof ambiente.navigator?.mediaDevices?.getUserMedia === "function",
+  );
+}
 
 class FalhaMicrofone extends Error {}
 
@@ -66,26 +86,31 @@ export function useBuscaVoz({ token, aoTexto, aoErro }: Opcoes) {
 
   const gravador = useAudioRecorder(opcoes);
 
-  const [estado, definirEstado] = useState<EstadoBuscaVoz>("parado");
-  const [disponivel, definirDisponivel] = useState(Platform.OS !== "web");
+  const [registroEstado, definirRegistroEstado] = useState<{
+    gravador: typeof gravador;
+    token: string;
+    valor: EstadoBuscaVoz;
+  }>({ gravador, token, valor: "parado" });
+
+  const estado: EstadoBuscaVoz =
+    registroEstado.gravador === gravador && registroEstado.token === token
+      ? registroEstado.valor
+      : "parado";
+  const disponivel = useSyncExternalStore(
+    semAssinatura,
+    microfoneDisponivelNoCliente,
+    () => Platform.OS !== "web",
+  );
 
   const callbacks = useRef({ aoTexto, aoErro });
-  callbacks.current = { aoTexto, aoErro };
+  useEffect(() => {
+    callbacks.current = { aoTexto, aoErro };
+  }, [aoTexto, aoErro]);
 
   const fase = useRef<EstadoBuscaVoz>("parado");
   const controle = useRef<ReturnType<typeof criarCicloBuscaVoz> | null>(null);
 
   useEffect(() => {
-    const ambiente = globalThis as unknown as NavegadorAudio;
-
-    definirDisponivel(
-      Platform.OS !== "web" ||
-        Boolean(
-          ambiente.isSecureContext &&
-          ambiente.MediaRecorder &&
-          typeof ambiente.navigator?.mediaDevices?.getUserMedia === "function",
-        ),
-    );
 
     async function capturar(signal: AbortSignal): Promise<GravacaoVoz> {
       if (capturaAtual) {
@@ -257,7 +282,7 @@ export function useBuscaVoz({ token, aoTexto, aoErro }: Opcoes) {
       transcrever: (audio, signal) => transcreverVoz(audio.uri, token, signal),
       onEstado: (valor) => {
         fase.current = valor;
-        definirEstado(valor);
+        definirRegistroEstado({ gravador, token, valor });
       },
       onTexto: (texto) => callbacks.current.aoTexto(texto),
       onErro: (mensagem) => callbacks.current.aoErro(mensagem),
@@ -266,7 +291,6 @@ export function useBuscaVoz({ token, aoTexto, aoErro }: Opcoes) {
 
     controle.current = ciclo;
     fase.current = "parado";
-    definirEstado("parado");
 
     const observador = AppState.addEventListener("change", (valor) => {
       if (
