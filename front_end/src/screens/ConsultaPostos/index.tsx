@@ -35,8 +35,8 @@ import type { Abas } from "../../routes/app.routes";
 import {
   classificarPreco,
   ofertaReferencia,
-  precoFormatado,
   produto,
+  rotuloPreco,
   segmentosPosto,
   type PostoCatalogo,
 } from "../../services/catalogoPostos";
@@ -45,7 +45,8 @@ import { design } from "../../theme/design";
 import { zoomLocalizacao } from "../../utils/precisaoGps";
 import { DetalhesPostoConsulta } from "./detalhes";
 import { BotaoConsulta, styles } from "./layout";
-// Coordena Mapa/Feed com catálogo e filtros compartilhados, seleção e painéis responsivos.
+
+// Coordena Mapa/Feed com catálogo e filtros compartilhados.
 export default function ConsultaPostos({
   modo = "mapa",
 }: {
@@ -67,6 +68,7 @@ export default function ConsultaPostos({
     atualizarLocalizacao,
     recarregar,
   } = useFiltrosPostos();
+
   useEffect(() => {
     if (referenciaMapa) {
       mapa.current?.centralizar(
@@ -76,6 +78,7 @@ export default function ConsultaPostos({
       );
     }
   }, [referenciaMapa]);
+
   useFocusEffect(
     useCallback(() => {
       recarregar();
@@ -83,7 +86,6 @@ export default function ConsultaPostos({
   );
 
   const desktop = useWindowDimensions().width >= design.desktop;
-
   const mapa = useRef<MapaLeafletHandle>(null);
 
   const [filtrosAbertos, abrirFiltros] = useState(false);
@@ -115,7 +117,7 @@ export default function ConsultaPostos({
             ? ofertaReferencia(p).disponivel === true
               ? "Sem preço"
               : "Ver preços"
-            : precoFormatado(p.preco_referencia),
+            : rotuloPreco(p),
         segmentos: segmentosPosto(p, filtros.combustiveis).map((s) => s.cor),
         eletrico:
           p.tipo_posto === "Eletroposto" ||
@@ -128,7 +130,7 @@ export default function ConsultaPostos({
     [postos, filtros.combustiveis, selecionado],
   );
 
-  // Seleciona o posto, centraliza o mapa e registra a visualização da conta atual.
+  // Seleciona o posto e registra a visualização da conta atual.
   function escolher(p: PostoCatalogo) {
     definirErroRota("");
     selecionar(p.id);
@@ -147,7 +149,6 @@ export default function ConsultaPostos({
     );
   }
 
-  // Monta o cartão usando a consulta completa como amostra da comparação de preços.
   function cartao(p: PostoCatalogo) {
     return (
       <CartaoPostoComFavorito
@@ -161,7 +162,6 @@ export default function ConsultaPostos({
     );
   }
 
-  // Abre a aba de cadastro com posto/produto escolhidos e fecha os detalhes atuais.
   function abrirCadastro(
     p: PostoCatalogo,
     combustivel: typeof filtros.referencia,
@@ -177,7 +177,7 @@ export default function ConsultaPostos({
     });
   }
 
-  // Liga a lista aos filtros/erros; busca por nome é habilitada apenas no Feed.
+  // A busca por nome permanece habilitada apenas no Feed.
   function lista() {
     return (
       <ListaPostosConsulta
@@ -196,7 +196,6 @@ export default function ConsultaPostos({
     );
   }
 
-  // Conecta ações dos detalhes à navegação e à recarga do catálogo após confirmação.
   function detalhes() {
     if (!posto) return null;
 
@@ -224,7 +223,6 @@ export default function ConsultaPostos({
   const modalAberto =
     legendaAberta || (!painelNaLateral && (listaAberta || !!posto));
 
-  // Fecha legenda/lista e limpa a seleção ao dispensar o painel ou modal.
   function fecharPainel() {
     abrirLegenda(false);
     abrirLista(false);

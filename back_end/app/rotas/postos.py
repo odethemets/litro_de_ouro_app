@@ -1,4 +1,9 @@
-from flask import Blueprint, current_app, jsonify, request
+from flask import (
+    Blueprint,
+    current_app,
+    jsonify,
+    request,
+)
 
 from ..db import get_db_connection
 from ..utils.decorator import token_required
@@ -10,7 +15,10 @@ from ..utils.geofence import (
 from .precos import registrar_preco_validado
 
 from services.grid_postos import delta_graus
-from services.catalogo_postos import consultar_catalogo, validar_filtros
+from services.catalogo_postos import (
+    consultar_catalogo,
+    validar_filtros,
+)
 from services.osm_service import (
     ATRIBUICAO,
     LICENCA_URL,
@@ -24,8 +32,8 @@ postos_bp = Blueprint("postos", __name__)
 
 RAIO_PADRAO_KM = 25.0
 RAIO_MAX_KM = 50.0
-
 LIMITE_SEM_COORDENADAS = 500
+
 
 def _erro_coordenadas(erro: GeofenceError):
     corpo, _ = erro.para_resposta()
@@ -43,14 +51,17 @@ def _ler_raio_km():
     except ValueError:
         return RAIO_PADRAO_KM
 
-    # Também rejeita NaN.
     if not (valor > 0):
         return RAIO_PADRAO_KM
 
     return min(valor, RAIO_MAX_KM)
 
 
-@postos_bp.route("", methods=["GET"], strict_slashes=False)
+@postos_bp.route(
+    "",
+    methods=["GET"],
+    strict_slashes=False,
+)
 def listar_postos():
     lat_arg = request.args.get("lat")
     lng_arg = request.args.get("lng")
@@ -60,27 +71,56 @@ def listar_postos():
 
     if lat_arg is not None or lng_arg is not None:
         try:
-            centro = validar_coordenadas(lat_arg, lng_arg)
+            centro = validar_coordenadas(
+                lat_arg, lng_arg
+            )
         except GeofenceError as erro:
             return _erro_coordenadas(erro)
 
         raio_km = _ler_raio_km()
 
     try:
-        filtros = validar_filtros(request.args)
+        filtros = validar_filtros(
+            request.args
+        )
+
+        estimativas = request.args.get(
+            "incluir_estimativas", "0"
+        )
+
+        if estimativas not in ("0", "1"):
+            raise ValueError(
+                "incluir_estimativas deve ser 0 ou 1."
+            )
+
     except ValueError as erro:
-        return jsonify({"error": str(erro)}), 400
+        return jsonify({
+            "error": str(erro)
+        }), 400
 
     conn = None
+
     try:
         conn = get_db_connection()
+
         resultado = consultar_catalogo(
-            conn, centro, raio_km, LIMITE_SEM_COORDENADAS, filtros, haversine_m
+            conn,
+            centro,
+            raio_km,
+            LIMITE_SEM_COORDENADAS,
+            filtros,
+            haversine_m,
+            incluir_estimativas=(
+                estimativas == "1"
+            ),
         )
+
         return jsonify(resultado), 200
 
     except Exception:
-        current_app.logger.exception("Erro ao listar postos")
+        current_app.logger.exception(
+            "Erro ao listar postos"
+        )
 
         return jsonify({
             "error": "Erro interno ao listar postos."
@@ -91,10 +131,13 @@ def listar_postos():
             conn.close()
 
 
-@postos_bp.route("/descoberta", methods=["GET"])
+@postos_bp.route(
+    "/descoberta",
+    methods=["GET"],
+)
 @token_required
 def previa_descoberta(current_user_id):
-    """Prévia autenticada da OSM, sem gravação no MySQL."""
+    """Prévia autenticada da OSM, sem gravação."""
     try:
         lat, lon = validar_coordenadas(
             request.args.get("lat"),
@@ -108,12 +151,11 @@ def previa_descoberta(current_user_id):
         if not dentro_da_area(lat, lon):
             return jsonify({
                 "error": (
-                    "Localização fora da área de descoberta "
-                    "configurada."
+                    "Localização fora da área "
+                    "de descoberta configurada."
                 )
             }), 400
 
-        # Caixa pequena de aproximadamente 2 km por lado.
         dlat, dlon = delta_graus(lat, 1.0)
 
         resultado = buscar_postos_por_bbox((
@@ -136,7 +178,11 @@ def previa_descoberta(current_user_id):
         return (
             jsonify({"error": str(erro)}),
             503,
-            {"Retry-After": str(erro.retry_after)},
+            {
+                "Retry-After": str(
+                    erro.retry_after
+                )
+            },
         )
 
     except ValueError:
@@ -146,7 +192,8 @@ def previa_descoberta(current_user_id):
 
         return jsonify({
             "error": (
-                "Área de descoberta configurada incorretamente."
+                "Área de descoberta "
+                "configurada incorretamente."
             )
         }), 503
 
@@ -183,13 +230,18 @@ def historico_precos(posto_id):
                 ORDER BY data_registro DESC
                 LIMIT 5
                 """,
-                (posto_id, tipo_combustivel),
+                (
+                    posto_id,
+                    tipo_combustivel,
+                ),
             )
 
             historico = cursor.fetchall()
 
             for registro in historico:
-                registro["preco"] = float(registro["preco"])
+                registro["preco"] = float(
+                    registro["preco"]
+                )
 
         return jsonify(historico), 200
 
@@ -200,7 +252,9 @@ def historico_precos(posto_id):
         )
 
         return jsonify({
-            "error": "Erro interno ao buscar o histórico."
+            "error": (
+                "Erro interno ao buscar o histórico."
+            )
         }), 500
 
     finally:
@@ -244,7 +298,9 @@ def precos_atuais_posto(posto_id):
             precos = cursor.fetchall()
 
             for registro in precos:
-                registro["preco"] = float(registro["preco"])
+                registro["preco"] = float(
+                    registro["preco"]
+                )
 
         return jsonify(precos), 200
 
@@ -255,7 +311,9 @@ def precos_atuais_posto(posto_id):
         )
 
         return jsonify({
-            "error": "Erro interno ao buscar preços."
+            "error": (
+                "Erro interno ao buscar preços."
+            )
         }), 500
 
     finally:
@@ -270,8 +328,6 @@ def precos_atuais_posto(posto_id):
 )
 @token_required
 def cadastrar_preco(current_user_id, posto_id):
-    # Mantém a URL utilizada pelo aplicativo.
-    # Todas as validações são compartilhadas com POST /precos.
     return registrar_preco_validado(
         current_user_id,
         request.get_json(silent=True),

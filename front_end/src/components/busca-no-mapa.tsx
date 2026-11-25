@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useIsFocused } from "@react-navigation/native";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Modal, Pressable, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -12,21 +12,37 @@ interface Props {
   aoAplicar?(): void;
 }
 
+// A troca de foco ou sessão desmonta a busca anterior e limpa seu estado.
 export function AtalhoBuscaMapa({ aoAplicar }: Props) {
-  const { colors } = useAppTheme();
   const { token, status, openAuth } = useAuth();
   const focado = useIsFocused();
 
+  return (
+    <ConteudoAtalhoBuscaMapa
+      key={JSON.stringify([token, status, focado])}
+      token={token && status === "AUTHENTICATED" ? token : null}
+      focado={focado}
+      abrirLogin={() => openAuth("Login")}
+      aoAplicar={aoAplicar}
+    />
+  );
+}
+
+interface PropsConteudo extends Props {
+  token: string | null;
+  focado: boolean;
+  abrirLogin(): void;
+}
+
+function ConteudoAtalhoBuscaMapa({
+  token,
+  focado,
+  abrirLogin,
+  aoAplicar,
+}: PropsConteudo) {
+  const { colors } = useAppTheme();
   const [aberto, definirAberto] = useState(false);
   const [botaoFocado, definirBotaoFocado] = useState(false);
-
-  const autenticado = !!token && status === "AUTHENTICATED";
-
-  useEffect(() => {
-    if (!focado || !autenticado) {
-      definirAberto(false);
-    }
-  }, [focado, autenticado]);
 
   return (
     <>
@@ -35,10 +51,11 @@ export function AtalhoBuscaMapa({ aoAplicar }: Props) {
         accessibilityLabel="Buscar postos por voz ou texto"
         accessibilityHint="Abre a busca no próprio mapa."
         onPress={() => {
-          if (!autenticado) {
-            openAuth("Login");
+          if (!token) {
+            abrirLogin();
             return;
           }
+
           definirAberto(true);
         }}
         onFocus={() => definirBotaoFocado(true)}
@@ -63,7 +80,7 @@ export function AtalhoBuscaMapa({ aoAplicar }: Props) {
         />
       </Pressable>
 
-      {aberto && focado && autenticado && token ? (
+      {aberto && focado && token ? (
         <Modal
           visible
           transparent
@@ -96,7 +113,6 @@ export function AtalhoBuscaMapa({ aoAplicar }: Props) {
                 subtitle="Fale ou digite sua busca e confira antes de aplicar."
               >
                 <FormularioBuscaAssistida
-                  key={JSON.stringify([token, status])}
                   token={token}
                   mostrarPostos={false}
                   aoAplicar={() => {

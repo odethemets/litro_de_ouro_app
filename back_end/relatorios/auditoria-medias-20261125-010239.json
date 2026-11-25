@@ -1,0 +1,18 @@
+{
+  "status": "ok",
+  "modo": "somente-leitura",
+  "banco": "litro_de_ouro",
+  "versao_servidor": "8.0.11-TiDB-v8.5.3-serverless",
+  "total_referencias": 0,
+  "postos_com_referencias": 0,
+  "por_combustivel": {},
+  "por_snapshot_sha256": {},
+  "fonte_sha256": "f6ca4ecb4dd848888b95871a49901faf57dd71ef52d19d0f81a9780199de383b",
+  "periodo_inicio": "2026-11-15",
+  "periodo_fim": "2026-11-21",
+  "referencias_com_historico_observado": 0,
+  "referencias_com_oferta_indisponivel": 0,
+  "referencias_em_tipo_incompativel": 0,
+  "gravacao_executada": false,
+  "limite": "Contagens de armazenamento e histórico; não comprovam exibição no app, filtros aplicados ou preço mais recente por produto."
+}

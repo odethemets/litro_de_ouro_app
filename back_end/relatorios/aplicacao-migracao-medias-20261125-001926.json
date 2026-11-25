@@ -1,0 +1,52 @@
+{
+  "status": "ok",
+  "modo": "aplicar",
+  "banco": "litro_de_ouro",
+  "versao_servidor": "8.0.11-TiDB-v8.5.3-serverless",
+  "migracoes": [
+    {
+      "versao": "001_catalogo_disponibilidade",
+      "arquivo": "001_catalogo_disponibilidade.sql",
+      "sha256": "5dac305e16046565a158ec60a250d042ca4c6be90b9ac79bd36b2b83843b9227",
+      "estado": "aplicada",
+      "passos": 3
+    },
+    {
+      "versao": "002_marcas_postos",
+      "arquivo": "002_marcas_postos.sql",
+      "sha256": "84079120156253a52d07dfa3e9b6b5dc89593d259d2f3acd464ef939169915f7",
+      "estado": "aplicada",
+      "passos": 2
+    },
+    {
+      "versao": "003_gestao_conta",
+      "arquivo": "003_gestao_conta.sql",
+      "sha256": "22ec2feb47090ae90290b707331163caf51f526817df69bbeaa6fa6215dd70e1",
+      "estado": "aplicada",
+      "passos": 2
+    },
+    {
+      "versao": "004_atividade_alertas",
+      "arquivo": "004_atividade_alertas.sql",
+      "sha256": "1b83ea5eed82149c17fee3e360175b398ebfd15ef57aafea578d0783d56148b4",
+      "estado": "aplicada",
+      "passos": 7
+    },
+    {
+      "versao": "005_solicitacoes_servicos",
+      "arquivo": "005_solicitacoes_servicos.sql",
+      "sha256": "b1626ce448cc7e18292a774002417484214545223b035b7c0e3c7d8003d6528f",
+      "estado": "aplicada",
+      "passos": 1
+    },
+    {
+      "versao": "006_referencias_medias_iniciais",
+      "arquivo": "006_referencias_medias_iniciais.sql",
+      "sha256": "f8d6c28693bcceebc91752991024f0444a8081e53f15625e673d82278746b157",
+      "estado": "aplicada",
+      "passos": 1
+    }
+  ],
+  "aplicadas_nesta_execucao": [],
+  "ddl_tem_commit_implicito": true
+}

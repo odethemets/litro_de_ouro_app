@@ -1,0 +1,1337 @@
+﻿{
+  "status": "ok",
+  "modo": "aplicar",
+  "banco": "litro_de_ouro",
+  "postos": 55,
+  "snapshot_sha256": "0ba49fec75564e70bc0dcad50df868522f65949e20f2680d2b55dc356bd37218",
+  "fonte_sha256": "f6ca4ecb4dd848888b95871a49901faf57dd71ef52d19d0f81a9780199de383b",
+  "resumo": {
+    "referencia_ja_existe": 214,
+    "preservar_preco_registrado": 6
+  },
+  "acoes": [
+    {
+      "posto_id": 1,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 1,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 1,
+      "codigo": "gasolina_comum",
+      "acao": "preservar_preco_registrado",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 1,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 2,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 2,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 2,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 2,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 3,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 3,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 3,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 3,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 4,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 4,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 4,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 4,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 5,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 5,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 5,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 5,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 6,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 6,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 6,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 6,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 7,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 7,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 7,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 7,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 8,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 8,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 8,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 8,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 9,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 9,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 9,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 9,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 10,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 10,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 10,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 10,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 11,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 11,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 11,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 11,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 12,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 12,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 12,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 12,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 13,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 13,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 13,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 13,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 14,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 14,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 14,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 14,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 15,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 15,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 15,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 15,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 16,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 16,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 16,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 16,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 17,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 17,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 17,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 17,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 18,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 18,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 18,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 18,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 19,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 19,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 19,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 19,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 20,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 20,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 20,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 20,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 21,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 21,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 21,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 21,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 22,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 22,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 22,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 22,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 23,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 23,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 23,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 23,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 24,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 24,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 24,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 24,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 25,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 25,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 25,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 25,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 26,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 26,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 26,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 26,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 27,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 27,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 27,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 27,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 28,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 28,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 28,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 28,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 29,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 29,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 29,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 29,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 30,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 30,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 30,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 30,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 31,
+      "codigo": "etanol",
+      "acao": "preservar_preco_registrado",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 31,
+      "codigo": "gasolina_aditivada",
+      "acao": "preservar_preco_registrado",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 31,
+      "codigo": "gasolina_comum",
+      "acao": "preservar_preco_registrado",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 31,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 32,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 32,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 32,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 32,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 33,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 33,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 33,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 33,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 34,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 34,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 34,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 34,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 35,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 35,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 35,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 35,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 36,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 36,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 36,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 36,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 37,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 37,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 37,
+      "codigo": "gasolina_comum",
+      "acao": "preservar_preco_registrado",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 37,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 38,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 38,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 38,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 38,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 39,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 39,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 39,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 39,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 40,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 40,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 40,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 40,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 41,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 41,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 41,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 41,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 42,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 42,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 42,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 42,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 43,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 43,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 43,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 43,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 44,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 44,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 44,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 44,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 45,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 45,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 45,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 45,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 46,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 46,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 46,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 46,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 47,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 47,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 47,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 47,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 48,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 48,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 48,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 48,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 49,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 49,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 49,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 49,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 50,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 50,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 50,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 50,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 51,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 51,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 51,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 51,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 52,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 52,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 52,
+      "codigo": "gasolina_comum",
+      "acao": "preservar_preco_registrado",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 52,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 53,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 53,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 53,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 53,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 54,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 54,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 54,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 54,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    },
+    {
+      "posto_id": 55,
+      "codigo": "etanol",
+      "acao": "referencia_ja_existe",
+      "media": "4.31"
+    },
+    {
+      "posto_id": 55,
+      "codigo": "gasolina_aditivada",
+      "acao": "referencia_ja_existe",
+      "media": "6.51"
+    },
+    {
+      "posto_id": 55,
+      "codigo": "gasolina_comum",
+      "acao": "referencia_ja_existe",
+      "media": "6.20"
+    },
+    {
+      "posto_id": 55,
+      "codigo": "gnv",
+      "acao": "referencia_ja_existe",
+      "media": "4.99"
+    }
+  ],
+  "altera_registos_preco": false,
+  "gera_karma": false,
+  "altera_disponibilidade": false
+}

@@ -1,4 +1,5 @@
-"""Contrato das migrações: arquivos, estruturas esperadas e leitura do SQL."""
+"""Contrato das migrações: arquivos, estruturas e leitura do SQL."""
+
 from __future__ import annotations
 
 import hashlib
@@ -16,8 +17,8 @@ FILES = (
     "003_gestao_conta.sql",
     "004_atividade_alertas.sql",
     "005_solicitacoes_servicos.sql",
+    "006_referencias_medias_iniciais.sql",
 )
-
 
 TABLES = (
     "postos",
@@ -35,8 +36,8 @@ TABLES = (
     "eventos_preco",
     "notificacoes",
     "solicitacoes_servicos",
+    "referencias_medias_iniciais",
 )
-
 
 ESTRUTURAS_004 = {
     "favoritos_postos": {
@@ -84,7 +85,6 @@ ESTRUTURAS_004 = {
     },
 }
 
-
 CHAVES_004 = {
     "favoritos_postos": [
         ("usuario_id", "usuarios", "CASCADE"),
@@ -112,7 +112,6 @@ CHAVES_004 = {
     ],
 }
 
-
 FUELS = {
     "gasolina_comum": ("Gasolina Comum", "L"),
     "gasolina_aditivada": ("Gasolina Aditivada", "L"),
@@ -121,7 +120,6 @@ FUELS = {
     "gnv": ("GNV", "m³"),
     "recarga_eletrica": ("Recarga Elétrica", "kWh"),
 }
-
 
 LEDGER_COLUMNS = {
     "aplicada_em",
@@ -132,7 +130,6 @@ LEDGER_COLUMNS = {
     "ultimo_passo",
     "versao",
 }
-
 
 LEDGER_DDL = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -149,61 +146,88 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 
 
 def split_sql(source: str) -> list[str]:
-    """Reconhece strings/identificadores e comentarios; nao aceita procedimentos."""
+    """Reconhece strings, identificadores e comentários."""
     output, part = [], []
     quote, i = None, 0
 
     while i < len(source):
         c = source[i]
+
         if quote:
             part.append(c)
+
             if c == "\\" and i + 1 < len(source):
                 i += 1
                 part.append(source[i])
+
             elif c == quote:
-                if i + 1 < len(source) and source[i + 1] == quote:
+                if (
+                    i + 1 < len(source)
+                    and source[i + 1] == quote
+                ):
                     i += 1
                     part.append(source[i])
                 else:
                     quote = None
+
         elif c in "'\"`":
             quote = c
             part.append(c)
+
         elif source.startswith("--", i) or c == "#":
             end = source.find("\n", i)
             i = len(source) if end < 0 else end
             part.append(" ")
             continue
+
         elif source.startswith("/*", i):
             if source.startswith("/*!", i):
                 raise MigrationError(
                     "Comentarios executaveis nao sao permitidos."
                 )
+
             end = source.find("*/", i + 2)
+
             if end < 0:
-                raise MigrationError("Comentario SQL nao terminado.")
+                raise MigrationError(
+                    "Comentario SQL nao terminado."
+                )
+
             i = end + 2
             part.append(" ")
             continue
+
         elif c == ";":
             if "".join(part).strip():
-                output.append("".join(part).strip())
+                output.append(
+                    "".join(part).strip()
+                )
             part = []
+
         else:
             part.append(c)
+
         i += 1
 
     if quote:
-        raise MigrationError("String SQL nao terminada.")
+        raise MigrationError(
+            "String SQL nao terminada."
+        )
+
     if "".join(part).strip():
-        output.append("".join(part).strip())
+        output.append(
+            "".join(part).strip()
+        )
+
     if not output:
         raise MigrationError("Migracao vazia.")
+
     return output
 
 
 def load_migrations(folder: Path) -> list[dict]:
     result = []
+
     allowed = (
         (
             r"CREATE\s+TABLE\s+`?combustiveis`?\s*\(",
@@ -227,21 +251,36 @@ def load_migrations(folder: Path) -> list[dict]:
             r"CREATE\s+TABLE\s+eventos_preco\s*\(",
             r"CREATE\s+TABLE\s+notificacoes\s*\(",
         ),
+        (
+            r"CREATE\s+TABLE\s+solicitacoes_servicos\s*\(",
+        ),
+        (
+            r"CREATE\s+TABLE\s+referencias_medias_iniciais\s*\(",
+        ),
     )
 
-    allowed += ((r"CREATE\s+TABLE\s+solicitacoes_servicos\s*\(",),)
-
     for name, patterns in zip(FILES, allowed):
-        text = (folder / name).read_text(encoding="utf-8-sig")
-        text = text.replace("\r\n", "\n").replace("\r", "\n")
+        text = (folder / name).read_text(
+            encoding="utf-8-sig"
+        )
+
+        text = text.replace(
+            "\r\n", "\n"
+        ).replace("\r", "\n")
+
         statements = split_sql(text)
 
-        if len(statements) != len(patterns) or any(
-            not re.match(p, s, re.I)
-            for p, s in zip(patterns, statements)
+        if (
+            len(statements) != len(patterns)
+            or any(
+                not re.match(pattern, statement, re.I)
+                for pattern, statement
+                in zip(patterns, statements)
+            )
         ):
             raise MigrationError(
-                "Conteudo inesperado no arquivo " + name
+                "Conteudo inesperado no arquivo "
+                + name
             )
 
         result.append({
@@ -252,4 +291,5 @@ def load_migrations(folder: Path) -> list[dict]:
             ).hexdigest(),
             "statements": statements,
         })
+
     return result

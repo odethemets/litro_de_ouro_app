@@ -1,28 +1,25 @@
 import { useCallback, useState } from "react";
 
 import {
-  AvisoFavoritos,
-  CartaoPostoComFavorito,
-} from "../../components/favoritos";
-
-import {
   AppButton,
   AppField,
   Notice,
   Page,
   Surface,
 } from "../../components/design";
-
+import {
+  AvisoFavoritos,
+  CartaoPostoComFavorito,
+} from "../../components/favoritos";
 import { useFavoritos } from "../../contexts/FavoritosContext";
 import { useFiltrosPostos } from "../../contexts/FiltrosPostosContext";
 import { useConsultaConta } from "../../hooks/useConsultaConta";
 import { api } from "../../services/API";
-
 import {
   COMBUSTIVEIS,
-  dataPublicacao,
+  descricaoPreco,
   lerCatalogo,
-  precoFormatado,
+  rotuloOferta,
 } from "../../services/catalogoPostos";
 
 export default function Favoritos() {
@@ -40,6 +37,7 @@ export default function Favoritos() {
           await api.get("/postos", {
             params: {
               referencia: filtros.referencia,
+              incluir_estimativas: "1",
             },
             signal,
           })
@@ -54,9 +52,11 @@ export default function Favoritos() {
 
   const postos =
     consulta.dados?.filter(
-      (p) =>
-        (todos || favoritos.ids.has(p.id)) &&
-        (p.nome + " " + p.endereco).toLocaleLowerCase("pt-BR").includes(termo),
+      (posto) =>
+        (todos || favoritos.ids.has(posto.id)) &&
+        (posto.nome + " " + posto.endereco)
+          .toLocaleLowerCase("pt-BR")
+          .includes(termo),
     ) ?? [];
 
   return (
@@ -121,7 +121,7 @@ export default function Favoritos() {
           {detalhe === posto.id
             ? posto.combustiveis.map((oferta) => {
                 const info = COMBUSTIVEIS.find(
-                  (p) => p.codigo === oferta.codigo,
+                  (produto) => produto.codigo === oferta.codigo,
                 )!;
 
                 return (
@@ -129,12 +129,9 @@ export default function Favoritos() {
                     {info.nome}:{" "}
                     {oferta.preco === null
                       ? "Sem preço informado"
-                      : precoFormatado(oferta.preco) + " / " + info.unidade}
+                      : rotuloOferta(oferta) + " / " + info.unidade}
                     {oferta.preco !== null
-                      ? " · " +
-                        (oferta.autor_nome ?? "Autor não informado") +
-                        " · " +
-                        dataPublicacao(oferta.atualizado_em)
+                      ? " · " + descricaoPreco(oferta)
                       : ""}
                   </Notice>
                 );

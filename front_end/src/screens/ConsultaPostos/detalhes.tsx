@@ -10,9 +10,9 @@ import { SolicitarServico } from "../../components/servicos/solicitar-servico";
 import { VotarPreco } from "../../components/votar-preco";
 import { produtosCadastro } from "../../services/cadastroPreco";
 import {
-  dataPublicacao,
-  precoFormatado,
+  descricaoPreco,
   produto,
+  rotuloOferta,
   type Combustivel,
   type PostoCatalogo,
 } from "../../services/catalogoPostos";
@@ -29,7 +29,6 @@ interface Props {
   onAtualizar(): void;
 }
 
-// Mantém a referência em destaque e permite expandir os demais produtos.
 export function DetalhesPostoConsulta({
   posto,
   referencia,
@@ -47,7 +46,6 @@ export function DetalhesPostoConsulta({
     (a, b) => Number(b.codigo === referencia) - Number(a.codigo === referencia),
   );
 
-  // Usa a posição pessoal somente quando ela existe.
   function tracarRota() {
     onErroRota("");
 
@@ -66,13 +64,7 @@ export function DetalhesPostoConsulta({
   }
 
   return (
-    <View
-      style={{
-        padding: 20,
-        gap: 16,
-        minWidth: 0,
-      }}
-    >
+    <View style={{ padding: 20, gap: 16, minWidth: 0 }}>
       <Text
         accessibilityRole="header"
         style={[styles.titulo, { color: colors.textPrimary }]}
@@ -94,13 +86,7 @@ export function DetalhesPostoConsulta({
       </Text>
 
       {posto.bairro ? (
-        <Text
-          style={{
-            color: colors.textSecondary,
-          }}
-        >
-          {posto.bairro}
-        </Text>
+        <Text style={{ color: colors.textSecondary }}>{posto.bairro}</Text>
       ) : null}
 
       <AppButton label="Traçar rota" secondary onPress={tracarRota} />
@@ -166,7 +152,6 @@ interface PropsCartao {
   onRegistrar(): void;
 }
 
-// Os controles secundários só são montados ao expandir o cartão.
 function CartaoCombustivel({
   postoId,
   oferta,
@@ -179,6 +164,7 @@ function CartaoCombustivel({
   const { colors } = useAppTheme();
   const [aberto, setAberto] = useState(referencia);
   const [focado, setFocado] = useState(false);
+
   const info = produto(oferta.codigo);
 
   const disponibilidade =
@@ -245,16 +231,10 @@ function CartaoCombustivel({
       <Text style={[styles.preco, { color: colors.textPrimary }]}>
         {oferta.preco === null
           ? "Sem preço informado"
-          : precoFormatado(oferta.preco) + " / " + info.unidade}
+          : rotuloOferta(oferta) + " / " + info.unidade}
       </Text>
 
-      <Text
-        style={{
-          color: colors.textSecondary,
-        }}
-      >
-        {disponibilidade}
-      </Text>
+      <Text style={{ color: colors.textSecondary }}>{disponibilidade}</Text>
 
       {oferta.preco !== null ? (
         <Text
@@ -263,10 +243,7 @@ function CartaoCombustivel({
             lineHeight: 22,
           }}
         >
-          {oferta.autor_nome
-            ? "Informado por " + oferta.autor_nome + " · "
-            : ""}
-          {dataPublicacao(oferta.atualizado_em)}
+          {descricaoPreco(oferta)}
         </Text>
       ) : null}
 
@@ -275,9 +252,7 @@ function CartaoCombustivel({
         accessibilityLabel={
           (aberto ? "Ocultar" : "Ver") + " detalhes de " + info.nome
         }
-        accessibilityState={{
-          expanded: aberto,
-        }}
+        accessibilityState={{ expanded: aberto }}
         onPress={() => setAberto((valor) => !valor)}
         onFocus={() => setFocado(true)}
         onBlur={() => setFocado(false)}

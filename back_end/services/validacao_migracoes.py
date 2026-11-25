@@ -1,4 +1,5 @@
-"""Inspeção e validação da estrutura existente; não executa migrações."""
+"""Inspeção e validação da estrutura; não executa migrações."""
+
 from __future__ import annotations
 
 import re
@@ -23,34 +24,50 @@ def inspect_schema(cursor) -> dict:
 
     tables = _query(
         cursor,
-        f"""SELECT TABLE_NAME AS tabela, ENGINE AS engine
-        FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE()
-        AND TABLE_NAME IN ({marks})""",
+        f"""
+        SELECT TABLE_NAME AS tabela, ENGINE AS engine
+        FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA=DATABASE()
+          AND TABLE_NAME IN ({marks})
+        """,
         params,
     )
 
     columns = _query(
         cursor,
-        f"""SELECT TABLE_NAME AS tabela, COLUMN_NAME AS coluna,
-        COLUMN_TYPE AS tipo, IS_NULLABLE AS nulo, COLLATION_NAME AS collation
-        FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE()
-        AND TABLE_NAME IN ({marks})""",
+        f"""
+        SELECT TABLE_NAME AS tabela,
+               COLUMN_NAME AS coluna,
+               COLUMN_TYPE AS tipo,
+               IS_NULLABLE AS nulo,
+               COLLATION_NAME AS collation
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA=DATABASE()
+          AND TABLE_NAME IN ({marks})
+        """,
         params,
     )
 
     indexes = _query(
         cursor,
-        f"""SELECT TABLE_NAME AS tabela, INDEX_NAME AS indice,
-        COLUMN_NAME AS coluna, SEQ_IN_INDEX AS ordem, NON_UNIQUE AS nao_unico
-        FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE()
-        AND TABLE_NAME IN ({marks})
-        ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX""",
+        f"""
+        SELECT TABLE_NAME AS tabela,
+               INDEX_NAME AS indice,
+               COLUMN_NAME AS coluna,
+               SEQ_IN_INDEX AS ordem,
+               NON_UNIQUE AS nao_unico
+        FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA=DATABASE()
+          AND TABLE_NAME IN ({marks})
+        ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+        """,
         params,
     )
 
     for row in indexes:
         row["ordem"] = int(row["ordem"])
         row["nao_unico"] = int(row["nao_unico"])
+
     indexes.sort(
         key=lambda row: (
             row["tabela"],
@@ -61,26 +78,30 @@ def inspect_schema(cursor) -> dict:
 
     fks = _query(
         cursor,
-        """SELECT k.COLUMN_NAME AS coluna,
-        k.REFERENCED_TABLE_NAME AS tabela_referenciada,
-        k.REFERENCED_COLUMN_NAME AS coluna_referenciada,
-        r.DELETE_RULE AS exclusao, r.UPDATE_RULE AS atualizacao
+        """
+        SELECT k.COLUMN_NAME AS coluna,
+               k.REFERENCED_TABLE_NAME AS tabela_referenciada,
+               k.REFERENCED_COLUMN_NAME AS coluna_referenciada,
+               r.DELETE_RULE AS exclusao,
+               r.UPDATE_RULE AS atualizacao
         FROM information_schema.KEY_COLUMN_USAGE k
         JOIN information_schema.REFERENTIAL_CONSTRAINTS r
-          ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA AND r.TABLE_NAME=k.TABLE_NAME
+          ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA
+         AND r.TABLE_NAME=k.TABLE_NAME
          AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME
         WHERE k.TABLE_SCHEMA=DATABASE()
-        AND k.TABLE_NAME='postos_combustiveis'""",
+          AND k.TABLE_NAME='postos_combustiveis'
+        """,
     )
 
     return {
         "tables": {
-            r["tabela"]: r["engine"]
-            for r in tables
+            row["tabela"]: row["engine"]
+            for row in tables
         },
         "columns": {
-            (r["tabela"], r["coluna"]): r
-            for r in columns
+            (row["tabela"], row["coluna"]): row
+            for row in columns
         },
         "indexes": indexes,
         "fks": fks,
@@ -95,92 +116,263 @@ def _type(value):
     )
 
 
-def _column(schema, table, name, kind, nullable):
-    row = schema["columns"].get((table, name))
+def _column(
+    schema,
+    table,
+    name,
+    kind,
+    nullable,
+):
+    row = schema["columns"].get(
+        (table, name)
+    )
+
     if (
         not row
         or _type(row["tipo"]) != kind
-        or row["nulo"] != ("YES" if nullable else "NO")
+        or row["nulo"]
+        != ("YES" if nullable else "NO")
     ):
         raise MigrationError(
-            "Estrutura inesperada em " + table + "." + name
+            "Estrutura inesperada em "
+            + table
+            + "."
+            + name
         )
 
 
-def _index(schema, table, name, columns, unique=False):
+def _index(
+    schema,
+    table,
+    name,
+    columns,
+    unique=False,
+):
     rows = [
-        r
-        for r in schema["indexes"]
-        if r["tabela"] == table and r["indice"] == name
+        row
+        for row in schema["indexes"]
+        if row["tabela"] == table
+        and row["indice"] == name
     ]
+
     if (
-        [r["coluna"] for r in rows] != list(columns)
+        [row["coluna"] for row in rows]
+        != list(columns)
         or (
             unique
-            and any(r["nao_unico"] for r in rows)
+            and any(
+                row["nao_unico"]
+                for row in rows
+            )
         )
     ):
         raise MigrationError(
             "Indice ausente ou divergente: "
-            + table + "." + name
+            + table
+            + "."
+            + name
         )
 
 
 def validate_structure(cursor, schema, version):
+    if version.startswith("006"):
+        from services.validacao_medias import validar_estrutura
+
+        validar_estrutura(
+            cursor, schema, _column, _index
+        )
+        return
+
     if version.startswith("005"):
         from services.validacao_servicos import validar_estrutura
-        validar_estrutura(cursor, schema, _column, _index)
+
+        validar_estrutura(
+            cursor, schema, _column, _index
+        )
         return
+
     if version.startswith("004"):
         for table, fields in ESTRUTURAS_004.items():
-            if str(schema["tables"].get(table, "")).lower() != "innodb":
-                raise MigrationError("Engine inesperada em " + table)
+            engine = str(
+                schema["tables"].get(table, "")
+            ).lower()
+
+            if engine != "innodb":
+                raise MigrationError(
+                    "Engine inesperada em " + table
+                )
+
             for name, (kind, nullable) in fields.items():
-                _column(schema, table, name, kind, nullable)
-            pk = ("usuario_id", "posto_id") if table == "favoritos_postos" else ("usuario_id", "combustivel_codigo") if table == "favoritos_combustiveis" else ("usuario_id",) if table == "preferencias_alertas" else ("registo_id",) if table == "eventos_preco" else ("id",)
-            _index(schema, table, "PRIMARY", pk, True)
-            cursor.execute("""SELECT k.COLUMN_NAME AS origem, k.REFERENCED_TABLE_NAME AS destino,
-                k.REFERENCED_COLUMN_NAME AS campo, r.DELETE_RULE AS exclusao
+                _column(
+                    schema, table, name, kind, nullable
+                )
+
+            if table == "favoritos_postos":
+                pk = ("usuario_id", "posto_id")
+            elif table == "favoritos_combustiveis":
+                pk = (
+                    "usuario_id",
+                    "combustivel_codigo",
+                )
+            elif table == "preferencias_alertas":
+                pk = ("usuario_id",)
+            elif table == "eventos_preco":
+                pk = ("registo_id",)
+            else:
+                pk = ("id",)
+
+            _index(
+                schema, table, "PRIMARY", pk, True
+            )
+
+            cursor.execute(
+                """
+                SELECT
+                    k.COLUMN_NAME AS origem,
+                    k.REFERENCED_TABLE_NAME AS destino,
+                    k.REFERENCED_COLUMN_NAME AS campo,
+                    r.DELETE_RULE AS exclusao
                 FROM information_schema.KEY_COLUMN_USAGE k
                 JOIN information_schema.REFERENTIAL_CONSTRAINTS r
-                ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA AND r.TABLE_NAME=k.TABLE_NAME
-                AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME
-                WHERE k.TABLE_SCHEMA=DATABASE() AND k.TABLE_NAME=%s""", (table,))
-            recebidas = {(x["origem"], x["destino"], x["campo"], "RESTRICT" if x["exclusao"] == "NO ACTION" else x["exclusao"]) for x in cursor.fetchall()}
-            esperadas = {(o, d, "codigo" if d == "combustiveis" else "id", a) for o, d, a in CHAVES_004[table]}
+                  ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA
+                 AND r.TABLE_NAME=k.TABLE_NAME
+                 AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME
+                WHERE k.TABLE_SCHEMA=DATABASE()
+                  AND k.TABLE_NAME=%s
+                """,
+                (table,),
+            )
+
+            recebidas = {
+                (
+                    row["origem"],
+                    row["destino"],
+                    row["campo"],
+                    (
+                        "RESTRICT"
+                        if row["exclusao"] == "NO ACTION"
+                        else row["exclusao"]
+                    ),
+                )
+                for row in cursor.fetchall()
+            }
+
+            esperadas = {
+                (
+                    origem,
+                    destino,
+                    (
+                        "codigo"
+                        if destino == "combustiveis"
+                        else "id"
+                    ),
+                    exclusao,
+                )
+                for origem, destino, exclusao
+                in CHAVES_004[table]
+            }
+
             if recebidas != esperadas:
-                raise MigrationError("Chaves estrangeiras divergentes em " + table)
-        _index(schema, "historico_karma", "uq_karma_origem", ("usuario_id", "origem"), True)
-        _index(schema, "notificacoes", "uq_notificacao_registo", ("usuario_id", "registo_id"), True)
+                raise MigrationError(
+                    "Chaves estrangeiras divergentes em "
+                    + table
+                )
+
+        _index(
+            schema,
+            "historico_karma",
+            "uq_karma_origem",
+            ("usuario_id", "origem"),
+            True,
+        )
+
+        _index(
+            schema,
+            "notificacoes",
+            "uq_notificacao_registo",
+            ("usuario_id", "registo_id"),
+            True,
+        )
         return
+
     if version.startswith("003"):
         for name, kind, nullable in (
-            ("versao_token", "int", False), ("tentativas_codigo", "int", False),
-            ("codigo_emitido_em", "datetime", True), ("falhas_login", "int", False),
+            ("versao_token", "int", False),
+            ("tentativas_codigo", "int", False),
+            ("codigo_emitido_em", "datetime", True),
+            ("falhas_login", "int", False),
             ("login_bloqueado_ate", "datetime", True),
         ):
-            _column(schema, "usuarios", name, kind, nullable)
+            _column(
+                schema,
+                "usuarios",
+                name,
+                kind,
+                nullable,
+            )
+
         expected = {
-            "usuario_id": ("int", False), "novo_email": ("varchar(100)", False),
-            "codigo_hash": ("char(64)", False), "expira_em": ("datetime", False),
-            "solicitado_em": ("datetime", False), "tentativas": ("int", False),
+            "usuario_id": ("int", False),
+            "novo_email": ("varchar(100)", False),
+            "codigo_hash": ("char(64)", False),
+            "expira_em": ("datetime", False),
+            "solicitado_em": ("datetime", False),
+            "tentativas": ("int", False),
         }
-        if str(schema["tables"].get("trocas_email", "")).lower() != "innodb":
-            raise MigrationError("Engine inesperada em trocas_email.")
+
+        if str(
+            schema["tables"].get(
+                "trocas_email", ""
+            )
+        ).lower() != "innodb":
+            raise MigrationError(
+                "Engine inesperada em trocas_email."
+            )
+
         for field, (kind, nullable) in expected.items():
-            _column(schema, "trocas_email", field, kind, nullable)
-        _index(schema, "trocas_email", "PRIMARY", ("usuario_id",), True)
-        cursor.execute("""SELECT k.REFERENCED_TABLE_NAME AS tabela,
-            k.REFERENCED_COLUMN_NAME AS coluna, r.DELETE_RULE AS exclusao
+            _column(
+                schema,
+                "trocas_email",
+                field,
+                kind,
+                nullable,
+            )
+
+        _index(
+            schema,
+            "trocas_email",
+            "PRIMARY",
+            ("usuario_id",),
+            True,
+        )
+
+        cursor.execute(
+            """
+            SELECT
+                k.REFERENCED_TABLE_NAME AS tabela,
+                k.REFERENCED_COLUMN_NAME AS coluna,
+                r.DELETE_RULE AS exclusao
             FROM information_schema.KEY_COLUMN_USAGE k
             JOIN information_schema.REFERENTIAL_CONSTRAINTS r
-            ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA AND r.TABLE_NAME=k.TABLE_NAME
-            AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME
-            WHERE k.TABLE_SCHEMA=DATABASE() AND k.TABLE_NAME='trocas_email'
-            AND k.COLUMN_NAME='usuario_id'""")
-        if cursor.fetchall() != [{"tabela": "usuarios", "coluna": "id", "exclusao": "CASCADE"}]:
-            raise MigrationError("Chave estrangeira de trocas_email divergente.")
+              ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA
+             AND r.TABLE_NAME=k.TABLE_NAME
+             AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME
+            WHERE k.TABLE_SCHEMA=DATABASE()
+              AND k.TABLE_NAME='trocas_email'
+              AND k.COLUMN_NAME='usuario_id'
+            """
+        )
+
+        if cursor.fetchall() != [{
+            "tabela": "usuarios",
+            "coluna": "id",
+            "exclusao": "CASCADE",
+        }]:
+            raise MigrationError(
+                "Chave estrangeira de trocas_email divergente."
+            )
         return
+
     if version.startswith("001"):
         expected = {
             "combustiveis": {
@@ -204,117 +396,161 @@ def validate_structure(cursor, schema, version):
                 schema["tables"].get(table, "")
             ).lower() != "innodb":
                 raise MigrationError(
-                    "Tabela ausente ou engine inesperada: " + table
+                    "Tabela ausente ou engine inesperada: "
+                    + table
                 )
 
             actual = {
-                c
-                for t, c in schema["columns"]
-                if t == table
+                column
+                for nome_tabela, column
+                in schema["columns"]
+                if nome_tabela == table
             }
+
             if actual != set(fields):
                 raise MigrationError(
                     "Colunas divergentes em " + table
                 )
+
             for name, (kind, nullable) in fields.items():
-                _column(schema, table, name, kind, nullable)
+                _column(
+                    schema, table, name, kind, nullable
+                )
 
         for table, field in (
             ("combustiveis", "codigo"),
             ("postos_combustiveis", "combustivel_codigo"),
         ):
             if (
-                schema["columns"][(table, field)]["collation"]
+                schema["columns"][
+                    (table, field)
+                ]["collation"]
                 != "ascii_bin"
             ):
                 raise MigrationError(
-                    "Collation divergente no codigo de combustivel."
+                    "Collation divergente "
+                    "no codigo de combustivel."
                 )
 
         _index(
-            schema, "combustiveis", "PRIMARY",
-            ("codigo",), True,
+            schema, "combustiveis",
+            "PRIMARY", ("codigo",), True,
         )
+
         _index(
-            schema, "postos_combustiveis", "PRIMARY",
-            ("posto_id", "combustivel_codigo"), True,
+            schema, "postos_combustiveis",
+            "PRIMARY",
+            ("posto_id", "combustivel_codigo"),
+            True,
         )
+
         _index(
-            schema, "postos_combustiveis", "idx_pc_combustivel",
+            schema, "postos_combustiveis",
+            "idx_pc_combustivel",
             ("combustivel_codigo",),
         )
+
         _index(
-            schema, "postos_combustiveis", "idx_pc_responsavel",
+            schema, "postos_combustiveis",
+            "idx_pc_responsavel",
             ("manual_atualizado_por",),
         )
 
         links = {
             (
-                r["coluna"],
-                r["tabela_referenciada"],
-                r["coluna_referenciada"],
+                row["coluna"],
+                row["tabela_referenciada"],
+                row["coluna_referenciada"],
             )
-            for r in schema["fks"]
-            if r["exclusao"] in ("RESTRICT", "NO ACTION")
-            and r["atualizacao"] in ("RESTRICT", "NO ACTION")
+            for row in schema["fks"]
+            if row["exclusao"] in (
+                "RESTRICT", "NO ACTION"
+            )
+            and row["atualizacao"] in (
+                "RESTRICT", "NO ACTION"
+            )
         }
+
         if (
             links != {
                 ("posto_id", "postos", "id"),
-                ("combustivel_codigo", "combustiveis", "codigo"),
-                ("manual_atualizado_por", "usuarios", "id"),
+                (
+                    "combustivel_codigo",
+                    "combustiveis",
+                    "codigo",
+                ),
+                (
+                    "manual_atualizado_por",
+                    "usuarios",
+                    "id",
+                ),
             }
             or len(schema["fks"]) != 3
         ):
             raise MigrationError(
-                "Chaves estrangeiras de disponibilidade divergentes."
+                "Chaves estrangeiras "
+                "de disponibilidade divergentes."
             )
 
         checks = _query(
             cursor,
-            """SELECT CONSTRAINT_NAME AS nome, CHECK_CLAUSE AS clausula
+            """
+            SELECT
+                CONSTRAINT_NAME AS nome,
+                CHECK_CLAUSE AS clausula
             FROM information_schema.CHECK_CONSTRAINTS
             WHERE CONSTRAINT_SCHEMA=DATABASE()
               AND CONSTRAINT_NAME IN (
                 'ck_pc_disponivel_osm',
                 'ck_pc_disponivel_manual'
-              )""",
+              )
+            """,
         )
+
         clauses = {
-            r["nome"]: re.sub(
+            row["nome"]: re.sub(
                 r"[`()\s]",
                 "",
-                r["clausula"].lower(),
+                row["clausula"].lower(),
             )
-            for r in checks
+            for row in checks
         }
-        for field in ("disponivel_osm", "disponivel_manual"):
+
+        for field in (
+            "disponivel_osm",
+            "disponivel_manual",
+        ):
             if (
                 clauses.get("ck_pc_" + field)
                 != field + "isnullor" + field + "in0,1"
             ):
                 raise MigrationError(
-                    "CHECK de disponibilidade ausente ou divergente."
+                    "CHECK de disponibilidade "
+                    "ausente ou divergente."
                 )
 
         cursor.execute(
             "SHOW CREATE TABLE postos_combustiveis"
         )
+
         create_row = cursor.fetchone()
+
         create_sql = next(
             (
-                v
-                for k, v in create_row.items()
-                if k.lower() == "create table"
+                value
+                for key, value in create_row.items()
+                if key.lower() == "create table"
             ),
             "",
         )
+
         if (
             not create_sql
             or "NOT ENFORCED" in create_sql.upper()
         ):
             raise MigrationError(
-                "Enforcement dos CHECKs nao foi confirmado."
+                "Enforcement dos CHECKs "
+                "nao foi confirmado."
             )
 
         rows = _query(
@@ -322,21 +558,33 @@ def validate_structure(cursor, schema, version):
             "SELECT codigo,nome,unidade "
             "FROM combustiveis ORDER BY codigo",
         )
+
         if {
-            r["codigo"]: (r["nome"], r["unidade"])
-            for r in rows
+            row["codigo"]: (
+                row["nome"],
+                row["unidade"],
+            )
+            for row in rows
         } != FUELS:
             raise MigrationError(
-                "Catalogo divergente dos seis combustiveis aprovados."
+                "Catalogo divergente dos seis "
+                "combustiveis aprovados."
             )
+
     else:
         _column(
-            schema, "postos", "marca", "varchar(120)", True
+            schema, "postos",
+            "marca", "varchar(120)", True,
         )
+
         _column(
-            schema, "postos", "marca_origem",
-            "enum('osm','manual')", True,
+            schema, "postos",
+            "marca_origem",
+            "enum('osm','manual')",
+            True,
         )
+
         _index(
-            schema, "postos", "idx_postos_marca", ("marca",)
+            schema, "postos",
+            "idx_postos_marca", ("marca",),
         )

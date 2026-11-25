@@ -2,14 +2,14 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import {
-    classificarPreco,
-    dataPublicacao,
-    ofertaReferencia,
-    produto,
-    rotuloPreco,
-    segmentosPosto,
-    type Combustivel,
-    type PostoCatalogo,
+  classificarPreco,
+  descricaoPreco,
+  ofertaReferencia,
+  produto,
+  rotuloPreco,
+  segmentosPosto,
+  type Combustivel,
+  type PostoCatalogo,
 } from "../services/catalogoPostos";
 import { useAppTheme } from "./design";
 
@@ -189,8 +189,7 @@ export function CartaoPosto({
               marginTop: 8,
             }}
           >
-            {ref.autor_nome ? "Informado por " + ref.autor_nome + " · " : ""}
-            {dataPublicacao(ref.atualizado_em)}
+            {descricaoPreco(ref)}
           </Text>
 
           <View
